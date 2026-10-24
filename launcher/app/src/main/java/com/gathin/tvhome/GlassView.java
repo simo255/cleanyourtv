@@ -26,6 +26,9 @@ public class GlassView extends View {
     private int glowRgb = 0xFFFFFF;
     /** Glow strength: the white glow stays faint, a coloured one needs more alpha to read as warm light. */
     private int glowAlpha = 0x30;
+    private boolean refined;
+
+    void setRefined(boolean value) { refined = value; invalidate(); }
 
     public GlassView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -74,6 +77,12 @@ public class GlassView extends View {
     protected void onDraw(Canvas canvas) {
         float inset = 6f * density;   // room for the glow
         rect.set(inset, inset, getWidth() - inset, getHeight() - inset);
+        if (refined) {
+            rim.setColor(HomeAppearance.TEXT);
+            rim.setStrokeWidth(2f * density);
+            canvas.drawRoundRect(rect, 9f * density, 9f * density, rim);
+            return;
+        }
 
         // Outer glow: thin rings across the inset, each a little fainter, so it fades out smoothly. Three wide
         // strokes left visible bands once the glow took an app's colour at a stronger alpha. The hardware layer

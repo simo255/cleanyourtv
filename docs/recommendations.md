@@ -4,10 +4,65 @@ The optional shelf consumes the user's **existing official Stremio Trakt Integra
 It uses only the existing official add-on connection for Trakt recommendations: no GitHub link,
 separate Trakt application, OAuth token import or second account connection is required.
 It does not reuse a Trakt OAuth token, register an API application, or write to either account.
-The home header and catalog menu expose four sources: **Trakt**, **Google TV**, **New releases**
-and **Trending**. Watchlist and My apps are removed from both menus. Previously saved selections
-of either removed section return to Trakt; existing source IDs and private saved data are preserved.
+The home header exposes four sources: **Continue / Reprendre**, **Trakt / For you**,
+**New releases** and **Trending**. Google TV, Watchlist and My apps are removed from both menus. Previously saved selections
+of a removed section return to Trakt; existing source IDs and private saved data are preserved.
 The legacy Watchlist/app-content notes below describe retained formats, rather than visible controls.
+
+## Nocturne cinema home (2.31)
+
+The opt-in `refined_home` theme uses a typography-only title preview above a strip of complete posters. The preview
+follows the selected card, and Up from the app dock restores the last card rather than selecting a
+different title based on the app's column. Blue underlines distinguish the selected source from the
+white remote focus. Source and category tabs switch immediately on remote focus or pointer hover,
+without pressing OK. Focusing a source never opens a connection or permission dialog.
+Quick menus open in a side panel; refresh, visibility and account actions live
+under **Menu → Home catalogs** instead of duplicating the source tabs.
+
+The background stays solid: no enlarged poster or panoramic image appears behind the selected title.
+The existing catalog synopsis appears beneath the title on up to two lines. If the catalog has no
+description, that area stays empty; no additional metadata request or synopsis window is added.
+Hold OK retains the original classification menu for catalog films/series: More like this, Not interested,
+Seen/Finished and Clear choice. The Continue view keeps its original read-only progress behavior.
+The preview and side menus are inactive when `refined_home` is off.
+
+Catalog ranking is reused until provider data, local feedback or the date changes. Cached poster
+decoding has its own queue, separate from network downloads; obsolete queued requests are dropped
+when the displayed list changes. The poster row retains enough reusable cards for a full strip.
+
+## Stremio playback resume (optional)
+
+Open **Continue → Connect Stremio**, scan the QR with your phone and approve the connection on
+`link.stremio.com`. The text link is also shown if the QR image cannot load. Pairing ends when the
+dialog closes or Home is left, and expires after three minutes or 50 polls. New code starts a new attempt.
+The Trakt catalog connection is independent and does not need reconnecting.
+
+The launcher reads the official `api.strem.io/api/datastoreGet` library collection. It does not write
+history, mark episodes watched, or change any account. Authentication uses Stremio's official link
+protocol; no password is entered or stored by this launcher. The bearer key is encrypted with
+AES-GCM using a non-exportable Android Keystore key. The encrypted session and private resume
+cache live in `no_backup`, separate from recommendation configuration. Disconnect removes both.
+An invalid session clears the resume data and asks for reconnection. Network failures retain the
+dated last successful cache; an empty successful library replaces it rather than showing stale titles.
+
+**In progress** keeps films/series from any release year, with the episode, remaining minutes and
+progress when supplied by Stremio. OK opens that exact title/episode in the Stremio app, which owns
+playback and restoring the position. The Stremio 1 ms next-episode marker retains its exact episode;
+a 90%-watched episode is never silently skipped. Recently caught-up series can show a newly released
+next episode when Cinemeta supplies its date. No completion/dislike preference is inferred from this data.
+
+**Coming next** lists future, dated episodes of at most eight recently watched/followed IMDb series
+checked per refresh, sorted by date. It is a bounded preview, not a complete account-wide calendar.
+Unknown dates and specials are omitted. Future episodes cannot be launched from this list.
+Missing Cinemeta metadata never discards an in-progress item. Metadata is cached in memory for six hours;
+reads start only for the selected Continue view while Home is visible, at most once a minute unless
+Refresh is selected. There are no new services, permissions or dependencies.
+
+References: [Stremio's link model](https://github.com/Stremio/stremio-core/blob/development/src/models/link.rs),
+[library state rules](https://github.com/Stremio/stremio-core/blob/development/src/types/library/library_item.rs).
+The [quicodomingo fork](https://github.com/quicodomingo/tv-vibehack) supplied the feature reference.
+
+## Recommendation catalogs
 
 - **Trakt**: the official add-on supplies the candidates. Known watched movies and positively confirmed
   completed series are excluded. Local positive viewing and explicit choices can refine this view's order.
@@ -20,11 +75,11 @@ The legacy Watchlist/app-content notes below describe retained formats, rather t
   A series year is its premiere; a new season of an older series does not make it a recent premiere.
 
 One control row sits above a full-width poster row. There is no side summary or year selector.
-Previously saved `period_*` choices are ignored. Instead, all recommendation feeds (Trakt, Google TV,
+Previously saved `period_*` choices are ignored. Instead, all recommendation feeds (Trakt,
 Popular and New releases) automatically retain the current and previous release year: 2025/2026 in
 2026, 2026/2027 in 2027, and so on. This policy applies to movies and series when responses are read,
-before writing network caches, and when existing caches or Google snapshots are loaded. Existing
-Google imports are preserved on disk; their filtered results keep Google's order. Unknown release
+before writing network caches, and when existing caches are loaded. Google TV was removed in 2.20;
+its old source ID stays reserved, but its snapshot is no longer read. Unknown release
 years and known future release dates do not pass. Trakt keeps its personalized order and watched
 exclusions; public titles are not inserted into that candidate list. A series year is its premiere, so an
 older series with a new season does not pass solely because its displayed year range ends recently.
@@ -32,11 +87,10 @@ older series with a new season does not pass solely because its displayed year r
 Watchlist and app channels/Continue are saved or resume lists, and keep their full membership.
 No new private API query parameters are assumed: the recommendation policy filters the catalogs
 returned by the existing official integration. It cannot invent recent personalized candidates if
-that provider returns none; the empty state reports that outcome. Google TV remains a saved capture,
-and new Google suggestions still need an explicitly requested capture.
+that provider returns none; the empty state reports that outcome.
 
 The New releases cache is separate (`recent-cache.json`), public and account-independent. It uses
-the existing 15-minute refresh policy and Cinemeta redirect allowlist. It does not read Trakt history.
+the existing 4-hour refresh policy and Cinemeta redirect allowlist. It does not read Trakt history.
 
 ## Positive viewing and explicit feedback
 
@@ -44,7 +98,7 @@ An optional private `taste_profile` contains confirmed completed series and thei
 series contributes positive genre affinity; unfinished or unknown viewing contributes no negative
 weight. Trakt and New releases can use these weights, with stable provider order on tied scores and
 a small diversity pass to avoid repeated runs of the same leading genre. With no learned genres,
-their default ordering remains. Google TV and Popular keep their own order.
+their default ordering remains. Popular keeps its own order.
 
 Hold OK on a poster for **More like this**, **Not interested**, **Finished the series** (or Already
 watched for a movie), and **Undo my choice**. An explicit rejection hides that title, without treating
@@ -99,9 +153,8 @@ build/test without a token does not validate live TMDB authentication or results
 the TMDB API but is not endorsed or certified by TMDB.
 
 The other sources keep their own membership:
-- **Google TV**: a separate, dated [Google TV snapshot](google-tv-personalization.md), in its identified
-  Google order. It is never interleaved with Trakt or filtered using Trakt's watched history. Reload
-  reads the saved import only; a fresh capture is explicitly launched on a computer or in Termux.
+- **Google TV (removed in 2.20)**: [historical snapshot documentation](google-tv-personalization.md).
+  The current launcher does not load or refresh it.
 - **Watchlist / À regarder**: the official add-on provides your Trakt watchlist. Membership and order are
   retained, including started or previously watched titles still on the list. A valid empty list is
   displayed as empty, with guidance to add titles in Trakt; recommendations are never substituted.
@@ -228,10 +281,10 @@ views; automatic history-based movie exclusions apply only to For-you. Confirmed
 are excluded from local personal discovery, and explicit hidden/seen choices apply as described above.
 No write endpoint or playback reporting is used.
 
-Refresh is checked on resume and each visible minute; fresh data is reused for 15 minutes.
+Refresh is checked on resume and each visible minute; discovery catalog data is reused for 4 hours.
+Continue keeps its separate one-minute refresh interval while selected.
 Failed automatic attempts are spaced at least a minute apart. The manual Refresh control can
-retry immediately. Google TV Reload reads only its local snapshot and never requests a Trakt refresh
-or starts Google TV on screen. Nothing runs as a background service when the launcher is paused.
+retry immediately. Nothing runs as a background service when the launcher is paused.
 
 Each view has its own atomic cache and sync/error/loading state. Private caches are bound to a SHA-256
 fingerprint of the configured catalog URL and an explicit source ID. The public cache has its own
@@ -256,8 +309,9 @@ empty recommendations category has its own empty-state message.
 ## TV controls
 
 - Up from a dock app enters the poster row; Left/Right navigates posters.
-- Up from a poster reaches the category controls; Left/Right traverses the single header row.
-- The header switches Trakt / Google TV / New releases / Trending, then Movies/TV shows and Refresh.
+- Up from a poster reaches the active source in Nocturne (category controls in other themes); Left/Right traverses the header.
+- The header switches Trakt / Continue / New releases / Trending, then the source's category controls.
+- Refresh is in Menu → Home catalogs, and also on the header in themes other than Nocturne.
 - My apps uses Channels… / Continue; the other sources use Movies / TV shows.
 - Down from an empty header returns to the dock, avoiding a focus trap; Up reaches the main menu.
 - Down from a poster returns to the dock; Down from the dock opens the app grid.

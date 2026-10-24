@@ -11,8 +11,9 @@ android {
         applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.gathin.tvhome')
         minSdk 26
         targetSdk 34
-        versionCode 18
-        versionName '2.16'
+        versionCode 33
+        versionName '2.31'
+        testInstrumentationRunner 'com.gathin.tvhome.StremioConnectionCheck'
     }
 
     buildTypes {

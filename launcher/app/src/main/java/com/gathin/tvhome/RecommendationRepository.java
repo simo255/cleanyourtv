@@ -26,24 +26,26 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /** Independent read-only feeds. Private Trakt URLs never leave the official add-on origin. */
 final class RecommendationRepository {
     static final int FOR_YOU = CatalogSource.TRAKT, WATCHLIST = CatalogSource.WATCHLIST,
-            TRENDING = CatalogSource.TRENDING, GOOGLE = CatalogSource.GOOGLE, RECENT = CatalogSource.RECENT;
-    static final long REFRESH_MS = 15 * 60_000L;
+            TRENDING = CatalogSource.TRENDING, RECENT = CatalogSource.RECENT;
+    static final long REFRESH_MS = 4 * 60 * 60_000L;
     private static final String POPULAR_BASE = "https://v3-cinemeta.strem.io/";
     private static final String POPULAR_ACCOUNT = "cinemeta-popular-v1";
     static final class Feed {
         final File cache;
         List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
+        final CatalogRanking movieRanking = new CatalogRanking(), showRanking = new CatalogRanking();
         long syncedAt, lastAttempt;
         boolean loading;
         int error;
         Feed(File cache) { this.cache = cache; }
     }
     interface Listener { void changed(int source); }
-    private final File posterDir, googleCache;
+    private final File posterDir;
     private final RecommendationFeedback feedback;
     private final JSONArray completed;
     private final TmdbCatalog tmdb;
@@ -52,7 +54,10 @@ final class RecommendationRepository {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ExecutorService publicWorker = Executors.newSingleThreadExecutor();
-    private final ExecutorService images = Executors.newFixedThreadPool(2);
+    private final ThreadPoolExecutor images = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
+    private final ThreadPoolExecutor downloads = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
+    private volatile int posterGeneration;
+    private RecommendationTaste rankedTaste;
     private final LruCache<String, Bitmap> bitmaps = new LruCache<String, Bitmap>(6 * 1024 * 1024) {
         @Override protected int sizeOf(String key, Bitmap bitmap) { return bitmap.getByteCount(); }
     };
@@ -60,13 +65,9 @@ final class RecommendationRepository {
     private String base = "", fingerprint = "";
     private volatile boolean closed;
     private Listener listener;
-    private GoogleTvSnapshot google;
-    private boolean googleLoading;
-    private long googleLastAttempt;
 
     RecommendationRepository(Context context) {
         resolver = context.getApplicationContext().getContentResolver();
-        googleCache = new File(context.getFilesDir(), "google-tv-cache.json");
         posterDir = new File(context.getCacheDir(), "posters"); posterDir.mkdirs();
         feeds[FOR_YOU] = new Feed(new File(context.getFilesDir(), "recommendations-cache.json"));
         feeds[WATCHLIST] = new Feed(new File(context.getFilesDir(), "watchlist-cache.json"));
@@ -105,27 +106,33 @@ final class RecommendationRepository {
                 feed.syncedAt = cache.optLong("synced_at");
             } catch (Exception ignored) { }
         }
-        try { google = new GoogleTvSnapshot(readJson(googleCache), fingerprint); }
-        catch (Exception ignored) { google = null; }
     }
     boolean configured() { return !base.isEmpty(); }
-    boolean hasGoogle() { return google != null; }
-    long googleCapturedAt() { return google == null ? 0 : google.capturedAt; }
-    boolean googleLoading() { return googleLoading; }
-    List<CatalogItem> googleItems(boolean series) { return google == null ? new ArrayList<>() : taste().apply(recommendations(google.items(series), GOOGLE), GOOGLE); }
     Feed feed(int source) {
         Feed stored = feeds[source], feed = new Feed(stored.cache);
         // Reapply on reads too: saved catalogs cannot retain the old window across New Year's Day.
         RecommendationTaste taste = taste();
-        feed.movies = taste.apply(recommendations(stored.movies, source), source);
-        feed.shows = taste.apply(recommendations(stored.shows, source), source);
+        java.time.LocalDate today = java.time.LocalDate.now();
+        feed.movies = stored.movieRanking.apply(stored.movies, source, today, taste);
+        feed.shows = stored.showRanking.apply(stored.shows, source, today, taste);
         feed.syncedAt = stored.syncedAt; feed.lastAttempt = stored.lastAttempt; feed.loading = stored.loading; feed.error = stored.error;
         return feed;
     }
-    private RecommendationTaste taste() { return new RecommendationTaste(completed, feedback.entries()); }
+    private RecommendationTaste taste() {
+        if (rankedTaste == null) rankedTaste = new RecommendationTaste(completed, feedback.entries());
+        return rankedTaste;
+    }
     boolean learned() { return taste().learned(); }
-    boolean choose(CatalogItem item, String decision) { return feedback.choose(item, decision); }
-    boolean resetFeedback() { return feedback.reset(); }
+    boolean choose(CatalogItem item, String decision) {
+        boolean saved = feedback.choose(item, decision);
+        if (saved) rankedTaste = null;
+        return saved;
+    }
+    boolean resetFeedback() {
+        boolean saved = feedback.reset();
+        if (saved) rankedTaste = null;
+        return saved;
+    }
     static boolean hasTmdb(Feed feed) {
         for (CatalogItem item : feed.movies) if ("TMDb".equals(item.provider)) return true;
         for (CatalogItem item : feed.shows) if ("TMDb".equals(item.provider)) return true;
@@ -139,7 +146,6 @@ final class RecommendationRepository {
     private void publish(int source) { if (!closed && listener != null) listener.changed(source); }
 
     void refresh(int source, boolean force) {
-        if (source == GOOGLE) { reloadGoogle(force); return; }
         if (!CatalogSource.networkFeed(source)) return;
         Feed feed = feeds[source]; long now = System.currentTimeMillis();
         if (closed || (!CatalogSource.publicFeed(source) && !configured()) || feed.loading) return;
@@ -180,24 +186,6 @@ final class RecommendationRepository {
                 final int status = failure instanceof StatusException ? ((StatusException) failure).status : -1;
                 main.post(() -> { if (!closed) { feed.loading = false; feed.error = status; publish(source); } });
             }
-        });
-    }
-    /** Reread only the stored Google import. Screen capture is an explicit separate command. */
-    private void reloadGoogle(boolean force) {
-        if (closed || googleLoading) return;
-        long now = System.currentTimeMillis();
-        if (!force && now - googleLastAttempt < REFRESH_MS) return;
-        googleLastAttempt = now;
-        googleLoading = true; publish(GOOGLE);
-        publicWorker.execute(() -> {
-            GoogleTvSnapshot snapshot;
-            try { snapshot = new GoogleTvSnapshot(readJson(googleCache), fingerprint); }
-            catch (Exception ignored) { snapshot = null; }
-            final GoogleTvSnapshot loaded = snapshot;
-            main.post(() -> {
-                if (closed) return;
-                google = loaded; googleLoading = false; publish(GOOGLE);
-            });
         });
     }
     private JSONArray catalog(String origin, String type, String name) throws Exception {
@@ -271,53 +259,65 @@ final class RecommendationRepository {
         }
         throw new Exception();
     }
+    void beginPosterBatch() {
+        posterGeneration++;
+        images.getQueue().clear(); downloads.getQueue().clear();
+    }
     void poster(String address, ImageView view) {
         view.setTag(address); view.setImageDrawable(null);
         if (closed || address.isEmpty()) return;
         Bitmap ready = bitmaps.get(address);
         if (ready != null) { view.setImageBitmap(ready); return; }
-        images.execute(() -> {
-            try {
-                File file = new File(posterDir, hash(address));
-                byte[] data;
-                if (file.isFile()) data = Files.readAllBytes(file.toPath());
-                else {
-                    if (address.startsWith("content://")) {
-                        try (InputStream input = resolver.openInputStream(Uri.parse(address)); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                            if (input == null) throw new Exception();
-                            byte[] buffer = new byte[8192]; int count;
-                            while ((count = input.read(buffer)) != -1) {
-                                if (out.size() + count > 3_000_000) throw new Exception();
-                                out.write(buffer, 0, count);
-                            }
-                            data = out.toByteArray();
+        int generation = posterGeneration;
+        images.execute(() -> loadPoster(address, view, generation, false));
+    }
+    private void loadPoster(String address, ImageView view, int generation, boolean network) {
+        try {
+            if (closed || generation != posterGeneration) return;
+            File file = new File(posterDir, hash(address));
+            byte[] data;
+            if (file.isFile()) data = Files.readAllBytes(file.toPath());
+            else {
+                // Cached posters never queue behind a slow remote image.
+                if (!network) {
+                    downloads.execute(() -> loadPoster(address, view, generation, true));
+                    return;
+                }
+                if (address.startsWith("content://")) {
+                    try (InputStream input = resolver.openInputStream(Uri.parse(address)); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                        if (input == null) throw new Exception();
+                        byte[] buffer = new byte[8192]; int count;
+                        while ((count = input.read(buffer)) != -1) {
+                            if (out.size() + count > 3_000_000) throw new Exception();
+                            out.write(buffer, 0, count);
                         }
-                    } else data = download(address, 3_000_000, CatalogEndpoint.publicPoster(URI.create(address)) ? 2 : 0);
-                    synchronized (posterDir) {
-                        writeAtomic(file, data);
-                        File[] files = posterDir.listFiles();
-                        if (files != null) {
-                            long total = 0; for (File f : files) total += f.length();
-                            java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
-                            for (File f : files) { if (total <= 12_000_000) break; long bytes = f.length(); if (f.delete()) total -= bytes; }
-                        }
+                        data = out.toByteArray();
+                    }
+                } else data = download(address, 3_000_000, CatalogEndpoint.publicPoster(URI.create(address)) ? 2 : 0);
+                synchronized (posterDir) {
+                    writeAtomic(file, data);
+                    File[] files = posterDir.listFiles();
+                    if (files != null) {
+                        long total = 0; for (File f : files) total += f.length();
+                        java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
+                        for (File f : files) { if (total <= 12_000_000) break; long bytes = f.length(); if (f.delete()) total -= bytes; }
                     }
                 }
-                BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
-                BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
-                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return;
-                BitmapFactory.Options options = new BitmapFactory.Options(); options.inSampleSize = 1;
-                while (bounds.outWidth / options.inSampleSize > 300 || bounds.outHeight / options.inSampleSize > 450) options.inSampleSize *= 2;
-                Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
-                if (bitmap == null || closed) return;
-                bitmaps.put(address, bitmap);
-                main.post(() -> { if (!closed && address.equals(view.getTag())) view.setImageBitmap(bitmap); });
-            } catch (Exception ignored) { }
-        });
+            }
+            BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return;
+            BitmapFactory.Options options = new BitmapFactory.Options(); options.inSampleSize = 1;
+            while (bounds.outWidth / options.inSampleSize > 300 || bounds.outHeight / options.inSampleSize > 450) options.inSampleSize *= 2;
+            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
+            if (bitmap == null || closed) return;
+            bitmaps.put(address, bitmap);
+            main.post(() -> { if (!closed && generation == posterGeneration && address.equals(view.getTag())) view.setImageBitmap(bitmap); });
+        } catch (Exception ignored) { }
     }
     private static String hash(String text) throws Exception {
         byte[] bytes = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
         StringBuilder result = new StringBuilder(); for (byte b : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", b & 255)); return result.toString();
     }
-    void close() { closed = true; listener = null; worker.shutdownNow(); publicWorker.shutdownNow(); images.shutdownNow(); bitmaps.evictAll(); }
+    void close() { closed = true; listener = null; worker.shutdownNow(); publicWorker.shutdownNow(); images.shutdownNow(); downloads.shutdownNow(); bitmaps.evictAll(); }
 }

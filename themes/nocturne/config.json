@@ -1,0 +1,14 @@
+{
+  "refined_home": true,
+  "background_color": "#090C10",
+  "wallpaper": false,
+  "sky_intensity": 0,
+  "ambient_glow": false,
+  "cinematic_home": false,
+  "focus_overshoot": false,
+  "dock_glass": false,
+  "dock_opacity": 100,
+  "dock_even_padding": true,
+  "always_show_names": true,
+  "rows_below_dock": 0
+}

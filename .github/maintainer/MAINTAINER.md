@@ -1,5 +1,8 @@
 # How CleanYourTV PRs are reviewed
 
+Fork exception: the APK size budget described in this upstream policy does not apply here.
+This fork reports release size in CI without a hard limit, as requested by its owner.
+
 CleanYourTV (Gathin23/cleanyourtv) is a prompt plus tools that debloat Android TV / Google TV / Fire TV over
 ADB and a tiny native launcher (`launcher/`, plain Java, ~477 KB, for 1 GB TVs). Contributors mostly add
 tested TV lists under `examples/<tv>/`, translations, docs, small launcher options, themes, add-ons and tools.

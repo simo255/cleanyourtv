@@ -15,8 +15,8 @@ The core takes a switch only if it changes nothing until a theme or `config.xml`
    script. The bot checks this in the diff, not in the description.
 6. Add a JVM unit test under `launcher/app/src/test/java/com/gathin/tvhome/` for any logic that can be tested
    without a TV.
-7. Keep it small: a switch should cost a few hundred bytes to about 1 KB of APK. Build and check the size
-   gate; the gate is hard.
+7. Build and record the APK size. This fork has no hard APK size limit; keep memory use and rendering
+   costs appropriate for the target TV.
 8. Verify on a real TV with the switch on and off, D-pad from every edge, and attach screenshots.
 9. If you can, run the regression check in [`perf-ab.md`](perf-ab.md) with the
    switch on: a baseline before you start, your build after, and the numbers in the PR. It's optional, but welcome.

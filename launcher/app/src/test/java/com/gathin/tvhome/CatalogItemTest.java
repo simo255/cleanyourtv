@@ -56,4 +56,12 @@ public class CatalogItemTest {
         assertEquals("2020–2026", restored.year);
         assertEquals(item.poster, restored.poster);
     }
+
+    @Test public void nullMetadataIsAbsent() throws Exception {
+        CatalogItem item = new CatalogItem(movie("tt123").put("imdbRating", JSONObject.NULL)
+                .put("description", JSONObject.NULL).put("genre", "null").put("poster", JSONObject.NULL));
+        assertEquals("", item.rating); assertEquals("", item.description);
+        assertEquals("", item.genres); assertEquals("", item.poster);
+        assertEquals("", new CatalogItem(item.json()).rating);
+    }
 }

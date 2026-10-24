@@ -89,14 +89,21 @@ final class RecommendationTaste {
             if (!hidden.contains(key) && (!personalized || !completed.contains(key))) result.add(item);
         }
         if (!personalized || affinity.isEmpty()) return result;
+        // Sorting compares each title repeatedly. Parse its genres and score only once.
+        Map<CatalogItem, Double> scores = new HashMap<>();
+        Map<CatalogItem, String> primaryGenres = new HashMap<>();
+        for (CatalogItem item : result) {
+            scores.put(item, score(item));
+            primaryGenres.put(item, primary(item));
+        }
         // Java's stable sort keeps provider order when the learned scores tie.
-        result.sort(Comparator.comparingDouble(this::score).reversed());
+        result.sort(Comparator.comparingDouble((CatalogItem item) -> scores.get(item)).reversed());
         // Avoid three identical leading genres in a row when another relevant option is nearby.
         for (int i = 2; i < result.size(); i++) {
-            String first = primary(result.get(i - 1));
-            if (first.isEmpty() || !first.equals(primary(result.get(i - 2))) || !first.equals(primary(result.get(i)))) continue;
+            String first = primaryGenres.get(result.get(i - 1));
+            if (first.isEmpty() || !first.equals(primaryGenres.get(result.get(i - 2))) || !first.equals(primaryGenres.get(result.get(i)))) continue;
             for (int j = i + 1; j < Math.min(result.size(), i + 6); j++) {
-                if (!first.equals(primary(result.get(j))) && score(result.get(j)) > 0) {
+                if (!first.equals(primaryGenres.get(result.get(j))) && scores.get(result.get(j)) > 0) {
                     result.add(i, result.remove(j)); break;
                 }
             }

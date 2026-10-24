@@ -24,24 +24,29 @@ final class LauncherMenus {
     private final Consumer<String> refresh;
     private final Runnable inputs;
     private final String vpnApp;
+    private final int dialogTheme;
+    private final boolean refined;
     private Runnable recommendations;
 
     void setRecommendations(Runnable recommendations) { this.recommendations = recommendations; }
 
     LauncherMenus(Activity activity, LauncherPreferences preferences, AppAdapter adapter,
-                  Consumer<String> refresh, Runnable inputs, String vpnApp) {
+                  Consumer<String> refresh, Runnable inputs, String vpnApp, boolean refined) {
         this.activity = activity;
         this.preferences = preferences;
         this.adapter = adapter;
         this.refresh = refresh;
         this.inputs = inputs;
         this.vpnApp = vpnApp;
+        this.refined = refined;
+        dialogTheme = refined ? R.style.Theme_TvHome_Dialog_Nocturne : R.style.Theme_TvHome_Dialog;
     }
 
     private String text(int id) { return activity.getString(id); }
 
     private void list(String title, List<String> labels, Consumer<Integer> action) {
-        new AlertDialog.Builder(activity, R.style.Theme_TvHome_Dialog)
+        if (refined) { CinemaMenu.show(activity, title, "", labels, action); return; }
+        new AlertDialog.Builder(activity, dialogTheme)
                 .setTitle(title)
                 .setItems(labels.toArray(new String[0]), (dialog, which) -> action.accept(which))
                 .setPositiveButton(R.string.done, null)
@@ -124,7 +129,7 @@ final class LauncherMenus {
             labels.add(entry.label);
         }
         if (entries.isEmpty()) {
-            new AlertDialog.Builder(activity, R.style.Theme_TvHome_Dialog)
+            new AlertDialog.Builder(activity, dialogTheme)
                     .setTitle(R.string.hidden_apps_menu).setMessage(R.string.no_hidden_apps)
                     .setPositiveButton(R.string.done, null).show();
             return;
@@ -152,7 +157,7 @@ final class LauncherMenus {
 
     private boolean pin(AppAdapter.Entry entry) {
         if (!preferences.pin(entry.pkg)) {
-            new AlertDialog.Builder(activity, R.style.Theme_TvHome_Dialog)
+            new AlertDialog.Builder(activity, dialogTheme)
                     .setTitle(R.string.dock_full_title)
                     .setMessage(activity.getString(R.string.dock_full_message, preferences.capacity))
                     .setPositiveButton(R.string.edit_dock, (dialog, which) -> showDockEditor())

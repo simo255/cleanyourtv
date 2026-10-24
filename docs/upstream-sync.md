@@ -14,7 +14,8 @@ The Hebrew layout retains upstream's translated UI with English fallbacks for fo
 
 The upstream merge passed release compilation, 219 JVM tests, Android lint with zero errors and
 853 Python tests (11 optional/platform cases skipped) in a clean Ubuntu snapshot. The reference
-480 KiB size gate is increased to 640 KiB for this fork's extra features. No prebuilt APK is published.
+480 KiB size gate was initially increased for this fork's extra features. As of 2.21 this fork has no
+hard APK size limit: CI reports the release size without failing on it. No prebuilt APK is published.
 
 Earlier runtime checks used an onn Streaming Device 4K Pro with Android TV 12. The merged launcher
 and generic publication defaults have not been installed on additional devices. Successful builds

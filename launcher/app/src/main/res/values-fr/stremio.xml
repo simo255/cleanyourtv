@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stremio_resume">Reprendre</string>
+    <string name="stremio_in_progress">En cours</string>
+    <string name="stremio_upcoming">À venir</string>
+    <string name="stremio_connect">Connecter Stremio</string>
+    <string name="stremio_disconnect">Déconnecter Stremio</string>
+    <string name="stremio_disconnect_detail">Supprimer la connexion Stremio et la reprise enregistrée de cet accueil ? Votre compte Stremio et les recommandations Trakt restent inchangés.</string>
+    <string name="stremio_setup">Stremio · Connectez votre compte pour retrouver votre progression.</string>
+    <string name="stremio_session_expired">Stremio · Connexion expirée. Sélectionnez Connecter Stremio.</string>
+    <string name="stremio_resume_empty">Stremio · Rien à reprendre. Commencez un titre dans Stremio, puis actualisez ici.</string>
+    <string name="stremio_upcoming_empty">Stremio · Aucun épisode à venir daté trouvé parmi les séries suivies vérifiées.</string>
+    <string name="stremio_minutes_left">%1$d min restantes</string>
+    <string name="stremio_next_episode">Épisode suivant</string>
+    <string name="stremio_new_episode">Nouvel épisode</string>
+    <string name="stremio_not_released">Cet épisode n’est pas encore sorti.</string>
+    <string name="stremio_new_code">Nouveau code</string>
+    <string name="stremio_qr_description">Scannez avec votre téléphone pour connecter Stremio</string>
+    <string name="stremio_pair_loading">Préparation de la connexion Stremio…</string>
+    <string name="stremio_pair_instructions">Scannez avec votre téléphone et validez la connexion dans Stremio.\nOu ouvrez %1$s\nCet accueil lit uniquement votre bibliothèque et votre progression.</string>
+    <string name="stremio_pair_expired">Code expiré. Sélectionnez Nouveau code pour réessayer.</string>
+    <string name="stremio_pair_error">Connexion impossible. Vérifiez le réseau, puis sélectionnez Nouveau code.</string>
+</resources>

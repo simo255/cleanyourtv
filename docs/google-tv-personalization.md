@@ -1,5 +1,11 @@
 # Separate Google TV recommendations
 
+**Historical documentation for versions before 2.20.** The current launcher no longer offers
+Google TV, loads its saved snapshot or refreshes it. A saved Google TV selection returns to Trakt.
+The scripts below remain legacy tools for older versions; running a capture can temporarily
+re-enable the stock launcher. Do not run a capture to keep Google TV disabled. The `--clear`
+command only removes the old import and does not enable Google TV.
+
 Version 2.9 displays an identified, dated capture of Google TV's visible **Top picks for you** row in
 its own **Google TV** tab. The separate **Trakt** tab displays only Trakt recommendations. Their
 rankings and membership are never merged: Trakt watched exclusions apply only to Trakt, while

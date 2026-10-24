@@ -1,8 +1,9 @@
 # AGENTS.md
 
-Fork scope: this repository adds opt-in Stremio/Trakt and Google TV personalization. See
+Fork scope: this repository adds opt-in Stremio/Trakt personalization and the Nocturne cinema UI. See
 [PERSONALIZATION.md](PERSONALIZATION.md). Network catalogs are intentional in this fork, account
-connections must stay private, and its CI APK budget is 640 KiB. The upstream contribution policy
+connections must stay private. This fork has no hard APK size limit; CI reports the release size.
+The upstream contribution policy
 below describes the offline reference launcher and submissions to the original project.
 
 Instructions for coding agents (Claude Code, Codex, Gemini CLI, Cursor, Copilot and others) working in
@@ -79,7 +80,7 @@ share their TV's list afterwards, follow [`docs/workflows/tv-list.md`](docs/work
 | `addons/` | Optional module-card apps, each its own Gradle project, never built into the launcher. |
 | `tools/` | The ADB client (`tv.py`) and the scripts, listed in the README's Tools table. Shell scripts have PowerShell twins. Each script's usage is in its first lines, and the larger ones have a guide beside them (`tools/*.md`): read it before running the script. |
 | `tests/` | Python `unittest` suite: list format, README tables, press counts, themes, add-ons, the Home guard and the tools against fake TVs. |
-| `.github/workflows/` | `ci.yml` (tests, launcher build, APK size gate), `addons.yml`, `maintainer-bot.yml`. |
+| `.github/workflows/` | `ci.yml` (tests, launcher build, APK size report), `addons.yml`, `maintainer-bot.yml`. |
 | `.github/maintainer/MAINTAINER.md` | The review policy the maintainer and the PR bot apply. |
 | `.github/pull_request_template.md` | The PR checklist. Fill it in. |
 
@@ -94,7 +95,7 @@ The core stays small on purpose. Pick the smallest home that fits (CONTRIBUTING,
 | A new look: colours, wallpaper, dock, columns, that existing config keys can carry | `themes/<name>/` |
 | A widget or tile that can be its own small app | `addons/<name>/`, as a module card that never touches `launcher/` |
 | A whole new launcher, a heavy restyle, a port to another platform, a lower `minSdk`, new permissions or network access, Fire TV Home takeover, a changed default for every TV | Your own repository, plus one row in `SHOWCASE.md` |
-| Safety rules in `PROMPT.md`, the Home-safety logic in the scripts, protected packages, CI and workflows, the APK size gate | Open an issue for the maintainer; do not change it in a PR |
+| Safety rules in `PROMPT.md`, the Home-safety logic in the scripts, protected packages, CI and workflows | Open an issue for the maintainer; do not change it in a PR |
 
 Every PR is reviewed by the maintainer and by a bot that apply `.github/maintainer/MAINTAINER.md`: read its
 verdicts before a non-trivial PR. Changes to the Home or launch path (Home key, boot, return to Home, the
@@ -106,7 +107,7 @@ Step-by-step methods in `docs/workflows/`. Read the one that fits before you sta
 use it and ends with the check to run.
 
 - [`tv-list.md`](docs/workflows/tv-list.md): add a tested TV's debloat list with its README rows, or update one.
-- [`launcher-switch.md`](docs/workflows/launcher-switch.md): add an off-by-default launcher switch, within the size gate.
+- [`launcher-switch.md`](docs/workflows/launcher-switch.md): add an off-by-default launcher switch.
 - [`translation.md`](docs/workflows/translation.md): add a launcher language, or fill strings missing from one.
 - [`theme.md`](docs/workflows/theme.md): add a theme from existing keys, with its screenshot from a real TV.
 - [`addon.md`](docs/workflows/addon.md): add a module-card app that never touches `launcher/`.
@@ -122,7 +123,7 @@ use it and ends with the check to run.
 |---|---|
 | Tests, as CI runs them | `python3 -m unittest discover -s tests -v` after `python3 -m venv tools/venv` and `tools/venv/bin/pip install -r tools/requirements.txt`. On `main`, CI sets `CLEANYOURTV_STRICT=1`, which also checks the README's TV-model count. |
 | Launcher, if you touched `launcher/` | JDK 17, Android SDK platform 34, build-tools 34.0.0. In `launcher/`: `./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease`. Lint must stay at zero errors. |
-| APK size gate | `launcher/app/build/outputs/apk/release/app-release.apk` must be under 655,360 B (640 KB) in this fork. Linux: `stat -c %s`, macOS: `stat -f %z`. |
+| APK size report | No hard APK size limit in this fork. Record the size of `launcher/app/build/outputs/apk/release/app-release.apk`; CI reports it without rejecting larger builds. |
 | README rows | A new list has its row in `README.md` and `examples/README.md`; a theme in `themes/README.md`; an add-on in `addons/README.md`. |
 | One topic per PR | A TV list never rides inside a launcher feature PR. A device's list plus small fixes for that same device can be one PR. |
 | Tested on | Say which TV, Android version and firmware you tested on, in the PR template's "Tested on" line. |
@@ -151,7 +152,7 @@ Never do these in a PR:
   already has the optional DNS extra; a note that Private DNS works on that TV is fine.
 - **No secrets or identifiers** in commits, lists or screenshots: no IP addresses, Wi-Fi names, account emails,
   serial numbers, Android IDs, MAC addresses or ADB keys. Use `<tv ip>` or `192.168.1.50` in docs.
-- **Don't edit `.github/workflows/`** or the APK size gate in a normal PR. A PR whose main content is a new CI
+- **Don't edit `.github/workflows/`** in a normal PR without an explicit request. A PR whose main content is a new CI
   workflow that builds or publishes releases is closed.
 - **No root, no getting around app-store protection, no private builds** others cannot reproduce from this repo.
 - **No extras added to the PROMPT flow** beyond debloating and the launcher.

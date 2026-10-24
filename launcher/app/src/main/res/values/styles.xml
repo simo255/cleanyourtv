@@ -13,6 +13,16 @@
         <item name="android:windowMinWidthMinor">55%</item>
     </style>
 
+    <style name="Theme.TvHome.Dialog.Nocturne" parent="Theme.TvHome.Dialog">
+        <item name="android:fontFamily">@font/outfit_regular</item>
+        <item name="android:textColorPrimary">#F4F5F7</item>
+        <item name="android:textColorSecondary">#BBC5D3</item>
+        <item name="android:colorAccent">#BED3ED</item>
+        <item name="android:colorBackground">#171E29</item>
+        <item name="android:windowBackground">@drawable/nocturne_dialog</item>
+        <item name="android:listSelector">@drawable/nocturne_choice</item>
+    </style>
+
     <!-- Frosted pill, tvOS style. -->
     <style name="TopButtonBase">
         <item name="android:layout_width">wrap_content</item>

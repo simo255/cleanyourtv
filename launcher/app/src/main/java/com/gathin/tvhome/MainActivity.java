@@ -135,6 +135,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private LauncherMenus menus;
     private RecommendationsShelf recommendations;
     private HomeWeather homeWeather;
+    private View refinedBottomMask;
+    private boolean refinedHome;
     private RecyclerView grid;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
@@ -360,6 +362,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
+        refinedHome = cfg.refinedHome;
         appLibrarySelection = cfg.appLibrarySelection;
         // restore_key_services: after a force stop, put back the remote's accessibility helpers that Android took
         // off the list (needs WRITE_SECURE_SETTINGS, granted by build-and-install with RESTORE_KEY_SERVICES=1).
@@ -400,6 +403,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
+        glass.setRefined(cfg.refinedHome);
         if (festive) glass.setAccent(festival.accentColor());
         ambient = findViewById(R.id.ambient);
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
@@ -521,7 +525,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public void onChildViewDetachedFromWindow(@NonNull View v) {
             }
         });
-        if (dockRow) grid.addItemDecoration(new DockDecoration(() -> adapter.getDockCount(), density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding));
+        if (dockRow) grid.addItemDecoration(new DockDecoration(() -> adapter.getDockCount(), density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.refinedHome));
         if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
         if (animations && !reducedMotion) {
@@ -530,9 +534,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         preferences = new LauncherPreferences(this, COLUMNS, cfg.dockApps);
         adapter = new AppAdapter(this, this, COLUMNS, cfg, preferences);
-        menus = new LauncherMenus(this, preferences, adapter, this::refreshApps, this::showInputs, cfg.vpnApp);
+        menus = new LauncherMenus(this, preferences, adapter, this::refreshApps, this::showInputs, cfg.vpnApp, cfg.refinedHome);
+        if (cfg.refinedHome) refinedBottomMask = HomeAppearance.apply(this, cfg.backgroundColor);
         recommendations = new RecommendationsShelf(this, findViewById(R.id.recommendationShelf),
-                () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))));
+                () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))), cfg.refinedHome);
         menus.setRecommendations(recommendations::menu);
         if (cfg.homeWeather) homeWeather = new HomeWeather(this, findViewById(R.id.homeWeather));
         dockApps = preferences.dock();
@@ -1058,6 +1063,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onPause() {
+        if (recommendations != null) recommendations.pause();
         super.onPause();
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
@@ -1550,6 +1556,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onTileFocused(int position, View card) {
         recommendations.dockVisible(adapter.isDockPosition(position));
+        if (refinedBottomMask != null) refinedBottomMask.setVisibility(adapter.isDockPosition(position) ? View.VISIBLE : View.GONE);
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
@@ -2185,7 +2192,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return recommendations.focusCard(position);
+            if (position < COLUMNS) return refinedHome ? recommendations.focusPreviousCard() : recommendations.focusCard(position);
             if (position < 2 * COLUMNS) {
                 if (adapter.getDockCount() == 0) {
                     btnInputs.requestFocus();
@@ -2491,7 +2498,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
         // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
         boolean vpnDown = !vpn && online && !vpnApp.isEmpty();
-        if (vpn || vpnDown) {
+        if (refinedHome) {
+            btnWifi.setText(vpn ? R.string.vpn : vpnDown ? R.string.vpn_off : R.string.wifi);
+            if (!online) btnWifi.setText(text);
+            HomeAppearance.control(btnWifi, false);
+        } else if (vpn || vpnDown) {
             // Network name, then the green lock-and-VPN (or red "VPN off") capsule drawn in place of the word.
             String badge = getString(vpn ? R.string.vpn : R.string.vpn_off);
             VpnBadge span = new VpnBadge(vpn ? getDrawable(R.drawable.ic_lock) : null, density);

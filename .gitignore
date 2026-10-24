@@ -24,6 +24,8 @@ backup/
 **/trakt-history*.json
 **/.trakt-private-*
 **/tmdb-token*.txt
+**/stremio-session*.json*
+**/stremio-resume-cache*.json*
 **/.refresh-lock/
 **/last-refresh.log
 **/last-refresh.exit

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="recommendation_stremio" type="id" />
+    <item name="stremio_account" type="id" />
+    <string name="stremio_resume">Continue</string>
+    <string name="stremio_in_progress">In progress</string>
+    <string name="stremio_upcoming">Coming next</string>
+    <string name="stremio_connect">Connect Stremio</string>
+    <string name="stremio_disconnect">Disconnect Stremio</string>
+    <string name="stremio_disconnect_detail">Remove the Stremio session and saved resume list from this launcher? Your Stremio account and Trakt recommendations stay unchanged.</string>
+    <string name="stremio_setup">Stremio · Connect your account to see your playback progress.</string>
+    <string name="stremio_session_expired">Stremio · Session expired. Select Connect Stremio.</string>
+    <string name="stremio_resume_empty">Stremio · Nothing to resume. Start a title in Stremio, then refresh here.</string>
+    <string name="stremio_upcoming_empty">Stremio · No dated upcoming episodes found for the followed series checked.</string>
+    <string name="stremio_minutes_left">%1$d min left</string>
+    <string name="stremio_next_episode">Next episode</string>
+    <string name="stremio_new_episode">New episode</string>
+    <string name="stremio_not_released">This episode has not been released yet.</string>
+    <string name="stremio_new_code">New code</string>
+    <string name="stremio_qr_description">Scan with your phone to connect Stremio</string>
+    <string name="stremio_pair_loading">Preparing your Stremio connection…</string>
+    <string name="stremio_pair_instructions">Scan with your phone and approve the connection in Stremio.\nOr open %1$s\nThis launcher only reads your library and progress.</string>
+    <string name="stremio_pair_expired">Code expired. Select New code to try again.</string>
+    <string name="stremio_pair_error">Unable to connect. Check your network, then select New code.</string>
+</resources>

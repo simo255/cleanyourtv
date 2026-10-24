@@ -15,16 +15,22 @@ final class CatalogItem {
         id = json.optString("id", json.optString("imdb_id"));
         type = json.optString("type"); name = json.optString("name");
         year = json.optString("year", json.optString("releaseInfo"));
-        poster = json.optString("poster"); description = json.optString("description");
+        poster = present(json, "poster");
+        description = present(json, "description");
         provider = json.optString("provider");
-        released = json.optString("released"); rating = json.optString("imdbRating");
+        released = present(json, "released"); rating = present(json, "imdbRating");
         JSONArray tags = json.optJSONArray("genres");
         StringBuilder labels = new StringBuilder();
         if (tags != null) for (int i = 0; i < Math.min(3, tags.length()); i++) {
             String tag = tags.optString(i).trim();
             if (!tag.isEmpty()) { if (labels.length() > 0) labels.append(" · "); labels.append(tag); }
         }
-        genres = tags == null ? json.optString("genre") : labels.toString();
+        genres = tags == null ? present(json, "genre") : labels.toString();
+    }
+
+    private static String present(JSONObject json, String key) {
+        String value = json.optString(key, "").trim();
+        return value.equalsIgnoreCase("null") ? "" : value;
     }
 
     JSONObject json() throws Exception {
