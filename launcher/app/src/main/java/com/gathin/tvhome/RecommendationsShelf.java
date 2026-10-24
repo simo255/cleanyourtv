@@ -176,8 +176,6 @@ final class RecommendationsShelf {
                 // Browsing a tab must not open account or permission dialogs.
                 refresh(false, false);
             });
-            activateOnFocus(movieTab, () -> { if (secondary()) category(false); });
-            activateOnFocus(showTab, () -> { if (!secondary()) category(true); });
         }
         source(source, false);
     }
