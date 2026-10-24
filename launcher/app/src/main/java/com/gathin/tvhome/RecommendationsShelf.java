@@ -77,6 +77,7 @@ final class RecommendationsShelf {
         });
         font = activity.getResources().getFont(R.font.outfit);
         repository = new RecommendationRepository(activity);
+        repository.posterTarget(dp(136), dp(204));
         tv = new TvCatalog(activity);
         stremio = new StremioResume(activity);
         if (repository.enhanced()) {
@@ -390,6 +391,7 @@ final class RecommendationsShelf {
     void dockVisible(boolean visible) { dockVisible = visible; updateVisibility(); }
     private void updateVisibility() { host.setVisibility(visible() ? View.VISIBLE : View.GONE); }
     void resume() { if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, false); }
+    void trimMemory() { repository.trimMemory(); }
     void tick() { if (enabled) refresh(AccountRefresh.Trigger.TICK, false); }
     void pause() { stremio.pause(); }
     void close() { repository.close(); tv.close(); stremio.close(); }

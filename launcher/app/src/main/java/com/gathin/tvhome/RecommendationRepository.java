@@ -63,8 +63,12 @@ final class RecommendationRepository {
     private final ThreadPoolExecutor images = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
     private final ThreadPoolExecutor downloads = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
     private volatile int posterGeneration;
+    private volatile int posterWidth = 300, posterHeight = 450;
+    private long posterBytes = -1;
+    void posterTarget(int widthPx, int heightPx) { posterWidth = widthPx; posterHeight = heightPx; }
+    void trimMemory() { bitmaps.evictAll(); }
     private RecommendationTaste rankedTaste;
-    private final LruCache<String, Bitmap> bitmaps = new LruCache<String, Bitmap>(6 * 1024 * 1024) {
+    private final LruCache<String, Bitmap> bitmaps = new LruCache<String, Bitmap>(PosterSampling.cacheBytes(Runtime.getRuntime().maxMemory())) {
         @Override protected int sizeOf(String key, Bitmap bitmap) { return bitmap.getByteCount(); }
     };
     private final Set<String> watchedMovies = new HashSet<>(), watchedShows = new HashSet<>();
@@ -338,7 +342,10 @@ final class RecommendationRepository {
             if (closed || generation != posterGeneration) return;
             File file = new File(posterDir, hash(address));
             byte[] data;
-            if (file.isFile()) data = Files.readAllBytes(file.toPath());
+            if (file.isFile()) {
+                data = Files.readAllBytes(file.toPath());
+                file.setLastModified(System.currentTimeMillis());
+            }
             else {
                 // Cached posters never queue behind a slow remote image.
                 if (!network) {
@@ -357,20 +364,35 @@ final class RecommendationRepository {
                     }
                 } else data = download(address, 3_000_000, CatalogEndpoint.publicPoster(URI.create(address)) ? 2 : 0);
                 synchronized (posterDir) {
-                    writeAtomic(file, data);
-                    File[] files = posterDir.listFiles();
-                    if (files != null) {
-                        long total = 0; for (File f : files) total += f.length();
-                        java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
-                        for (File f : files) { if (total <= 12_000_000) break; long bytes = f.length(); if (f.delete()) total -= bytes; }
+                    if (posterBytes < 0) {
+                        posterBytes = 0; File[] initial = posterDir.listFiles();
+                        if (initial != null) for (File f : initial) posterBytes += f.length();
+                    }
+                    long previous = file.isFile() ? file.length() : 0;
+                    writeAtomic(file, data); posterBytes += data.length - previous;
+                    if (posterBytes > 12_000_000) {
+                        File[] files = posterDir.listFiles();
+                        if (files != null) {
+                            java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
+                            long[] sizes = new long[files.length]; long total = 0;
+                            for (int i = 0; i < files.length; i++) { sizes[i] = files[i].length(); total += sizes[i]; }
+                            int count = PosterSampling.evictions(sizes, total, 9_000_000);
+                            for (int i = 0; i < count; i++) files[i].delete();
+                            posterBytes = 0; for (File f : files) posterBytes += f.length();
+                        }
                     }
                 }
             }
             BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
             BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return;
-            BitmapFactory.Options options = new BitmapFactory.Options(); options.inSampleSize = 1;
-            while (bounds.outWidth / options.inSampleSize > 300 || bounds.outHeight / options.inSampleSize > 450) options.inSampleSize *= 2;
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inPreferredConfig = Bitmap.Config.RGB_565;
+            options.inSampleSize = PosterSampling.sampleSize(bounds.outWidth, bounds.outHeight, posterWidth, posterHeight);
+            int sampledWidth = bounds.outWidth / options.inSampleSize;
+            if (sampledWidth > posterWidth) {
+                options.inScaled = true; options.inDensity = sampledWidth; options.inTargetDensity = posterWidth;
+            }
             Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
             if (bitmap == null || closed) return;
             bitmaps.put(address, bitmap);

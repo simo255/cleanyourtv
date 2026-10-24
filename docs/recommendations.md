@@ -30,7 +30,9 @@ Catalog ranking is reused until provider data, changed watched evidence, local f
 In 2.34, account snapshots are persisted on the worker without mutating shared JSON; unchanged evidence
 does not notify the ranking listener. Diversity uses precomputed content scores and primary genres. Cached poster
 decoding has its own queue, separate from network downloads; obsolete queued requests are dropped
-when the displayed list changes. The poster row retains enough reusable cards for a full strip.
+when the displayed list changes. The poster row retains enough reusable cards for a full strip. In 2.34, opaque posters decode at
+card size in RGB_565, with a heap-sized memory cache (6–24 MiB) and a 12 MB LRU disk cache
+that evicts down to 9 MB only when full. Background memory pressure releases the poster memory cache.
 
 ## Stremio playback resume (optional)
 
