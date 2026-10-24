@@ -171,14 +171,37 @@ Wholly future seasons are never inferred viewed and do not erase completion of c
 Unknown dates prevent inferred whole-series completion. A fresh **Finished** choice overrides the reviewed
 states of currently known aired seasons; a subsequently discovered season remains eligible.
 
-While Continue refreshes, the enhanced option also interprets its already downloaded episode arrays
-for up to eight shows. Only mapped watched bits and the exact episode playback pointer at at least 75%
-count; the 1 ms next-episode marker never does. No extra requests are added. These observations live only
-in memory, are replaced on refresh and cleared on disconnect. They do not constitute a full account sync.
-The imported baseline remains a dated snapshot and should be refreshed when needed.
+Starting with **2.33**, when the enhanced option and Stremio connection are both enabled, returning to
+Home or visiting a recommendation tab also refreshes watched evidence. This is independent of the
+four-hour catalog cache: the existing library request is limited to once a minute unless Refresh is
+selected. No background service or timer polls the account. The selected recommendation list is
+re-filtered as soon as the read finishes, even when its catalog remains cached.
+
+Films use Stremio's `timesWatched` mark (or `flaggedWatched` if the count is absent), including watched films outside Continue.
+Playback position alone does not mark a movie complete. Every valid returned movie is considered,
+with a local cap of 5,000 movie records. Series use the existing budget of eight episode-metadata
+lookups, with up to four slots prioritizing changed viewing and the remainder available for Continue.
+Only mapped watched bits and the exact episode playback pointer at at least 75% count; the 1 ms
+next-episode marker never does. A large backlog is processed across visits, not as an unbounded
+account-wide scan. If metadata is unavailable, a prior valid series summary is retained.
+
+Successful summaries persist in the account-bound, app-private `no_backup/stremio-viewing-cache.json`
+(at most 1,000 series and 2 MB). They survive app restarts/offline use and are deleted on disconnect or
+account replacement. Removing a library item does not erase its locally known viewing history;
+an explicit movie unwatch can remove automatic evidence, but imported Trakt baselines and local
+manual choices remain independent. No library/account tokens are copied into the viewing summaries.
+
+An increase in watched-episode counts can supersede an older imported `unfinished`/`unwatched` season
+snapshot. If the optional `reviewed_at` Unix-millisecond timestamp is provided on a series record,
+the account update must also be newer than that review. Unchanged or lower counts do not override it, and positive manual confirmations
+remain intact. The original baseline is never overwritten. A series with a later unseen aired season
+remains eligible. Stremio must actually record and synchronize the playback; neither this reader nor
+the catalog add-on can reconstruct episodes that never reached the account.
 
 The optional `positives` array holds local metadata for movies; a record contributes only when its ID is
-also in `watched_movie_ids`. The provisioning normalizer strips unrelated fields and rejects invalid counts.
+also known watched from the baseline or live Stremio evidence. Available metadata in new Stremio records
+can contribute too; missing genres/cast/directors do not prevent the watched-title exclusion.
+The provisioning normalizer strips unrelated fields and rejects invalid counts.
 Keep these files private. The original `build-taste-profile.py` retains its stricter complete-episode policy;
 it does not generate the optional reviewed season records automatically.
 

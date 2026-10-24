@@ -95,6 +95,11 @@ def normalize_taste_profile(profile):
             record = {"id": entry["id"], "type": kind, **metadata_fields(entry)}
             if key == "viewing":
                 record["seasons"] = normalize_seasons(entry.get("seasons"))
+                if "reviewed_at" in entry:
+                    reviewed_at = entry["reviewed_at"]
+                    if type(reviewed_at) is not int or not 0 < reviewed_at <= 32503680000000:
+                        raise ValueError("Invalid review timestamp.")
+                    record["reviewed_at"] = reviewed_at
             if entry["id"] not in identities:
                 identities.add(entry["id"])
                 records.append(record)

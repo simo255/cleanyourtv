@@ -95,6 +95,30 @@ final class SeasonViewing {
         } catch (Exception ignored) { return reviewed; }
     }
 
+    /** A later increase in watched episodes can supersede an imported unfinished/unwatched snapshot. */
+    static JSONObject mergeProgress(JSONObject reviewed, JSONObject live) {
+        JSONObject merged = merge(reviewed, live);
+        if (reviewed.optLong("reviewed_at") > 0 && live.optLong("updated_at") <= reviewed.optLong("reviewed_at")) return merged;
+        try {
+            TreeMap<Integer, JSONObject> baseline = new TreeMap<>(), current = new TreeMap<>();
+            for (JSONObject item : new JSONObject[]{reviewed, live}) {
+                JSONArray values = item.optJSONArray("seasons"); if (values == null) continue;
+                for (int i = 0; i < values.length(); i++) {
+                    JSONObject value = values.optJSONObject(i); if (!valid(value)) continue;
+                    (item == reviewed ? baseline : current).put(value.optInt("season"), value);
+                }
+            }
+            JSONArray seasons = merged.optJSONArray("seasons"); if (seasons == null) return merged;
+            for (int i = 0; i < seasons.length(); i++) {
+                JSONObject season = seasons.getJSONObject(i), before = baseline.get(season.optInt("season")), after = current.get(season.optInt("season"));
+                if (before == null || after == null) continue;
+                String status = before.optString("status");
+                if ((status.equals("unfinished") || status.equals("unwatched")) && after.optInt("watched") > before.optInt("watched")) season.remove("status");
+            }
+        } catch (Exception ignored) { return merge(reviewed, live); }
+        return merged;
+    }
+
     /** Decode only identified episodes, including the one explicit playback pointer at >=75%. */
     static JSONObject fromLibrary(JSONObject row, JSONArray videos, LocalDate today) {
         if (!row.optString("_id").matches("tt[0-9]+") || !"series".equals(row.optString("type"))
@@ -128,6 +152,7 @@ final class SeasonViewing {
                 if (!bucket.equals("future") && watched.contains(video.optString("id"))) season.put("watched", season.getInt("watched") + 1);
             }
             return new JSONObject().put("id", row.optString("_id")).put("type", "series").put("seasons", new JSONArray(seasons.values()))
+                    .put("updated_at", Math.max(StremioProgress.time(row.optString("_mtime")), StremioProgress.time(state.optString("lastWatched"))))
                     .put("genres", new JSONArray(CatalogItem.strings(row.optJSONArray("genres"), 12)));
         } catch (Exception ignored) { return null; }
     }

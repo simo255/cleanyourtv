@@ -165,7 +165,10 @@ final class RecommendationsShelf {
         panel.addView(content, new LinearLayout.LayoutParams(-1, 0, 1));
         repository.listen(changedSource -> { if (changedSource == source) render(); });
         tv.listen(() -> { if (source == TV) render(); });
-        stremio.listen(() -> { if (source == CatalogSource.STREMIO) { paintTabs(); render(); } });
+        stremio.listen(() -> {
+            if (source == CatalogSource.STREMIO) { paintTabs(); render(); }
+            else if (repository.enhanced() && CatalogSource.networkFeed(source)) render();
+        });
         if (refined) {
             for (int index : CatalogSource.displayOrder()) activateOnFocus(sources[index], () -> {
                 if (source == index) return;
@@ -275,7 +278,10 @@ final class RecommendationsShelf {
             if (interactive && !stremio.connected()) stremio.connect(); else stremio.refresh(force);
             return;
         }
-        if (source != TV) { repository.refresh(source, force); return; }
+        if (source != TV) {
+            if (repository.enhanced()) stremio.refresh(force);
+            repository.refresh(source, force); return;
+        }
         if (!tv.permitted() && interactive) activity.requestPermissions(new String[]{TvCatalog.PERMISSION}, TvCatalog.REQUEST_PERMISSION);
         tv.refresh(force);
     }

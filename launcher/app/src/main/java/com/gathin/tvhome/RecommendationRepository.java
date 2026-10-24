@@ -50,6 +50,8 @@ final class RecommendationRepository {
     private final JSONArray completed;
     private final JSONArray reviewed, positives;
     private JSONArray observed = new JSONArray();
+    private JSONArray observedPositives = new JSONArray();
+    private final Set<String> observedMovies = new HashSet<>();
     private final boolean enhanced;
     private final android.content.SharedPreferences preferences;
     private final TmdbCatalog tmdb;
@@ -120,7 +122,14 @@ final class RecommendationRepository {
     boolean enhanced() { return enhanced; }
     boolean recentOnly() { return !enhanced || preferences.getBoolean("recent_only", true); }
     void togglePeriod() { preferences.edit().putBoolean("recent_only", !recentOnly()).apply(); }
-    void observe(JSONArray values) { if (enhanced) { observed = values; rankedTaste = null; } }
+    void observe(JSONObject values) {
+        if (!enhanced) return;
+        observed = values.optJSONArray("series");
+        observedPositives = values.optJSONArray("movies");
+        observedMovies.clear();
+        observedMovies.addAll(StremioViewing.movieIds(values));
+        rankedTaste = null;
+    }
     Feed feed(int source) {
         Feed stored = feeds[source], feed = new Feed(stored.cache);
         // Reapply on reads too: saved catalogs cannot retain the old window across New Year's Day.
@@ -135,7 +144,10 @@ final class RecommendationRepository {
         if (rankedTaste == null) {
             if (!enhanced) rankedTaste = new RecommendationTaste(completed, feedback.entries());
             else {
-                rankedTaste = new RecommendationTaste(completed, feedback.entries(), new JSONArray(currentViewing().values()), positives, watchedMovies);
+                Set<String> movies = new HashSet<>(watchedMovies); movies.addAll(observedMovies);
+                java.util.Map<String, JSONObject> movieSignals = DiscoveryTaste.records(positives);
+                for (java.util.Map.Entry<String, JSONObject> entry : DiscoveryTaste.records(observedPositives).entrySet()) movieSignals.putIfAbsent(entry.getKey(), entry.getValue());
+                rankedTaste = new RecommendationTaste(completed, feedback.entries(), new JSONArray(currentViewing().values()), new JSONArray(movieSignals.values()), movies);
             }
         }
         return rankedTaste;
@@ -145,7 +157,7 @@ final class RecommendationRepository {
         java.util.Map<String, JSONObject> seasons = DiscoveryTaste.records(reviewed);
         for (java.util.Map.Entry<String, JSONObject> entry : DiscoveryTaste.records(observed).entrySet()) {
             JSONObject previous = seasons.get(entry.getKey());
-            seasons.put(entry.getKey(), previous == null ? entry.getValue() : SeasonViewing.merge(previous, entry.getValue()));
+            seasons.put(entry.getKey(), previous == null ? entry.getValue() : SeasonViewing.mergeProgress(previous, entry.getValue()));
         }
         return seasons;
     }

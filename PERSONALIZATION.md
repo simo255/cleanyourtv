@@ -40,6 +40,10 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   sending private history IDs for extra metadata lookups. Enable `recommendation_options.enhanced`
   in private configuration; see [the schema and limits](docs/recommendations.md#optional-season-aware-discovery-232).
   No AI model is used. This version requires its own on-TV validation before deployment.
+- **Automatic watched exclusions (2.33)**: with enhanced recommendations and Stremio connected,
+  returning Home refreshes Stremio viewing independently of catalog refreshes. Movies marked watched
+  and completed series are removed from Trakt, Discover and Trending. Private account-bound summaries
+  survive restarts; changed series share the existing eight metadata-lookup slots with Continue.
 - **Optional TMDB enrichment**: public recent candidates with IMDb mappings join New releases when
   the user's own private TMDB API read token is configured. Cinemeta remains usable without it.
 - **Optional weather on Home**: city, temperature and conditions from this fork’s separate weather

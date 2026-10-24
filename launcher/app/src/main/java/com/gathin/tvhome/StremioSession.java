@@ -21,10 +21,11 @@ import javax.crypto.spec.GCMParameterSpec;
 /** Separate from Trakt. The bearer key is encrypted with a non-exportable Android Keystore key. */
 final class StremioSession {
     private static final String ALIAS = "stremio-resume-v1";
-    private final AtomicFile auth, cache;
+    private final AtomicFile auth, cache, viewing;
     StremioSession(Context context) {
         auth = new AtomicFile(new File(context.getNoBackupFilesDir(), "stremio-session.json"));
         cache = new AtomicFile(new File(context.getNoBackupFilesDir(), "stremio-resume-cache.json"));
+        viewing = new AtomicFile(new File(context.getNoBackupFilesDir(), "stremio-viewing-cache.json"));
     }
     String load() {
         try {
@@ -40,7 +41,7 @@ final class StremioSession {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, key());
         write(auth, new JSONObject().put("iv", Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
                 .put("data", Base64.encodeToString(cipher.doFinal(value.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP)));
-        cache.delete();
+        cache.delete(); viewing.delete();
     }
     JSONObject cache(String value) throws Exception {
         JSONObject stored = read(cache, 256_000);
@@ -48,7 +49,13 @@ final class StremioSession {
         return stored;
     }
     void cache(String value, JSONObject data) throws Exception { write(cache, data.put("account", fingerprint(value))); }
-    void clear() { auth.delete(); cache.delete(); }
+    JSONObject viewing(String value) throws Exception {
+        JSONObject stored = read(viewing, 2_000_000);
+        if (!fingerprint(value).equals(stored.optString("account"))) throw new Exception("Different session");
+        return stored;
+    }
+    void viewing(String value, JSONObject data) throws Exception { write(viewing, data.put("account", fingerprint(value)), 2_000_000); }
+    void clear() { auth.delete(); cache.delete(); viewing.delete(); }
     private static SecretKey key() throws Exception {
         KeyStore store = KeyStore.getInstance("AndroidKeyStore"); store.load(null);
         if (store.containsAlias(ALIAS)) return (SecretKey) store.getKey(ALIAS, null);
@@ -68,8 +75,11 @@ final class StremioSession {
         }
     }
     private static void write(AtomicFile file, JSONObject value) throws Exception {
+        write(file, value, 256_000);
+    }
+    private static void write(AtomicFile file, JSONObject value, int limit) throws Exception {
         byte[] bytes = value.toString().getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > 256_000) throw new Exception("Cache limit");
+        if (bytes.length > limit) throw new Exception("Cache limit");
         FileOutputStream out = null;
         try { out = file.startWrite(); out.write(bytes); file.finishWrite(out); }
         catch (Exception failure) { if (out != null) file.failWrite(out); throw failure; }

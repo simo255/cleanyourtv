@@ -38,6 +38,15 @@ class SetupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             setup.metadata_fields({"cast": ["Actor\nInjected"]})
 
+    def test_review_timestamp_survives_provisioning_and_must_be_a_valid_integer(self):
+        record = {"id": "tt1", "type": "series", "seasons": [], "reviewed_at": 1792850000000}
+        profile = {"schema": 1, "viewing": [record]}
+        self.assertEqual(1792850000000, setup.normalize_taste_profile(profile)["viewing"][0]["reviewed_at"])
+        for bad in (True, -1, "1792850000000", 40000000000000):
+            record["reviewed_at"] = bad
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                setup.normalize_taste_profile(profile)
+
     def test_secondary_trakt_connection_is_discarded_and_existing_catalog_is_preserved(self):
         auth = {"client_id": "a" * 64, "access_token": "b" * 64,
                 "client_secret": "c" * 64, "refresh_token": "d" * 64, "email": "discard"}

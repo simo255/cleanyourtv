@@ -51,6 +51,16 @@ public class SeasonViewingTest {
         SeasonViewing.Result result = SeasonViewing.evaluate(merged);
         assertFalse(result.watched.contains(1)); assertTrue(result.watched.contains(2)); assertFalse(result.complete);
     }
+    @Test public void newWatchedEvidenceSupersedesAnOlderUnfinishedSnapshotButUnchangedCountsDoNot() throws Exception {
+        JSONObject reviewed = title(season(1, 8, 2, "unfinished"));
+        assertFalse(SeasonViewing.evaluate(SeasonViewing.mergeProgress(reviewed, title(season(1, 8, 2, "")))).positive());
+        assertTrue(SeasonViewing.evaluate(SeasonViewing.mergeProgress(reviewed, title(season(1, 8, 8, "")))).complete);
+        JSONObject watched = title(season(1, 8, 2, "watched"));
+        assertTrue(SeasonViewing.evaluate(SeasonViewing.mergeProgress(watched, title(season(1, 8, 0, "")))).complete);
+        reviewed.put("reviewed_at", 1000);
+        assertFalse(SeasonViewing.evaluate(SeasonViewing.mergeProgress(reviewed, title(season(1, 8, 8, "")).put("updated_at", 999))).complete);
+        assertTrue(SeasonViewing.evaluate(SeasonViewing.mergeProgress(reviewed, title(season(1, 8, 8, "")).put("updated_at", 1001))).complete);
+    }
     private JSONArray videos() throws Exception {
         JSONArray values = new JSONArray();
         for (int i = 1; i <= 8; i++) values.put(new JSONObject().put("id", "tt1:1:" + i).put("season", 1).put("episode", i).put("released", "2026-01-01T00:00:00Z"));

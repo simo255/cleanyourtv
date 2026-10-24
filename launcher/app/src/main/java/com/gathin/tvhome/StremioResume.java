@@ -36,8 +36,9 @@ final class StremioResume {
     private long lastAttempt, deadline;
     private Future<?> task, pairTask;
     private Runnable listener, poll;
-    interface ViewingListener { void changed(JSONArray viewing); }
+    interface ViewingListener { void changed(JSONObject viewing); }
     private ViewingListener viewingListener;
+    private JSONObject viewing = new JSONObject();
     private AlertDialog dialog;
     boolean loading, failed, expired;
     long syncedAt;
@@ -46,6 +47,7 @@ final class StremioResume {
     StremioResume(Activity activity) {
         this.activity = activity; session = new StremioSession(activity); key = session.load();
         if (!connected()) return;
+        try { viewing = session.viewing(key); } catch (Exception ignored) { }
         try {
             JSONObject cache = session.cache(key); long now = System.currentTimeMillis();
             watching = StremioProgress.cached(cache.optJSONArray("watching"), false, now);
@@ -54,7 +56,7 @@ final class StremioResume {
         } catch (Exception ignored) { }
     }
     void listen(Runnable listener) { this.listener = listener; }
-    void observeViewing(ViewingListener listener) { viewingListener = listener; }
+    void observeViewing(ViewingListener listener) { viewingListener = listener; if (listener != null) listener.changed(viewing); }
     boolean connected() { return !key.isEmpty(); }
     private void publish() { if (!closed && listener != null) listener.run(); }
     List<StremioProgress.Item> items(boolean future) {
@@ -69,11 +71,20 @@ final class StremioResume {
         lastAttempt = now; loading = true; failed = false; publish();
         int expected = generation; String auth = key;
         boolean summarizeViewing = viewingListener != null;
+        JSONObject previousViewing = viewing;
         task = worker.submit(() -> {
             try {
-                List<JSONObject> library = StremioProgress.library(StremioApi.library(auth));
+                JSONArray rawLibrary = StremioApi.library(auth);
+                List<JSONObject> library = StremioProgress.library(rawLibrary);
+                JSONObject movieViewing = summarizeViewing ? StremioViewing.update(previousViewing, rawLibrary,
+                        java.util.Collections.emptyMap(), java.time.LocalDate.now()) : previousViewing;
+                // Movie exclusions need no episode metadata and must not wait behind slow series lookups.
+                if (summarizeViewing) main.post(() -> {
+                    if (closed || generation != expected) return;
+                    updateViewing(auth, movieViewing); publish();
+                });
                 Map<String, JSONArray> metadata = new LinkedHashMap<>();
-                for (String id : StremioProgress.lookups(library, now)) {
+                for (String id : summarizeViewing ? StremioViewing.lookups(library, previousViewing, now) : StremioProgress.lookups(library, now)) {
                     if (Thread.currentThread().isInterrupted()) return;
                     try {
                         if (!episodes.containsKey(id) || now - fetched.get(id) >= 6 * 3_600_000L) {
@@ -86,20 +97,14 @@ final class StremioResume {
                 }
                 List<StremioProgress.Item> nextWatching = StremioProgress.build(library, metadata, false, now);
                 List<StremioProgress.Item> nextUpcoming = StremioProgress.build(library, metadata, true, now);
-                JSONArray viewing = new JSONArray();
-                if (summarizeViewing) for (JSONObject row : library) {
-                    JSONArray videos = metadata.get(row.optString("_id"));
-                    if (videos == null) continue;
-                    JSONObject summary = SeasonViewing.fromLibrary(row, videos, java.time.LocalDate.now());
-                    if (summary != null) viewing.put(summary);
-                }
+                JSONObject nextViewing = summarizeViewing ? StremioViewing.update(movieViewing, rawLibrary, metadata, java.time.LocalDate.now()) : previousViewing;
                 JSONObject cache = new JSONObject().put("watching", StremioProgress.json(nextWatching))
                         .put("upcoming", StremioProgress.json(nextUpcoming)).put("synced_at", now);
                 main.post(() -> {
                     if (closed || generation != expected) return;
                     watching = nextWatching; upcoming = nextUpcoming; syncedAt = now; loading = false; failed = false;
                     try { session.cache(auth, cache); } catch (Exception ignored) { }
-                    if (viewingListener != null) viewingListener.changed(viewing);
+                    if (viewingListener != null) updateViewing(auth, nextViewing);
                     publish();
                 });
             } catch (Exception failure) {
@@ -113,11 +118,18 @@ final class StremioResume {
             }
         });
     }
+    private void updateViewing(String auth, JSONObject next) {
+        viewing = next;
+        try { session.viewing(auth, viewing); } catch (Exception ignored) { }
+        if (viewingListener != null) viewingListener.changed(viewing);
+    }
     void disconnect() {
         generation++; pause(); if (task != null) task.cancel(true);
         key = ""; session.clear(); watching.clear(); upcoming.clear(); syncedAt = 0; lastAttempt = 0;
-        loading = false; failed = false; expired = false; publish();
-        if (viewingListener != null) viewingListener.changed(new JSONArray());
+        loading = false; failed = false; expired = false;
+        viewing = new JSONObject();
+        if (viewingListener != null) viewingListener.changed(viewing);
+        publish();
     }
     void connect() {
         if (closed) return;
@@ -188,5 +200,5 @@ final class StremioResume {
         pairGeneration++; if (poll != null) main.removeCallbacks(poll); if (pairTask != null) pairTask.cancel(true);
     }
     void pause() { cancelPair(); if (dialog != null) { dialog.dismiss(); dialog = null; } }
-    void close() { closed = true; generation++; pause(); listener = null; worker.shutdownNow(); pairing.shutdownNow(); }
+    void close() { closed = true; generation++; pause(); listener = null; viewingListener = null; worker.shutdownNow(); pairing.shutdownNow(); }
 }
