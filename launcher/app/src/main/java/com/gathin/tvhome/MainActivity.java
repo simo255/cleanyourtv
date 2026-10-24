@@ -350,7 +350,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (festive) updateWifiLabel();
             sky.update();
             wallpaperPlayer.update();
-            if (recommendations != null) recommendations.resume();
+            if (recommendations != null) recommendations.tick();
             handler.postDelayed(this, MINUTE_MS);
         }
     };

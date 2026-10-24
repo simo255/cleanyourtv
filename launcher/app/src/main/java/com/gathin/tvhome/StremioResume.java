@@ -33,7 +33,8 @@ final class StremioResume {
     private String key;
     private boolean closed;
     private int generation, pairGeneration, pollCount;
-    private long lastAttempt, deadline;
+    private long deadline;
+    private final AccountRefresh schedule = new AccountRefresh();
     private Future<?> task, pairTask;
     private Runnable listener, poll;
     interface ViewingListener { void changed(JSONObject viewing); }
@@ -69,15 +70,17 @@ final class StremioResume {
         for (StremioProgress.Item item : upcoming) if (item.release > System.currentTimeMillis()) current.add(item);
         return current;
     }
-    void refresh(boolean force) {
+    void refresh(AccountRefresh.Trigger trigger) {
         if (sessionPending) {
             loadSession(); if (sessionPending) return;
             if (viewingListener != null) viewingListener.changed(viewing);
             publish();
         }
+        long elapsed = SystemClock.elapsedRealtime();
+        if (closed || loading || !connected() || !schedule.due(trigger, elapsed)) return;
+        schedule.started(elapsed); loading = true; failed = false; publish();
+        android.util.Log.i("TvHomeReco", "stremio library read: " + trigger);
         long now = System.currentTimeMillis();
-        if (closed || loading || !connected() || (!force && now - lastAttempt < 60_000)) return;
-        lastAttempt = now; loading = true; failed = false; publish();
         int expected = generation; String auth = key;
         boolean summarizeViewing = viewingListener != null;
         JSONObject previousViewing = viewing;
@@ -112,6 +115,7 @@ final class StremioResume {
                 main.post(() -> {
                     if (closed || generation != expected) return;
                     watching = nextWatching; upcoming = nextUpcoming; syncedAt = now; loading = false; failed = false;
+                    schedule.succeeded();
                     try { session.cache(auth, cache); } catch (Exception ignored) { }
                     if (viewingListener != null) updateViewing(auth, nextViewing);
                     publish();
@@ -120,6 +124,7 @@ final class StremioResume {
                 main.post(() -> {
                     if (closed || generation != expected) return;
                     loading = false; failed = true;
+                    schedule.failed(SystemClock.elapsedRealtime(), failure instanceof StremioApi.Failure ? ((StremioApi.Failure) failure).code : -1);
                     if (failure instanceof StremioApi.Failure && (((StremioApi.Failure) failure).code == 1
                             || ((StremioApi.Failure) failure).code == 401)) { disconnect(); expired = true; failed = true; }
                     publish();
@@ -134,7 +139,7 @@ final class StremioResume {
     }
     void disconnect() {
         generation++; pause(); if (task != null) task.cancel(true);
-        sessionPending = false; key = ""; session.clear(); watching.clear(); upcoming.clear(); syncedAt = 0; lastAttempt = 0;
+        sessionPending = false; key = ""; session.clear(); watching.clear(); upcoming.clear(); syncedAt = 0; schedule.reset();
         loading = false; failed = false; expired = false;
         viewing = new JSONObject();
         if (viewingListener != null) viewingListener.changed(viewing);
@@ -196,8 +201,8 @@ final class StremioResume {
                         if (!currentPair(expected)) return;
                         if (auth.isEmpty()) { schedulePoll(code, expected, label); return; }
                         try {
-                            session.save(auth); key = auth; expired = false; failed = false; lastAttempt = 0;
-                            dialog.dismiss(); publish(); refresh(true);
+                            session.save(auth); key = auth; expired = false; failed = false; schedule.reset();
+                            dialog.dismiss(); publish(); refresh(AccountRefresh.Trigger.FORCE);
                         } catch (Exception ignored) { label.setText(R.string.stremio_pair_error); }
                     });
                 } catch (Exception ignored) { main.post(() -> { if (currentPair(expected)) label.setText(R.string.stremio_pair_error); }); }

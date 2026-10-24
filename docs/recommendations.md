@@ -57,8 +57,9 @@ The separately enabled season-aware ranking below can reuse these already fetche
 checked per refresh, sorted by date. It is a bounded preview, not a complete account-wide calendar.
 Unknown dates and specials are omitted. Future episodes cannot be launched from this list.
 Missing Cinemeta metadata never discards an in-progress item. Metadata is cached in memory for six hours;
-reads start only for the selected Continue view while Home is visible, at most once a minute unless
-Refresh is selected. There are no new services, permissions or dependencies.
+In 2.34, account reads run only while Home is visible: returning Home or selecting a tab reads at most
+once a minute; staying on Home reads at most every 15 minutes. Failures back off from 2 to 30 minutes,
+with at least 10 minutes after 429 or 503. Refresh requests an immediate read. There are no new services, permissions or dependencies.
 
 References: [Stremio's link model](https://github.com/Stremio/stremio-core/blob/development/src/models/link.rs),
 [library state rules](https://github.com/Stremio/stremio-core/blob/development/src/types/library/library_item.rs).
@@ -174,8 +175,9 @@ states of currently known aired seasons; a subsequently discovered season remain
 
 Starting with **2.33**, when the enhanced option and Stremio connection are both enabled, returning to
 Home or visiting a recommendation tab also refreshes watched evidence. This is independent of the
-four-hour catalog cache: the existing library request is limited to once a minute unless Refresh is
-selected. No background service or timer polls the account. The selected recommendation list is
+four-hour catalog cache: returning Home or selecting a tab reads at most once a minute; the visible Home timer reads
+at most every 15 minutes. Failures back off 2–30 minutes (at least 10 on 429/503); Refresh is immediate.
+No account read starts while Home is in the background. The selected recommendation list is
 re-filtered as soon as the read finishes, even when its catalog remains cached.
 
 Films use Stremio's `timesWatched` mark (or `flaggedWatched` if the count is absent), including watched films outside Continue.
@@ -355,8 +357,8 @@ are excluded from local personal discovery, and explicit hidden/seen choices app
 No write endpoint or playback reporting is used.
 
 Refresh is checked on resume and each visible minute; discovery catalog data is reused for 4 hours.
-Continue keeps its separate one-minute refresh interval while selected.
-Failed automatic attempts are spaced at least a minute apart. The manual Refresh control can
+Continue uses the foreground account cadence described above.
+Failed automatic catalog attempts are spaced at least a minute apart; Stremio uses its separate backoff. The manual Refresh control can
 retry immediately. Nothing runs as a background service when the launcher is paused.
 
 Each view has its own atomic cache and sync/error/loading state. Private caches are bound to a SHA-256

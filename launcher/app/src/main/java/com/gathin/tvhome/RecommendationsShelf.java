@@ -112,7 +112,7 @@ final class RecommendationsShelf {
         showTab.setOnClickListener(v -> category(true));
         filters.addView(movieTab); filters.addView(showTab);
         refreshTab = button(R.string.reco_refresh); refreshTab.setId(R.id.recommendation_refresh);
-        refreshTab.setOnClickListener(v -> refresh(true, true)); filters.addView(refreshTab);
+        refreshTab.setOnClickListener(v -> refresh(AccountRefresh.Trigger.FORCE, true)); filters.addView(refreshTab);
         accountTab = button(R.string.stremio_connect); accountTab.setId(R.id.stremio_account);
         accountTab.setOnClickListener(v -> stremio.connect());
         if (!refined) filters.addView(accountTab);
@@ -174,7 +174,7 @@ final class RecommendationsShelf {
                 if (source == index) return;
                 source(index, false);
                 // Browsing a tab must not open account or permission dialogs.
-                refresh(false, false);
+                refresh(AccountRefresh.Trigger.FOREGROUND, false);
             });
         }
         source(source, false);
@@ -241,7 +241,7 @@ final class RecommendationsShelf {
             else sources[i].setTextColor(buttonColors(i == source ? 0xFF9CB7FF : 0xFFA6ADB8));
         }
         paintTabs(); render(); list.scrollToPosition(0);
-        if (refresh) refresh(false, true);
+        if (refresh) refresh(AccountRefresh.Trigger.FOREGROUND, true);
     }
     private void category(boolean series) {
         pendingFocus = -1; lastFocusedCard = 0;
@@ -271,20 +271,21 @@ final class RecommendationsShelf {
             showTab.setTextColor(buttonColors(secondary() ? 0xFF9CB7FF : 0xFFA6ADB8));
         }
     }
-    private void refresh(boolean force, boolean interactive) {
+    private void refresh(AccountRefresh.Trigger trigger, boolean interactive) {
+        boolean force = trigger == AccountRefresh.Trigger.FORCE;
         if (source == CatalogSource.STREMIO) {
-            if (interactive && !stremio.connected() && !stremio.sessionPending) stremio.connect(); else stremio.refresh(force);
+            if (interactive && !stremio.connected() && !stremio.sessionPending) stremio.connect(); else stremio.refresh(trigger);
             return;
         }
         if (source != TV) {
-            if (repository.enhanced()) stremio.refresh(force);
+            if (repository.enhanced()) stremio.refresh(trigger);
             repository.refresh(source, force); return;
         }
         if (!tv.permitted() && interactive) activity.requestPermissions(new String[]{TvCatalog.PERMISSION}, TvCatalog.REQUEST_PERMISSION);
         tv.refresh(force);
     }
     private void channelMenu() {
-        if (!tv.permitted()) { refresh(true, true); return; }
+        if (!tv.permitted()) { refresh(AccountRefresh.Trigger.FORCE, true); return; }
         List<TvCatalog.Channel> available = new ArrayList<>(tv.channels);
         String[] labels = new String[available.size() + 1]; labels[0] = activity.getString(R.string.reco_tv_all);
         int selected = 0;
@@ -388,7 +389,8 @@ final class RecommendationsShelf {
     }
     void dockVisible(boolean visible) { dockVisible = visible; updateVisibility(); }
     private void updateVisibility() { host.setVisibility(visible() ? View.VISIBLE : View.GONE); }
-    void resume() { if (enabled) refresh(false, false); }
+    void resume() { if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, false); }
+    void tick() { if (enabled) refresh(AccountRefresh.Trigger.TICK, false); }
     void pause() { stremio.pause(); }
     void close() { repository.close(); tv.close(); stremio.close(); }
     boolean focused() { return host.hasFocus(); }
@@ -422,10 +424,10 @@ final class RecommendationsShelf {
             options.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
             if (repository.enhanced()) options.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
             CinemaMenu.show(activity, activity.getString(R.string.reco_menu), syncStatus, options, choice -> {
-                if (choice == 0) refresh(true, true);
+                if (choice == 0) refresh(AccountRefresh.Trigger.FORCE, true);
                 else if (choice == 1) {
                     enabled = !enabled; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", enabled).apply();
-                    updateVisibility(); if (enabled) refresh(false, true); focusDock.run();
+                    updateVisibility(); if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, true); focusDock.run();
                 } else if (choice == 2) {
                     if (!repository.resetFeedback()) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
                     render();
@@ -459,10 +461,10 @@ final class RecommendationsShelf {
                         if (!repository.resetFeedback()) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
                         render();
                     }
-                    else if (choice == order.length + 2) refresh(true, true);
+                    else if (choice == order.length + 2) refresh(AccountRefresh.Trigger.FORCE, true);
                     else if (choice == order.length + 3) {
                         enabled = !enabled; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", enabled).apply();
-                        updateVisibility(); if (enabled) refresh(false, true); focusDock.run();
+                        updateVisibility(); if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, true); focusDock.run();
                     } else {
                         enabled = true; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", true).apply();
                         if (choice < order.length) source(order[choice], true);
