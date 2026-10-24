@@ -1,9 +1,14 @@
-# Google TV + Trakt in For you
+# Separate Google TV recommendations
 
-Version 2.8 can blend a dated capture of Google TV's visible **Top picks for you** row with the
-official Stremio/Trakt recommendation catalog. Cards identify Google TV or Trakt. Each source keeps
-its relative ordering, overlaps are deduplicated by movie/show IMDb ID, and known Trakt watched
-exclusions apply to both. The combined order alternates sources; it is not Google's ranking algorithm.
+Version 2.9 displays an identified, dated capture of Google TV's visible **Top picks for you** row in
+its own **Google TV** tab. The separate **Trakt** tab displays only Trakt recommendations. Their
+rankings and membership are never merged: Trakt watched exclusions apply only to Trakt, while
+Google keeps its identified order. A title can appear independently in both views.
+
+Existing Google imports remain compatible, and the previously selected combined view becomes
+Trakt without changing the stored watchlist, Trending or My apps selections. Google TV has its own
+Movies/TV shows preference. The existing private account binding remains in place for privacy;
+separate views do not remove the configuration requirement described below.
 
 ## Capture and refresh
 
@@ -40,8 +45,9 @@ Localized titles without a match, ambiguous remakes and ordinary YouTube clips a
 matching or decoding of private provider IDs is used. Corresponding metadata/posters come from the
 matched catalog, and OK opens details in Stremio.
 
-The imported subset preserves Google's relative order after identification and watched filtering.
-Its date is shown in the shelf status. **Actualiser refreshes Trakt; it does not recapture Google TV.**
+The imported subset preserves Google's relative order after identification, without Trakt filtering.
+Its date is shown in the Google TV status. **Reload/Relire** reads the saved snapshot; it does not
+recapture Google TV or refresh Trakt. **Refresh/Actualiser** in Trakt refreshes only the Trakt view.
 Repeat the command to update Google's snapshot, from a computer or from Termux as described below.
 Capture runs only when explicitly launched; there is no background accessibility service, root
 requirement, private Google API or scheduled screen capture.
@@ -78,7 +84,7 @@ To use a different authorized local endpoint, set `TVHOME_ADB_SERIAL` for this c
 The wrapper defaults to cached metadata (`--public-pages 0`), prevents simultaneous captures and
 stores its credential-free log and exit code as `last-refresh.log` and `last-refresh.exit` under
 `${XDG_STATE_HOME:-$HOME/.local/state}/tvhome-google-tv/`, outside the source checkout. Google TV temporarily occupies the screen; leave the remote untouched until the
-custom Home returns. `Actualiser` on the shelf continues to refresh Trakt only.
+custom Home returns. The Google TV tab's Reload control rereads the stored snapshot only.
 
 No shortcut installation is required: run the shell command above each time you want a fresh capture.
 For a different private directory, keep all three scripts together and use that path.

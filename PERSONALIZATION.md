@@ -11,10 +11,10 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
 
 ## What this fork adds
 
-- **For you**: Movies and TV shows from your existing official Stremio **Trakt Integration**
+- **Trakt**: Movies and TV shows from your existing official Stremio **Trakt Integration**
   add-on, with known watched titles and duplicates excluded. OK opens the title in Stremio.
-- **Google TV + Trakt**: optionally blend an identified, dated capture of Google's visible Top picks
-  into For you. Cards name their source; duplicate/watched filtering applies to both.
+- **Google TV**: an independent, dated capture of Google's visible Top picks. Its tab keeps Google's
+  identified order and does not use Trakt's watched exclusions or recommendation ranking.
 - **Watchlist / À regarder**: your Trakt watchlist with its own empty state and cache.
 - **Trending / Tendances**: public **Popular** movie/show catalogs from official Cinemeta,
   identified on screen and independent of your account history.
@@ -89,7 +89,7 @@ Only the official add-on's private catalog URL is copied into the launcher's pri
 The account export itself is not sent to the TV. You can instead omit `--stremio-export` and paste
 your manifest URL at a hidden prompt. Use `--adb /path/to/adb` when needed.
 
-Press Home, then **Menu → Home catalogs**. Select **For you**, **Watchlist** or **Trending** on the
+Press Home, then **Menu → Home catalogs**. Select **Trakt**, **Google TV**, **Watchlist** or **Trending** on the
 home header; Movies and TV shows work within each view. Only the selected source refreshes.
 Refresh happens on returning to Home or while Home is visible once the 15-minute cache interval
 expires; manual Refresh is also available.
@@ -102,7 +102,7 @@ follow the publishing app's behavior and can resume playback. Google TV Home can
 this reads Android TV's shared data, not Google's private personalized home ranking. Apps control
 the freshness and completeness of their published suggestions.
 
-To combine the actual visible Google TV ranking with Trakt, run the separate
+To populate the separate Google TV view, run the
 capture while your TV is available for temporary navigation:
 
 ```sh
@@ -111,8 +111,9 @@ python tools/sync-google-tv.py --adb /path/to/adb --serial YOUR_TV_IP:5555
 
 On the tested onn firmware Google TV must be disabled again after capture to preserve Home.
 The tool restores it automatically. Only unambiguous title/year movie/show matches are imported;
-the shelf shows Google's capture date. Refresh on the TV updates Trakt, while another capture is
-needed to refresh Google. See [capture, privacy, limitations and undo](docs/google-tv-personalization.md).
+the shelf shows Google's capture date. Reload in Google TV reads the saved import, while another
+capture is needed for new Google suggestions. Trakt Refresh is independent. See
+[capture, privacy, limitations and undo](docs/google-tv-personalization.md).
 
 To remove the local connection and recommendation cache while keeping dock preferences:
 

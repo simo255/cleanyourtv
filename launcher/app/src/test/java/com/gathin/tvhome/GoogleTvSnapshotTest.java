@@ -3,44 +3,46 @@ package com.gathin.tvhome;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import org.junit.Test;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import static org.junit.Assert.*;
 
 public class GoogleTvSnapshotTest {
-    private CatalogItem movie(String id) throws Exception {
-        return new CatalogItem(new JSONObject().put("id", id).put("type", "movie").put("name", id));
+    private JSONObject item(String id, String type) throws Exception {
+        return new JSONObject().put("id", id).put("type", type).put("name", id);
     }
     private JSONObject snapshot() throws Exception {
         return new JSONObject().put("schema", 1).put("provider", "google-tv-ui").put("account", "account-a")
-                .put("captured_at", 12345).put("movies", new JSONArray().put(movie("tt1").json())).put("shows", new JSONArray());
+                .put("captured_at", 12345).put("movies", new JSONArray().put(item("tt1", "movie"))).put("shows", new JSONArray());
     }
     @Test public void importIsBoundToAccountAndRequiresExplicitSourceAndCaptureTime() throws Exception {
         GoogleTvSnapshot parsed = new GoogleTvSnapshot(snapshot(), "account-a");
-        assertEquals(12345, parsed.capturedAt); assertTrue(parsed.contains(movie("tt1")));
+        assertEquals(12345, parsed.capturedAt); assertEquals("tt1", parsed.items(false).get(0).id);
         for (JSONObject bad : new JSONObject[]{snapshot().put("provider", "cinemeta"), snapshot().put("captured_at", 0), snapshot().put("schema", 2)}) {
             try { new GoogleTvSnapshot(bad, "account-a"); fail(); } catch (Exception expected) { }
         }
         try { new GoogleTvSnapshot(snapshot(), "account-b"); fail(); } catch (Exception expected) { }
     }
-    @Test public void alternateProvidersWhileKeepingEachProvidersOrder() throws Exception {
-        CatalogItem a=movie("tt1"), b=movie("tt2"), c=movie("tt3"), d=movie("tt4");
-        assertEquals(Arrays.asList(a,c,b,d), GoogleTvSnapshot.mix(Arrays.asList(a,b),Arrays.asList(c,d),Collections.emptySet()));
+    @Test public void googleKeepsItsOwnOrderAndDoesNotAcceptTraktExclusions() throws Exception {
+        JSONObject data = snapshot().put("movies", new JSONArray().put(item("tt3", "movie")).put(item("tt1", "movie")))
+                .put("watched_movie_ids", new JSONArray().put("tt1"));
+        List<CatalogItem> result = new GoogleTvSnapshot(data, "account-a").items(false);
+        assertEquals(2, result.size());
+        assertEquals("tt3", result.get(0).id);
+        assertEquals("tt1", result.get(1).id);
     }
-    @Test public void overlappingIdsKeepGoogleCopyAtItsOriginalRankWithoutDuplicates() throws Exception {
-        CatalogItem a=movie("tt1"), googleCopy=movie("tt2"), traktCopy=movie("tt2"), c=movie("tt3");
-        List<CatalogItem> result=GoogleTvSnapshot.mix(Arrays.asList(a,googleCopy),Arrays.asList(traktCopy,c),Collections.emptySet());
-        assertEquals(Arrays.asList(a,c,googleCopy),result);
-        assertSame(googleCopy,result.get(2));
+    @Test public void moviesAndShowsStayInTheirOwnCategories() throws Exception {
+        GoogleTvSnapshot parsed = new GoogleTvSnapshot(snapshot().put("shows", new JSONArray().put(item("tt2", "series"))), "account-a");
+        assertEquals("tt1", parsed.items(false).get(0).id);
+        assertEquals("tt2", parsed.items(true).get(0).id);
     }
-    @Test public void knownWatchedExclusionsApplyToBothSources() throws Exception {
-        CatalogItem a=movie("tt1"), b=movie("tt2");
-        assertEquals(Collections.singletonList(b), GoogleTvSnapshot.mix(Collections.singletonList(a),Arrays.asList(a,b),Collections.singleton("tt1")));
+    @Test public void renderedListsCannotMutateTheStoredSnapshot() throws Exception {
+        GoogleTvSnapshot parsed = new GoogleTvSnapshot(snapshot(), "account-a");
+        parsed.items(false).clear();
+        assertEquals(1, parsed.items(false).size());
+        assertTrue(parsed.items(true).isEmpty());
     }
-    @Test public void missingGoogleDataPreservesTraktOrderAndEmptyInvalidImportIsRejected() throws Exception {
-        CatalogItem a=movie("tt1"), b=movie("tt2");
-        assertEquals(Arrays.asList(a,b), GoogleTvSnapshot.mix(Collections.emptyList(),Arrays.asList(a,b),Collections.emptySet()));
-        try { new GoogleTvSnapshot(snapshot().put("movies",new JSONArray()),"account-a");fail(); } catch (Exception expected) { }
+    @Test public void emptyImportIsRejectedWithoutFallingBackToTrakt() throws Exception {
+        try { new GoogleTvSnapshot(snapshot().put("movies", new JSONArray()), "account-a"); fail(); }
+        catch (Exception expected) { }
     }
 }

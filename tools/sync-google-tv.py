@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import a dated Google TV Top-picks snapshot and blend identified movies/shows with Trakt.
+"""Import a dated Google TV Top-picks snapshot into its own launcher view.
 
 Google TV briefly occupies the screen. Its original enabled/disabled state is restored
 after capture along with the custom Home. No playback, account mutation, token extraction,
@@ -303,7 +303,7 @@ def main():
                 "captured_count": len(capture["items"]), **matched}
     device.provision_snapshot(snapshot)
     print("Imported", len(matched["movies"]), "movies and", len(matched["shows"]), "shows from", len(capture["items"]), "visible Google TV cards.")
-    print("Unmatched/ambiguous entries and YouTube clips are omitted. Google is a dated snapshot; Refresh updates Trakt only.")
+    print("Unmatched/ambiguous entries and YouTube clips are omitted. Google TV has its own dated-snapshot view; Reload rereads the saved import.")
 
 
 if __name__ == "__main__":

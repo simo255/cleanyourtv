@@ -29,7 +29,8 @@ import java.util.concurrent.Executors;
 
 /** Independent read-only feeds. Private Trakt URLs never leave the official add-on origin. */
 final class RecommendationRepository {
-    static final int FOR_YOU = 0, WATCHLIST = 1, TRENDING = 2;
+    static final int FOR_YOU = CatalogSource.TRAKT, WATCHLIST = CatalogSource.WATCHLIST,
+            TRENDING = CatalogSource.TRENDING, GOOGLE = CatalogSource.GOOGLE;
     static final long REFRESH_MS = 15 * 60_000L;
     private static final String POPULAR_BASE = "https://v3-cinemeta.strem.io/";
     private static final String POPULAR_ACCOUNT = "cinemeta-popular-v1";
@@ -42,7 +43,7 @@ final class RecommendationRepository {
         Feed(File cache) { this.cache = cache; }
     }
     interface Listener { void changed(int source); }
-    private final File posterDir;
+    private final File posterDir, googleCache;
     private final ContentResolver resolver;
     private final Feed[] feeds = new Feed[3];
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -57,9 +58,12 @@ final class RecommendationRepository {
     private volatile boolean closed;
     private Listener listener;
     private GoogleTvSnapshot google;
+    private boolean googleLoading;
+    private long googleLastAttempt;
 
     RecommendationRepository(Context context) {
         resolver = context.getApplicationContext().getContentResolver();
+        googleCache = new File(context.getFilesDir(), "google-tv-cache.json");
         posterDir = new File(context.getCacheDir(), "posters"); posterDir.mkdirs();
         feeds[FOR_YOU] = new Feed(new File(context.getFilesDir(), "recommendations-cache.json"));
         feeds[WATCHLIST] = new Feed(new File(context.getFilesDir(), "watchlist-cache.json"));
@@ -90,24 +94,22 @@ final class RecommendationRepository {
                 feed.syncedAt = cache.optLong("synced_at");
             } catch (Exception ignored) { }
         }
-        try { google = new GoogleTvSnapshot(readJson(new File(context.getFilesDir(), "google-tv-cache.json")), fingerprint); }
+        try { google = new GoogleTvSnapshot(readJson(googleCache), fingerprint); }
         catch (Exception ignored) { google = null; }
     }
     boolean configured() { return !base.isEmpty(); }
     boolean hasGoogle() { return google != null; }
     long googleCapturedAt() { return google == null ? 0 : google.capturedAt; }
-    boolean fromGoogle(CatalogItem item) { return google != null && google.contains(item); }
-    List<CatalogItem> forYou(boolean series) {
-        List<CatalogItem> trakt = series ? feeds[FOR_YOU].shows : feeds[FOR_YOU].movies;
-        if (google == null) return trakt;
-        return GoogleTvSnapshot.mix(series ? google.shows : google.movies, trakt, series ? watchedShows : watchedMovies);
-    }
+    boolean googleLoading() { return googleLoading; }
+    List<CatalogItem> googleItems(boolean series) { return google == null ? new ArrayList<>() : google.items(series); }
     Feed feed(int source) { return feeds[source]; }
     String account(int source) { return source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
     void listen(Listener listener) { this.listener = listener; }
     private void publish(int source) { if (!closed && listener != null) listener.changed(source); }
 
     void refresh(int source, boolean force) {
+        if (source == GOOGLE) { reloadGoogle(force); return; }
+        if (!CatalogSource.networkFeed(source)) return;
         Feed feed = feeds[source]; long now = System.currentTimeMillis();
         if (closed || (source != TRENDING && !configured()) || feed.loading) return;
         if (!force && (now - feed.syncedAt < REFRESH_MS || now - feed.lastAttempt < 60_000)) return;
@@ -145,6 +147,24 @@ final class RecommendationRepository {
                 final int status = failure instanceof StatusException ? ((StatusException) failure).status : -1;
                 main.post(() -> { if (!closed) { feed.loading = false; feed.error = status; publish(source); } });
             }
+        });
+    }
+    /** Reread only the stored Google import. Screen capture is an explicit separate command. */
+    private void reloadGoogle(boolean force) {
+        if (closed || googleLoading) return;
+        long now = System.currentTimeMillis();
+        if (!force && now - googleLastAttempt < REFRESH_MS) return;
+        googleLastAttempt = now;
+        googleLoading = true; publish(GOOGLE);
+        publicWorker.execute(() -> {
+            GoogleTvSnapshot snapshot;
+            try { snapshot = new GoogleTvSnapshot(readJson(googleCache), fingerprint); }
+            catch (Exception ignored) { snapshot = null; }
+            final GoogleTvSnapshot loaded = snapshot;
+            main.post(() -> {
+                if (closed) return;
+                google = loaded; googleLoading = false; publish(GOOGLE);
+            });
         });
     }
     private JSONArray catalog(String origin, String type, String name) throws Exception {
@@ -187,7 +207,7 @@ final class RecommendationRepository {
             if (redirectPolicy == 2 && !CatalogEndpoint.publicPoster(uri)) throw new Exception();
             HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
             connection.setConnectTimeout(12_000); connection.setReadTimeout(18_000);
-            connection.setRequestProperty("User-Agent", "OnnTvHome/2.8");
+            connection.setRequestProperty("User-Agent", "OnnTvHome/2.9");
             connection.setInstanceFollowRedirects(false);
             try {
                 int status = connection.getResponseCode();

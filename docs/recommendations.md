@@ -2,12 +2,13 @@
 
 The optional shelf consumes the user's **existing official Stremio Trakt Integration add-on**.
 It does not reuse a Trakt OAuth token, register an API application, or write to either account.
-The home shelf has three movie/show catalog views and a fourth local app-content view:
+The home shelf has four movie/show catalog views and a separate local app-content view:
 
-- **For you**: the official add-on provides personalized recommendations; known watched titles are excluded.
-  An optional [Google TV snapshot](google-tv-personalization.md) can be interleaved with these titles,
-  with source badges, deduplication and watched exclusions for both. Google is explicitly dated;
-  it is refreshed by a separate capture on a computer or in Termux, not the Trakt Refresh button.
+- **Trakt**: the official add-on provides personalized recommendations; known watched titles are excluded.
+  This view contains only Trakt recommendations in their own provider order.
+- **Google TV**: a separate, dated [Google TV snapshot](google-tv-personalization.md), in its identified
+  Google order. It is never interleaved with Trakt or filtered using Trakt's watched history. Reload
+  reads the saved import only; a fresh capture is explicitly launched on a computer or in Termux.
 - **Watchlist / À regarder**: the official add-on provides your Trakt watchlist. Membership and order are
   retained, including started or previously watched titles still on the list. A valid empty list is
   displayed as empty, with guidance to add titles in Trakt; recommendations are never substituted.
@@ -18,7 +19,7 @@ The home shelf has three movie/show catalog views and a fourth local app-content
 - **My apps / Mes applis**: app-published channels and resume entries read from Android TV's
   shared `TvProvider`. The Channels chooser and Continue control replace Movies/TV shows in this view.
 
-Up to 40 items are displayed per view. The three catalog views keep provider order and open Stremio
+Up to 40 items are displayed per view. The movie/show catalog views keep provider order and open Stremio
 details without starting playback. The app view balances channels and uses each app's published
 intent, which may start or resume playback. This launcher does not edit the watchlist or mark titles watched.
 
@@ -123,7 +124,7 @@ was watched. Personalized ranking comes from the official integration, not a loc
 
 ## Refresh and cache
 
-Only the selected view is refreshed. For-you and Watchlist each read movie/series history to check
+Only the selected view is refreshed. Trakt and Watchlist each read movie/series history to check
 the private connection, then their two corresponding catalogs. Popular reads two public Cinemeta
 catalogs on a separate worker so a slow private connection does not block it. Responses must be valid
 JSON catalogs, including legitimately empty arrays. Duplicate and malformed IDs are removed in all
@@ -131,7 +132,8 @@ views; watched exclusions apply only to For-you. No write endpoint or playback r
 
 Refresh is checked on resume and each visible minute; fresh data is reused for 15 minutes.
 Failed automatic attempts are spaced at least a minute apart. The manual Refresh control can
-retry immediately. Nothing runs as a background service when the launcher is paused.
+retry immediately. Google TV Reload reads only its local snapshot and never requests a Trakt refresh
+or starts Google TV on screen. Nothing runs as a background service when the launcher is paused.
 
 Each view has its own atomic cache and sync/error/loading state. Private caches are bound to a SHA-256
 fingerprint of the configured catalog URL and an explicit source ID. The public cache has its own

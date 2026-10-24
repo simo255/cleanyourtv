@@ -417,7 +417,7 @@ tools/theme.sh themes/aurora                                 # push a theme; --r
 |---|---|
 | [`tools/tv.py`](tools/tv.py) | Pure-Python ADB client: shell, batch, push, pull, reboot, and screenshots, optionally pressing remote keys first. Works where the stock `adb` binary is blocked. |
 | [`tools/configure-recommendations.py`](tools/configure-recommendations.py) | This fork: privately configure the optional Stremio/Trakt catalogs. [Guide](docs/recommendations.md). |
-| [`tools/sync-google-tv.py`](tools/sync-google-tv.py) | This fork: import a dated Google TV capture and combine identified titles with Trakt. [Guide](docs/google-tv-personalization.md). |
+| [`tools/sync-google-tv.py`](tools/sync-google-tv.py) | This fork: import a dated capture into the separate Google TV view. [Guide](docs/google-tv-personalization.md). |
 | [`tools/refresh-google-tv-termux.sh`](tools/refresh-google-tv-termux.sh) | Run the optional Google TV capture on the box itself using Termux. [Setup](docs/google-tv-personalization.md#run-locally-in-termux-without-a-computer). |
 | [`tools/b64push.py`](tools/b64push.py) | Uploads large files such as APKs in base64 chunks and verifies the checksum. |
 | [`tools/relay.py`](tools/relay.py) | Forwards a local port to the TV's ADB port, for assistants whose sandbox can't reach your network. Listens on this computer only. [Guide](tools/relay.md). |

@@ -16,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,15 +33,15 @@ import java.util.Map;
 
 /** Trakt, public discovery and app-published TV channels share one remote-friendly shelf. */
 final class RecommendationsShelf {
-    private static final int TV = 3;
+    private static final int TV = CatalogSource.TV, GOOGLE = CatalogSource.GOOGLE;
     private final Activity activity;
     private final FrameLayout host;
     private final RecommendationRepository repository;
     private final TvCatalog tv;
     private final Map<String, TvProgram> tvPrograms = new HashMap<>();
     private final Runnable focusDock;
-    private final TextView status, movieTab, showTab;
-    private final TextView[] sources = new TextView[4];
+    private final TextView status, movieTab, showTab, refreshTab;
+    private final TextView[] sources = new TextView[CatalogSource.COUNT];
     private final List<TextView> controls = new ArrayList<>();
     private final RecyclerView list;
     private final Posters adapter = new Posters();
@@ -50,10 +51,10 @@ final class RecommendationsShelf {
     private int source, pendingFocus = -1;
     private String syncStatus = "";
     private boolean catalogReady;
-    private boolean catalogEmpty, tvResume;
+    private boolean catalogEmpty, tvResume, googleSeries;
     private String tvChannel;
     private List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
-    private final int[] sourceNames = {R.string.reco_for_you, R.string.reco_watchlist, R.string.reco_trending, R.string.reco_tv};
+    private final int[] sourceNames = {R.string.reco_for_you, R.string.reco_watchlist, R.string.reco_trending, R.string.reco_tv, R.string.reco_google};
 
     RecommendationsShelf(Activity activity, FrameLayout host, Runnable focusDock) {
         this.activity = activity; this.host = host; this.focusDock = focusDock;
@@ -62,14 +63,15 @@ final class RecommendationsShelf {
         tv = new TvCatalog(activity);
         enabled = activity.getSharedPreferences("recommendations", 0).getBoolean("enabled", true);
         showSeries = activity.getSharedPreferences("recommendations", 0).getBoolean("series", false);
+        googleSeries = activity.getSharedPreferences("recommendations", 0).getBoolean("google_series", false);
         tvResume = activity.getSharedPreferences("recommendations", 0).getBoolean("tv_resume", false);
         tvChannel = activity.getSharedPreferences("recommendations", 0).getString("tv_channel", "");
-        source = Math.max(0, Math.min(TV, activity.getSharedPreferences("recommendations", 0).getInt("source", 0)));
+        source = CatalogSource.restore(activity.getSharedPreferences("recommendations", 0).getInt("source", 0));
         LinearLayout panel = new LinearLayout(activity); panel.setOrientation(LinearLayout.VERTICAL);
         host.addView(panel, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout header = new LinearLayout(activity); header.setGravity(Gravity.CENTER_VERTICAL);
-        int[] sourceIds = {R.id.recommendation_for_you, R.id.recommendation_watchlist, R.id.recommendation_trending, R.id.recommendation_tv};
-        for (int i = 0; i < sources.length; i++) {
+        int[] sourceIds = {R.id.recommendation_for_you, R.id.recommendation_watchlist, R.id.recommendation_trending, R.id.recommendation_tv, R.id.recommendation_google};
+        for (int i : CatalogSource.displayOrder()) {
             final int index = i;
             sources[i] = button(sourceNames[i]); sources[i].setId(sourceIds[i]);
             sources[i].setOnClickListener(v -> source(index, true));
@@ -81,9 +83,13 @@ final class RecommendationsShelf {
         movieTab.setOnClickListener(v -> { if (source == TV) channelMenu(); else category(false); });
         showTab.setOnClickListener(v -> category(true));
         header.addView(movieTab); header.addView(showTab);
-        TextView refresh = button(R.string.reco_refresh); refresh.setId(R.id.recommendation_refresh);
-        refresh.setOnClickListener(v -> refresh(true, true)); header.addView(refresh);
-        panel.addView(header);
+        refreshTab = button(R.string.reco_refresh); refreshTab.setId(R.id.recommendation_refresh);
+        refreshTab.setOnClickListener(v -> refresh(true, true)); header.addView(refreshTab);
+        HorizontalScrollView headerScroll = new HorizontalScrollView(activity);
+        headerScroll.setFillViewport(true); headerScroll.setHorizontalScrollBarEnabled(false);
+        headerScroll.setFocusable(false);
+        headerScroll.addView(header, new ViewGroup.LayoutParams(-2, -2));
+        panel.addView(headerScroll, new LinearLayout.LayoutParams(-1, -2));
         status = text("", 11, 0xFFA6ADB8); status.setId(R.id.recommendation_status);
         panel.addView(status, new LinearLayout.LayoutParams(-1, dp(23)));
         list = new RecyclerView(activity); list.setId(R.id.recommendation_list);
@@ -141,6 +147,9 @@ final class RecommendationsShelf {
         if (source == TV) {
             tvResume = series;
             activity.getSharedPreferences("recommendations", 0).edit().putBoolean("tv_resume", series).apply();
+        } else if (source == GOOGLE) {
+            googleSeries = series;
+            activity.getSharedPreferences("recommendations", 0).edit().putBoolean("google_series", series).apply();
         } else {
             showSeries = series;
             activity.getSharedPreferences("recommendations", 0).edit().putBoolean("series", series).apply();
@@ -148,10 +157,11 @@ final class RecommendationsShelf {
         paintTabs();
         render(); list.scrollToPosition(0);
     }
-    private boolean secondary() { return source == TV ? tvResume : showSeries; }
+    private boolean secondary() { return source == TV ? tvResume : source == GOOGLE ? googleSeries : showSeries; }
     private void paintTabs() {
         movieTab.setText(source == TV ? R.string.reco_tv_channels : R.string.reco_movies);
         showTab.setText(source == TV ? R.string.reco_tv_resume : R.string.reco_shows);
+        refreshTab.setText(source == GOOGLE ? R.string.reco_google_reload : R.string.reco_refresh);
         movieTab.setTextColor(buttonColors(secondary() ? 0xFFA6ADB8 : 0xFF9CB7FF));
         showTab.setTextColor(buttonColors(secondary() ? 0xFF9CB7FF : 0xFFA6ADB8));
     }
@@ -178,9 +188,10 @@ final class RecommendationsShelf {
     }
     private void render() {
         if (source == TV) { renderTv(); return; }
+        if (source == GOOGLE) { renderGoogle(); return; }
         RecommendationRepository.Feed feed = repository.feed(source);
-        movies = source == 0 ? repository.forYou(false) : feed.movies;
-        shows = source == 0 ? repository.forYou(true) : feed.shows;
+        movies = feed.movies;
+        shows = feed.shows;
         String provider = activity.getString(source == 0 ? R.string.reco_provider_for_you
                 : source == 1 ? R.string.reco_provider_watchlist : R.string.reco_provider_trending);
         if (source != 2 && !repository.configured()) syncStatus = activity.getString(R.string.reco_setup);
@@ -189,12 +200,21 @@ final class RecommendationsShelf {
         else if (feed.syncedAt > 0) syncStatus = activity.getString(R.string.reco_feed_synced, provider,
                 DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(feed.syncedAt)));
         else syncStatus = provider;
-        if (source == 0 && repository.hasGoogle()) syncStatus = activity.getString(R.string.reco_hybrid_status,
-                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(repository.googleCapturedAt())), syncStatus);
         catalogReady = feed.syncedAt > 0 && feed.error == 0 && !feed.loading;
         catalogEmpty = (showSeries ? shows : movies).isEmpty();
         if (!list.hasFocus()) updateStatus();
         adapter.replace(showSeries ? shows : movies); updateVisibility();
+    }
+    private void renderGoogle() {
+        movies = repository.googleItems(false); shows = repository.googleItems(true);
+        if (repository.googleLoading()) syncStatus = activity.getString(R.string.reco_feed_loading, activity.getString(R.string.reco_google));
+        else if (!repository.hasGoogle()) syncStatus = activity.getString(R.string.reco_google_setup);
+        else syncStatus = activity.getString(R.string.reco_google_status,
+                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(repository.googleCapturedAt())));
+        catalogReady = repository.hasGoogle() && !repository.googleLoading();
+        catalogEmpty = (googleSeries ? shows : movies).isEmpty();
+        if (!list.hasFocus()) updateStatus();
+        adapter.replace(googleSeries ? shows : movies); updateVisibility();
     }
     private void renderTv() {
         List<CatalogItem> cards = new ArrayList<>(); tvPrograms.clear();
@@ -218,7 +238,8 @@ final class RecommendationsShelf {
     }
     private void updateStatus() {
         status.setText(catalogReady && catalogEmpty
-                ? activity.getString(source == TV ? R.string.reco_tv_empty : source == 1 ? R.string.reco_watchlist_empty : R.string.reco_empty) : syncStatus);
+                ? activity.getString(source == TV ? R.string.reco_tv_empty : source == GOOGLE ? R.string.reco_google_empty
+                    : source == 1 ? R.string.reco_watchlist_empty : R.string.reco_empty) : syncStatus);
     }
     boolean visible() { return (repository.configured() || source >= 2) && enabled && dockVisible && fitsAboveDock; }
     void fitAboveDock(float dockTop) {
@@ -255,19 +276,22 @@ final class RecommendationsShelf {
         if (holder != null) { holder.itemView.requestFocus(); pendingFocus = -1; }
     }
     void menu() {
+        int[] order = CatalogSource.displayOrder();
+        List<String> labels = new ArrayList<>();
+        for (int selected : order) labels.add(activity.getString(sourceNames[selected]));
+        labels.add(movieTab.getText().toString()); labels.add(showTab.getText().toString());
+        labels.add(refreshTab.getText().toString()); labels.add(activity.getString(enabled ? R.string.reco_hide : R.string.reco_show));
         new AlertDialog.Builder(activity, R.style.Theme_TvHome_Dialog).setTitle(R.string.reco_menu)
-                .setItems(new String[]{activity.getString(sourceNames[0]), activity.getString(sourceNames[1]), activity.getString(sourceNames[2]), activity.getString(sourceNames[3]),
-                        movieTab.getText().toString(), showTab.getText().toString(), activity.getString(R.string.reco_refresh),
-                        activity.getString(enabled ? R.string.reco_hide : R.string.reco_show)}, (dialog, choice) -> {
-                    if (choice == 6) refresh(true, true);
-                    else if (choice == 7) {
+                .setItems(labels.toArray(new String[0]), (dialog, choice) -> {
+                    if (choice == order.length + 2) refresh(true, true);
+                    else if (choice == order.length + 3) {
                         enabled = !enabled; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", enabled).apply();
                         updateVisibility(); if (enabled) refresh(false, true); focusDock.run();
                     } else {
                         enabled = true; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", true).apply();
-                        if (choice < 4) source(choice, true);
-                        else if (source == TV && choice == 4) { channelMenu(); return; }
-                        else category(choice == 5);
+                        if (choice < order.length) source(order[choice], true);
+                        else if (source == TV && choice == order.length) { channelMenu(); return; }
+                        else category(choice == order.length + 1);
                         dockVisible(true); focusDock.run(); focusCard(0);
                     }
                 }).setPositiveButton(R.string.done, null).show();
@@ -354,7 +378,8 @@ final class RecommendationsShelf {
         }
     }
     private String caption(CatalogItem item) {
-        if (source != 0 || !repository.hasGoogle()) return item.year;
-        return (repository.fromGoogle(item) ? "Google TV" : "Trakt") + " \u00B7 " + item.year;
+        if (source == GOOGLE) return "Google TV · " + item.year;
+        if (source == CatalogSource.TRAKT) return "Trakt · " + item.year;
+        return item.year;
     }
 }

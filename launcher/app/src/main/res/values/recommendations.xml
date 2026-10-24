@@ -5,13 +5,18 @@
     <item name="recommendation_watchlist" type="id" />
     <item name="recommendation_trending" type="id" />
     <item name="recommendation_tv" type="id" />
+    <item name="recommendation_google" type="id" />
     <item name="recommendation_shows" type="id" />
     <item name="recommendation_refresh" type="id" />
     <item name="recommendation_status" type="id" />
     <item name="recommendation_list" type="id" />
     <item name="recommendation_card" type="id" />
-    <string name="reco_for_you">For you</string>
-    <string name="reco_hybrid_status">Google TV · Captured %1$s | %2$s</string>
+    <string name="reco_for_you">Trakt</string>
+    <string name="reco_google">Google TV</string>
+    <string name="reco_google_status">Google TV · Captured %1$s · Reload reads the saved snapshot</string>
+    <string name="reco_google_reload">Reload</string>
+    <string name="reco_google_setup">Google TV · Import a snapshot with the capture tool or Termux.</string>
+    <string name="reco_google_empty">No Google TV titles identified in this category. Import a new snapshot to update it.</string>
     <string name="reco_watchlist">Watchlist</string>
     <string name="reco_trending">Trending</string>
     <string name="reco_tv">My apps</string>
