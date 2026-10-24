@@ -31,7 +31,7 @@ In 2.34, account snapshots are persisted on the worker without mutating shared J
 does not notify the ranking listener. Diversity uses precomputed content scores and primary genres. Cached poster
 decoding has its own queue, separate from network downloads; obsolete queued requests are dropped
 when the displayed list changes. The poster row retains enough reusable cards for a full strip. In 2.34, opaque posters decode at
-card size in RGB_565, with a heap-sized memory cache (6–24 MiB) and a 12 MB LRU disk cache
+card size in RGB_565, with a heap-sized memory cache (6â€“24 MiB) and a 12 MB LRU disk cache
 that evicts down to 9 MB only when full. Background memory pressure releases the poster memory cache.
 
 ## Stremio playback resume (optional)
@@ -151,7 +151,7 @@ update. It is off by default. No AI model, new permission, dependency or account
   infer dislikes. Ranking combines normalized content overlap (65%) with provider position (35%), then
   applies a small diversity pass. These weights are heuristics, not a measured quality guarantee.
 - **Discover** replaces the New releases label. Per type, a refresh tries the current/previous year,
-  page two of the current year (`skip=100`), one Popular genre and Featured (`imdbRating`): at most ten
+  page two of the current year (`skip=100`), one Popular genre among those Cinemeta offers for that media type and Featured (`imdbRating`): at most ten
   public catalog requests in total. The genre rotates by calendar day, independently of private tastes.
   A 60-second start budget per type bounds slow providers (an in-flight request may finish afterwards).
   Successful pages are interleaved and deduplicated to at most 300 candidates per type. Failed pages
@@ -180,7 +180,7 @@ states of currently known aired seasons; a subsequently discovered season remain
 Starting with **2.33**, when the enhanced option and Stremio connection are both enabled, returning to
 Home or visiting a recommendation tab also refreshes watched evidence. This is independent of the
 four-hour catalog cache: returning Home or selecting a tab reads at most once a minute; the visible Home timer reads
-at most every 15 minutes. Failures back off 2–30 minutes (at least 10 on 429/503); Refresh is immediate.
+at most every 15 minutes. Failures back off 2â€“30 minutes (at least 10 on 429/503); Refresh is immediate.
 No account read starts while Home is in the background. The selected recommendation list is
 re-filtered as soon as the read finishes, even when its catalog remains cached.
 
@@ -415,3 +415,10 @@ and upstream processing delays are controlled by Trakt and the official integrat
 - [Android TV preview programs](https://developer.android.com/reference/android/media/tv/TvContract.PreviewPrograms)
 - [Android TV Watch Next programs](https://developer.android.com/reference/android/media/tv/TvContract.WatchNextPrograms)
 - [TvProvider access filtering](https://android.googlesource.com/platform/packages/providers/TvProvider/+/refs/heads/master/src/com/android/providers/tv/TvProvider.java)
+
+In 2.34, focusing source tabs waits 700 ms before refreshing; clicking refreshes immediately.
+Up from the shelf header targets a visible top-bar control. Series genre rotation includes Reality-TV,
+Talk-Show and Game-Show; movie rotation stays within Cinemeta's 19 movie genres.
+An empty private history with nonempty raw recommendation catalogs is accepted; previously known
+history is retained. Only a completely empty private response retains the previous cache with the
+internal EMPTY_PRIVATE status, independent of real HTTP authentication errors.

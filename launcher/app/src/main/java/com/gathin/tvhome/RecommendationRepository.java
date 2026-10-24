@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 final class RecommendationRepository {
     static final int FOR_YOU = CatalogSource.TRAKT, WATCHLIST = CatalogSource.WATCHLIST,
             TRENDING = CatalogSource.TRENDING, RECENT = CatalogSource.RECENT;
+    static final int EMPTY_PRIVATE = -2;
     static final long REFRESH_MS = 4 * 60 * 60_000L;
     private static final String POPULAR_BASE = "https://v3-cinemeta.strem.io/";
     private static final String POPULAR_ACCOUNT = "cinemeta-popular-v1";
@@ -207,18 +208,20 @@ final class RecommendationRepository {
         // Only the selected source is fetched. Switching source queues another bounded operation.
         (CatalogSource.publicFeed(source) ? publicWorker : worker).execute(() -> {
             try {
-                if (!CatalogSource.publicFeed(source)) {
-                    int movieHistory = readHistory("movie", movieSeen), showHistory = readHistory("series", showSeen);
-                    // Invalid private IDs may return HTTP 200 with empty catalogs. Keep prior private caches.
-                    if (movieHistory + showHistory == 0 && knownHistory)
-                        throw new StatusException(401);
-                }
+                int historyCount = 0;
+                if (!CatalogSource.publicFeed(source))
+                    historyCount = readHistory("movie", movieSeen) + readHistory("series", showSeen);
                 String endpoint = source == FOR_YOU ? "recommendations" : source == WATCHLIST ? "watchlist" : "top";
                 String origin = CatalogSource.publicFeed(source) ? POPULAR_BASE : base;
+                JSONArray rawMovies = source == RECENT ? new JSONArray() : catalog(origin, "movie", endpoint);
+                JSONArray rawShows = source == RECENT ? new JSONArray() : catalog(origin, "series", endpoint);
+                if (!CatalogSource.publicFeed(source) && PrivateFeedCheck.keepPreviousCache(
+                        historyCount, rawMovies.length() + rawShows.length(), knownHistory))
+                    throw new StatusException(EMPTY_PRIVATE);
                 List<CatalogItem> movies = source == RECENT ? recent("movie")
-                        : CatalogItem.parse(catalog(origin, "movie", endpoint), "movie", source == FOR_YOU && !enhanced, movieSeen);
+                        : CatalogItem.parse(rawMovies, "movie", source == FOR_YOU && !enhanced, movieSeen);
                 List<CatalogItem> shows = source == RECENT ? recent("series")
-                        : CatalogItem.parse(catalog(origin, "series", endpoint), "series", false, showSeen);
+                        : CatalogItem.parse(rawShows, "series", false, showSeen);
                 long at = System.currentTimeMillis();
                 JSONObject cache = new JSONObject().put("account", account(source)).put("source", source).put("synced_at", at)
                         .put("movies", CatalogItem.json(movies)).put("shows", CatalogItem.json(shows));
@@ -252,7 +255,7 @@ final class RecommendationRepository {
             long deadline = android.os.SystemClock.elapsedRealtime() + 60_000;
             Exception failure = null;
             java.time.LocalDate today = java.time.LocalDate.now();
-            for (String path : CinemetaDiscovery.paths(today.getYear(), today.getDayOfYear())) {
+            for (String path : CinemetaDiscovery.paths(type, today.getYear(), today.getDayOfYear())) {
                 if (closed || Thread.currentThread().isInterrupted()) throw new InterruptedException();
                 if (android.os.SystemClock.elapsedRealtime() >= deadline) break;
                 try { pages.add(CatalogItem.parse(catalog(POPULAR_BASE, type, path), type, false, java.util.Collections.emptySet())); }

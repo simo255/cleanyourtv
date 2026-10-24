@@ -36,6 +36,8 @@ import java.util.Map;
 
 /** Trakt, public discovery and app-published TV channels share one remote-friendly shelf. */
 final class RecommendationsShelf {
+    private static final long TAB_FOCUS_REFRESH_MS = 700;
+    private final Runnable focusRefresh = () -> refresh(AccountRefresh.Trigger.FOREGROUND, false);
     private static final int TV = CatalogSource.TV;
     private final Activity activity;
     private final FrameLayout host;
@@ -44,7 +46,7 @@ final class RecommendationsShelf {
     private final StremioResume stremio;
     private final Map<String, StremioProgress.Item> resumeItems = new HashMap<>();
     private final Map<String, TvProgram> tvPrograms = new HashMap<>();
-    private final Runnable focusDock;
+    private final Runnable focusDock, focusTop;
     private final TextView status, movieTab, showTab, refreshTab, accountTab;
     private final TextView[] sources = new TextView[CatalogSource.COUNT];
     private final List<TextView> controls = new ArrayList<>();
@@ -68,8 +70,8 @@ final class RecommendationsShelf {
     private List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
     private final int[] sourceNames = {R.string.reco_for_you, R.string.reco_watchlist, R.string.reco_trending, R.string.reco_tv, 0, R.string.reco_recent, R.string.stremio_resume};
 
-    RecommendationsShelf(Activity activity, FrameLayout host, Runnable focusDock, boolean refined) {
-        this.activity = activity; this.host = host; this.focusDock = focusDock;
+    RecommendationsShelf(Activity activity, FrameLayout host, Runnable focusDock, Runnable focusTop, boolean refined) {
+        this.activity = activity; this.host = host; this.focusDock = focusDock; this.focusTop = focusTop;
         this.refined = refined;
         dialogTheme = refined ? R.style.Theme_TvHome_Dialog_Nocturne : R.style.Theme_TvHome_Dialog;
         if (refined) host.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
@@ -174,8 +176,9 @@ final class RecommendationsShelf {
             for (int index : CatalogSource.displayOrder()) activateOnFocus(sources[index], () -> {
                 if (source == index) return;
                 source(index, false);
-                // Browsing a tab must not open account or permission dialogs.
-                refresh(AccountRefresh.Trigger.FOREGROUND, false);
+                // Wait for the user to settle on a tab before starting a network read.
+                host.removeCallbacks(focusRefresh);
+                host.postDelayed(focusRefresh, TAB_FOCUS_REFRESH_MS);
             });
         }
         source(source, false);
@@ -216,7 +219,7 @@ final class RecommendationsShelf {
             }
             if (key == KeyEvent.KEYCODE_DPAD_UP) {
                 if (refined && v == accountTab) sources[source].requestFocus();
-                else activity.findViewById(R.id.btnInputs).requestFocus();
+                else focusTop.run();
                 return true;
             }
             int index = controls.indexOf(v);
@@ -242,7 +245,7 @@ final class RecommendationsShelf {
             else sources[i].setTextColor(buttonColors(i == source ? 0xFF9CB7FF : 0xFFA6ADB8));
         }
         paintTabs(); render(); list.scrollToPosition(0);
-        if (refresh) refresh(AccountRefresh.Trigger.FOREGROUND, true);
+        if (refresh) { host.removeCallbacks(focusRefresh); refresh(AccountRefresh.Trigger.FOREGROUND, true); }
     }
     private void category(boolean series) {
         pendingFocus = -1; lastFocusedCard = 0;
@@ -393,8 +396,8 @@ final class RecommendationsShelf {
     void resume() { if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, false); }
     void trimMemory() { repository.trimMemory(); }
     void tick() { if (enabled) refresh(AccountRefresh.Trigger.TICK, false); }
-    void pause() { stremio.pause(); }
-    void close() { repository.close(); tv.close(); stremio.close(); }
+    void pause() { host.removeCallbacks(focusRefresh); stremio.pause(); }
+    void close() { host.removeCallbacks(focusRefresh); repository.close(); tv.close(); stremio.close(); }
     boolean focused() { return host.hasFocus(); }
     boolean focusPreviousCard() { return focusCard(lastFocusedCard); }
     boolean focusCard(int preferred) {

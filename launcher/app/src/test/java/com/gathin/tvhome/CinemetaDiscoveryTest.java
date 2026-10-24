@@ -9,11 +9,11 @@ import static org.junit.Assert.*;
 
 public class CinemetaDiscoveryTest {
     @Test public void requestPlanIsBoundedAndDependsOnlyOnPublicCalendar() {
-        List<String> paths = CinemetaDiscovery.paths(2026, 297);
+        List<String> paths = CinemetaDiscovery.paths("movie", 2026, 297);
         assertEquals(5, paths.size()); assertEquals("year/genre=2026", paths.get(0));
         assertEquals("year/genre=2026&skip=100", paths.get(2)); assertEquals("imdbRating", paths.get(4));
-        assertEquals(paths, CinemetaDiscovery.paths(2026, 297));
-        assertNotEquals(paths.get(3), CinemetaDiscovery.paths(2026, 298).get(3));
+        assertEquals(paths, CinemetaDiscovery.paths("movie", 2026, 297));
+        assertNotEquals(paths.get(3), CinemetaDiscovery.paths("movie", 2026, 298).get(3));
     }
     @Test public void allPagesContributeWithinTheCapAndDuplicatesAreRemoved() throws Exception {
         List<CatalogItem> a = new ArrayList<>(), b = new ArrayList<>();
@@ -24,5 +24,16 @@ public class CinemetaDiscoveryTest {
         List<CatalogItem> result = CinemetaDiscovery.merge(Arrays.asList(a, b, a));
         assertEquals(300, result.size()); assertEquals("tt0", result.get(0).id); assertEquals("tt1000", result.get(1).id);
         assertEquals(300, result.stream().map(i -> i.id).distinct().count());
+    }
+    @Test public void seriesRotationReachesTvOnlyGenres() {
+        java.util.Set<String> paths = new java.util.HashSet<>();
+        for (int i = 0; i < 22; i++) paths.add(CinemetaDiscovery.paths("series", 2026, i).get(3));
+        for (String genre : new String[]{"Reality-TV", "Talk-Show", "Game-Show"}) assertTrue(paths.contains("top/genre=" + genre));
+    }
+    @Test public void movieRotationNeverRequestsTvOnlyGenres() {
+        for (int i = 0; i <= 100; i++) {
+            String path = CinemetaDiscovery.paths("movie", 2026, i).get(3);
+            for (String genre : new String[]{"Reality-TV", "Talk-Show", "Game-Show"}) assertFalse(path.contains(genre));
+        }
     }
 }

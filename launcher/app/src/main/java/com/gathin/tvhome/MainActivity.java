@@ -540,7 +540,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         menus = new LauncherMenus(this, preferences, adapter, this::refreshApps, this::showInputs, cfg.vpnApp, cfg.refinedHome);
         if (cfg.refinedHome) refinedBottomMask = HomeAppearance.apply(this, cfg.backgroundColor);
         recommendations = new RecommendationsShelf(this, findViewById(R.id.recommendationShelf),
-                () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))), cfg.refinedHome);
+                () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))), this::focusTopBar, cfg.refinedHome);
         menus.setRecommendations(recommendations::menu);
         if (cfg.homeWeather) homeWeather = new HomeWeather(this, findViewById(R.id.homeWeather));
         dockApps = preferences.dock();
@@ -2223,6 +2223,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         libraryFocusPending = false;
         hideGlass();
         hideHero();
+    }
+
+    private void focusTopBar() {
+        (btnInputs.getVisibility() == View.VISIBLE ? btnInputs : firstTopButton()).requestFocus();
     }
 
     /** The first top-bar button after Inputs that is shown: the network pill, Reorder, then Settings (always there). */

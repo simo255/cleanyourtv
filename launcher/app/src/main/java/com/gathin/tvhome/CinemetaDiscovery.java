@@ -11,10 +11,13 @@ final class CinemetaDiscovery {
     private static final String[] GENRES = {"Action", "Adventure", "Animation", "Biography", "Comedy", "Crime",
             "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi",
             "Sport", "Thriller", "War", "Western", "Reality-TV", "Talk-Show", "Game-Show"};
-    static List<String> paths(int year, int rotation) {
+    // The first 19 genres are supported by Cinemeta's movie catalog.
+    private static final int MOVIE_GENRES = 19;
+    static List<String> paths(String type, int year, int rotation) {
         List<String> paths = new ArrayList<>(), selected = new ArrayList<>();
         // Public calendar rotation, independent of private history or learned interests.
-        selected.add(GENRES[Math.floorMod(rotation, 19)]);
+        int count = "series".equals(type) ? GENRES.length : MOVIE_GENRES;
+        selected.add(GENRES[Math.floorMod(rotation, count)]);
         paths.add("year/genre=" + year);
         paths.add("year/genre=" + (year - 1));
         paths.add("year/genre=" + year + "&skip=100");
