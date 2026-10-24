@@ -1,103 +1,5 @@
 # Android TV Home · Stremio + Trakt
 
-[Français](#francais) · [English](#english)
-
-<a id="francais"></a>
-
-## Français
-
-Un accueil Android TV personnel, pensé pour retrouver ses films, suivre ses séries et ouvrir ses
-applications à la télécommande, sans publicité ajoutée par le launcher.
-
-Ce dépôt est un fork de [CleanYourTV par Gathin23 et ses contributeurs](https://github.com/Gathin23/cleanyourtv),
-anciennement **tv-vibehack**. Parti d'un launcher minimaliste et d'outils de nettoyage TV, il est devenu
-un accueil cinéma avec **Stremio, Trakt, des recommandations personnalisées et le thème Nocturne**.
-Les outils de nettoyage et les listes de téléviseurs du projet d'origine restent disponibles.
-
-**Commencer :** [installation et connexion des comptes](PERSONALIZATION.md) ·
-[configuration des recommandations](docs/recommendations.md) · [thème Nocturne](themes/nocturne/config.json)
-
-## Ce que propose ce fork
-
-| Fonction | Ce qu'elle apporte |
-|---|---|
-| **Reprendre avec Stremio** | Connexion volontaire par QR code, films et épisodes en cours, progression, temps restant et lien vers l'épisode dans Stremio. Une vue présente aussi les prochains épisodes datés, selon les métadonnées disponibles. |
-| **Recommandations Trakt** | Catalogues de films et séries issus de votre propre extension officielle **Trakt Integration** dans Stremio, filtrage des titres déjà vus connus et classement affiné par les préférences locales. |
-| **Nouveautés et tendances** | Catalogues publics Cinemeta, utilisables sans connecter de compte. Les nouveautés se basent sur la date de sortie connue ; pour une série, il s'agit de sa première diffusion. |
-| **Découverte enrichie, en option** | Profils de goûts distincts pour films et séries, découverte par année et genre, prise en compte des saisons et choix entre titres récents et toutes les années. Nécessite `recommendation_options.enhanced` dans la configuration privée. |
-| **Préférences locales** | Un contenu terminé peut servir de signal positif ; un contenu inachevé reste neutre. Un appui long permet d'indiquer « Plus comme ceci », « Pas intéressé », « Terminé » ou d'annuler un choix. |
-| **Interface Nocturne, en option** | Fond sombre, grandes affiches, titres et synopsis disponibles, focus visible et navigation entre catalogues, dock et grille d'applications. |
-| **Dock personnalisable** | Jusqu'à sept applications sur une ligne, avec réorganisation, ajout, retrait et masquage depuis la télécommande. Les choix sont conservés localement. |
-| **Menu rapide et VPN** | Accès aux catalogues, au dock, au réseau, au Bluetooth, au son, aux applications, aux entrées et aux réglages. L'état VPN vient d'Android, sans recherche d'adresse IP distante. |
-| **Météo et TMDB, en option** | Météo via l'add-on séparé de ce fork ; enrichissement des nouveautés avec votre propre jeton TMDB. Ces fonctions demandent une configuration supplémentaire. |
-
-L'interface ajoutée par ce fork est disponible en français et en anglais. Les thèmes, les cartes de
-modules et les traductions hérités du projet d'origine restent présents.
-
-## Comment fonctionne la personnalisation
-
-La connexion **Stremio pour la reprise** et le **catalogue de l'extension Trakt** sont deux connexions
-distinctes. Vous fournissez les vôtres : aucun compte ni historique personnel n'est livré avec le dépôt.
-Le launcher ouvre les contenus dans Stremio ; il ne lit pas lui-même les vidéos.
-
-Le classement utilise les catalogues et des règles locales, sans modèle d'IA. Une série dont la fin
-est confirmée est un exemple positif ; abandonner ou ne pas terminer une série ne signifie pas
-qu'elle a été détestée. Le choix explicite « Pas intéressé » masque le titre concerné.
-
-Avec la découverte enrichie et Stremio connecté, les informations de visionnage permettent aussi
-d'exclure automatiquement les films marqués comme vus et les séries dont la complétion est confirmée.
-La couverture dépend des données disponibles : ce n'est pas une garantie de synchronisation exhaustive
-de tout l'historique. Voir les [règles et limites](docs/recommendations.md).
-
-Les sessions Stremio sont chiffrées avec Android Keystore. Les préférences et caches restent dans
-le stockage privé de l'application. Le launcher effectue des requêtes réseau pour les fonctions
-activées, mais n'ajoute ni télémétrie, ni envoi de vos préférences, ni écriture dans vos comptes
-Stremio ou Trakt. Le suivi de lecture côté comptes reste assuré par ces applications et services.
-
-L'ancienne intégration par capture de Google TV a été retirée du parcours actuel.
-
-## Installer et configurer
-
-Le launcher demande **Android 8.0 ou ultérieur**. Le développement et des vérifications sur appareil
-ont été réalisés sur un **onn Streaming Device 4K Pro sous Android TV 12** ; cela ne valide pas
-automatiquement chaque fonction récente ni les autres appareils et firmwares.
-
-Pour compiler : **JDK 17**, **Android SDK 34 / build-tools 34.0.0** et les outils Android `adb`.
-Python 3.9+ est nécessaire pour les outils de configuration.
-
-```sh
-git clone --branch main https://github.com/simo255/cleanyourtv.git
-cd cleanyourtv/launcher
-./gradlew assembleDebug
-```
-
-Sous Windows, utilisez `gradlew.bat assembleDebug`. Le
-[guide d'installation](PERSONALIZATION.md#build-and-try-the-launcher) détaille l'essai sur TV,
-le choix du launcher comme accueil et la connexion de vos comptes. Une mise à jour d'une installation
-existante doit conserver la même clé de signature pour préserver les données de l'application.
-
-- **Stremio :** sélectionner la vue de reprise, puis la connexion par QR code.
-- **Trakt :** configurer votre extension Stremio officielle avec l'[outil de configuration](PERSONALIZATION.md#connect-stremio--trakt).
-- **Nocturne et dock :** consulter la [personnalisation](PERSONALIZATION.md#customize) et les [thèmes](themes/README.md).
-
-Installer ce launcher ne nettoie pas automatiquement la TV. Le nettoyage hérité de CleanYourTV est
-une opération distincte, encadrée par [PROMPT.md](PROMPT.md), avec sauvegarde et désactivation réversible.
-
-## Origine du projet et documentation
-
-Ce fork conserve le travail de **Gathin23 et des contributeurs de CleanYourTV**, sous
-[licence MIT](LICENSE). Il ajoute volontairement des fonctions réseau et des catalogues optionnels
-à la base initialement hors ligne. Les descriptions de taille, d'interface et de compatibilité du
-projet d'origine ci-dessous ne décrivent donc pas nécessairement cette version.
-
-La référence pour les fonctions de ce fork est [PERSONALIZATION.md](PERSONALIZATION.md).
-Les [règles de contribution](CONTRIBUTING.md) précisent son périmètre.
-Ce projet n'est un client officiel ni de Stremio ni de Trakt.
-
-<a id="english"></a>
-
-## English
-
 A personal Android TV home screen for finding films, following series and opening your apps
 with a remote, without ads added by the launcher.
 
@@ -109,7 +11,7 @@ The original project's cleanup tools and TV lists remain available.
 **Get started:** [installation and account setup](PERSONALIZATION.md) ·
 [recommendation configuration](docs/recommendations.md) · [Nocturne theme](themes/nocturne/config.json)
 
-### What this fork offers
+## What this fork offers
 
 | Feature | What it provides |
 |---|---|
@@ -126,7 +28,7 @@ The original project's cleanup tools and TV lists remain available.
 The interface added by this fork supports French and English. Inherited themes, module cards
 and upstream translations remain available.
 
-### How personalization works
+## How personalization works
 
 The **Stremio resume connection** and the **Trakt add-on catalog** are separate connections.
 You supply your own: no personal account or viewing history is bundled with the repository.
@@ -148,7 +50,7 @@ Account playback tracking remains the responsibility of those apps and services.
 
 The former Google TV snapshot integration has been removed from the current flow.
 
-### Build and configure
+## Build and configure
 
 The launcher requires **Android 8.0 or later**. Development and device checks have used an
 **onn Streaming Device 4K Pro running Android TV 12**; this does not automatically validate
@@ -175,7 +77,7 @@ same signing key to preserve app data.
 Installing the launcher does not automatically clean up the TV. The inherited CleanYourTV cleanup
 procedure is a separate operation described in [PROMPT.md](PROMPT.md), with backups and reversible disabling.
 
-### Project origins and documentation
+## Project origins and documentation
 
 This fork preserves the work of **Gathin23 and CleanYourTV contributors**, under the
 [MIT license](LICENSE). It deliberately adds optional network features and catalogs to the
@@ -187,10 +89,7 @@ The [contribution guide](CONTRIBUTING.md) explains its scope.
 This project is not an official Stremio or Trakt client.
 
 <details>
-<summary><strong>Documentation d'origine / Upstream documentation: TV cleanup, devices, tools and credits</strong></summary>
-
-Les instructions et illustrations suivantes sont héritées de CleanYourTV. Le récit à la première
-personne, les liens officiels et les chiffres de communauté concernent le projet amont.
+<summary><strong>Upstream documentation: TV cleanup, devices, tools and credits</strong></summary>
 
 The instructions and illustrations below are inherited from CleanYourTV. The first-person story,
 official links and community figures refer to the upstream project.
