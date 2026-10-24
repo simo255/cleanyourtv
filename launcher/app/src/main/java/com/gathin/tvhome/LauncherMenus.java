@@ -27,6 +27,8 @@ final class LauncherMenus {
     private final int dialogTheme;
     private final boolean refined;
     private Runnable recommendations;
+    private Runnable vpnLocation;
+    void setVpnLocation(Runnable action) { vpnLocation = action; }
 
     void setRecommendations(Runnable recommendations) { this.recommendations = recommendations; }
 
@@ -69,6 +71,7 @@ final class LauncherMenus {
         if (!vpnApp.isEmpty()) add(labels, actions, R.string.quick_vpn, () -> openFirst(
                 activity.getPackageManager().getLeanbackLaunchIntentForPackage(vpnApp),
                 activity.getPackageManager().getLaunchIntentForPackage(vpnApp)));
+        if (vpnLocation != null) add(labels, actions, R.string.vpn_location_title, vpnLocation);
         add(labels, actions, R.string.inputs, inputs);
         add(labels, actions, R.string.settings, () -> openFirst(new Intent(Settings.ACTION_SETTINGS)));
         list(text(R.string.quick_menu), labels, which -> actions.get(which).run());

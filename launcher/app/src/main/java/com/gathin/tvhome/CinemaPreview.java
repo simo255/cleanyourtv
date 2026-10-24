@@ -44,7 +44,8 @@ final class CinemaPreview extends LinearLayout {
         title.setText(item.name);
         String facts = detail;
         if (!item.rating.isEmpty()) facts += (facts.isEmpty() ? "" : "   ·   ") + "★ " + item.rating;
-        if (!item.genres.isEmpty()) facts += (facts.isEmpty() ? "" : "   ·   ") + item.genres;
+        String genres = item.genreLabel();
+        if (!genres.isEmpty()) facts += (facts.isEmpty() ? "" : "   ·   ") + genres;
         meta.setText(facts); meta.setVisibility(facts.isEmpty() ? GONE : VISIBLE);
         summary.setText(item.description);
         summary.setVisibility(item.description.isEmpty() ? INVISIBLE : VISIBLE);

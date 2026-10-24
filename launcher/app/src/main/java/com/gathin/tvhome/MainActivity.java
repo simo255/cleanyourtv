@@ -197,6 +197,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Optional time-of-day backdrop (config.xml, sky_intensity); 0 keeps it hidden. */
     private SkyView sky;
     private String vpnApp;
+    private boolean vpnActiveOnly, networkPillEnabled, vpnLocationEnabled;
+    private final Runnable vpnStatusChanged = this::updateWifiLabel;
     private SpringAnimation springX, springY;
     private float glassTargetX, glassTargetY;
     // How far the grid has scrolled the glass. springY works without it, in grid content space, so a
@@ -469,6 +471,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             date.setPadding(0, (int) (4 * density), 0, 0);
         }
         vpnApp = cfg.vpnApp;
+        vpnActiveOnly = cfg.vpnActiveOnly;
+        vpnLocationEnabled = cfg.vpnLocation;
+        VpnNotifications.configure(this, vpnLocationEnabled);
+        networkPillEnabled = cfg.showNetworkPill && !cfg.topMenu;
         moduleCards = cfg.moduleCards;
         hiddenApps = new HashSet<>(cfg.hiddenApps);
 
@@ -538,6 +544,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         preferences = new LauncherPreferences(this, COLUMNS, cfg.dockApps);
         adapter = new AppAdapter(this, this, COLUMNS, cfg, preferences);
         menus = new LauncherMenus(this, preferences, adapter, this::refreshApps, this::showInputs, cfg.vpnApp, cfg.refinedHome);
+        if (vpnLocationEnabled) menus.setVpnLocation(this::showVpnLocationAccess);
         if (cfg.refinedHome) refinedBottomMask = HomeAppearance.apply(this, cfg.backgroundColor);
         recommendations = new RecommendationsShelf(this, findViewById(R.id.recommendationShelf),
                 () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))), this::focusTopBar, cfg.refinedHome);
@@ -646,6 +653,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
+        if (vpnLocationEnabled) btnWifi.setMaxWidth(Math.round(240 * density));
         if (cfg.wifiStatusColor) {
             wifiPlainTint = btnWifi.getCompoundDrawableTintList();
             wifiOnlineTint = getColorStateList(R.color.pill_icon_online);
@@ -831,6 +839,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onStart();
         stopped = false;
         started = true;
+        if (vpnLocationEnabled) VpnNotifications.watch(vpnStatusChanged);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(timeReceiver, timeFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -1090,6 +1099,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onStop() {
         super.onStop();
         started = false;
+        VpnNotifications.unwatch(vpnStatusChanged);
         unregisterReceiver(timeReceiver);
         handler.removeCallbacks(clockCheck);
         stopped = true;
@@ -1106,9 +1116,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onTrimMemory(level);
         // RUNNING_LOW and CRITICAL also arrive while Home is visible when an accessibility service keeps the
         // process in the foreground; never blank the screen the owner is looking at.
-        boolean due = level >= TRIM_MEMORY_BACKGROUND
-                || level == TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_RUNNING_CRITICAL;
-        if (!due || started) return;
+        if (!MemoryTrimPolicy.shouldRelease(level, started)) return;
         if (recommendations != null) recommendations.trimMemory();
         adapter.clear();
         // Detach the adapter too: with Home stopped no layout pass runs, so the tile views (and the bitmaps
@@ -1117,6 +1125,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.getRecycledViewPool().clear();
         heroArtCache.clear();
         heroArtKey = null;
+        wallpaperPlayer.releaseForMemoryPressure();
         tileRefresh.invalidate();
     }
 
@@ -2503,16 +2512,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         } catch (Exception ignored) {
         }
+        if (vpnActiveOnly && vpn) icon = R.drawable.ic_lock;
         btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
-        // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
-        boolean vpnDown = !vpn && online && !vpnApp.isEmpty();
+        String vpnCountry = vpn && vpnLocationEnabled ? VpnNotifications.country() : "";
+        String vpnLabel = getString(R.string.vpn) + (vpnCountry.isEmpty() ? "" : " · " + vpnCountry);
+        boolean pillVisible = VpnCountry.visible(networkPillEnabled, vpnActiveOnly, vpn);
+        if (!pillVisible && btnWifi.hasFocus()) findViewById(R.id.btnSettings).requestFocus();
+        btnWifi.setVisibility(pillVisible ? View.VISIBLE : View.GONE);
+        boolean vpnDown = !vpnActiveOnly && !vpn && online && !vpnApp.isEmpty();
         if (refinedHome) {
-            btnWifi.setText(vpn ? R.string.vpn : vpnDown ? R.string.vpn_off : R.string.wifi);
+            btnWifi.setText(vpn ? vpnLabel : getString(vpnDown ? R.string.vpn_off : R.string.wifi));
             if (!online) btnWifi.setText(text);
             HomeAppearance.control(btnWifi, false);
         } else if (vpn || vpnDown) {
             // Network name, then the green lock-and-VPN (or red "VPN off") capsule drawn in place of the word.
-            String badge = getString(vpn ? R.string.vpn : R.string.vpn_off);
+            String badge = vpn ? vpnLabel : getString(R.string.vpn_off);
             VpnBadge span = new VpnBadge(vpn ? getDrawable(R.drawable.ic_lock) : null, density);
             // The pill has a maximum width and ellipsizes at the end, which would cut the badge off after
             // a long network name, so shorten the name to whatever room the badge leaves. The Wi-Fi icon and its
@@ -2538,7 +2552,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else if (!TextUtils.equals(btnWifi.getText(), text)) {
             btnWifi.setText(text);
         }
-        if (wifiIconOnly) {
+        if (wifiIconOnly && !(vpn && vpnLocationEnabled)) {
             btnWifi.setContentDescription(btnWifi.getText());
             btnWifi.setText(null);
         }
@@ -2634,6 +2648,25 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         g += (int) ((255 - g) * amount);
         b += (int) ((255 - b) * amount);
         return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    private void showVpnLocationAccess() {
+        new android.app.AlertDialog.Builder(this, refinedHome ? R.style.Theme_TvHome_Dialog_Nocturne : R.style.Theme_TvHome_Dialog)
+                .setTitle(R.string.vpn_location_title).setMessage(R.string.vpn_location_explanation)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.settings, (dialog, which) -> {
+                    Intent access = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        access = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                                .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                                        new ComponentName(this, VpnNotifications.class).flattenToString());
+                    }
+                    try { startActivity(access); }
+                    catch (ActivityNotFoundException ignored) {
+                        try { startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); }
+                        catch (ActivityNotFoundException missing) { Toast.makeText(this, getString(R.string.cant_open, getString(R.string.vpn_location_title)), Toast.LENGTH_SHORT).show(); }
+                    }
+                }).show();
     }
 
     /** The network pill opens the VPN app when one is configured and installed, otherwise Wi-Fi settings. */
@@ -2763,6 +2796,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 ? new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
                 : new Intent(Intent.ACTION_VIEW, uri.buildUpon().scheme(inputUriScheme).build()))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Aim it at the TV app first: apps installed later (a streaming app, a file manager) can claim the same
+        // channel URI too, and with two or more handlers Android shows a chooser instead of the input (WhaleOS).
+        if (!liveTvPkg.isEmpty()) {
+            try {
+                startActivity(new Intent(view).setPackage(liveTvPkg));
+                return;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+            }
+        }
         try {
             startActivity(view);
             return;
@@ -3088,8 +3130,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (LibraryApps.save(this, pkg, false)) reloadApps(false);
             else Toast.makeText(this, R.string.library_save_failed, Toast.LENGTH_LONG).show();
         });
-        addSettingsMenuRow(rows, popup, R.string.library_app_info, () -> open(new Intent(
-                Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg))));
+        // Some firmware has no App info page at all; a row that only toasts "can't open" helps nobody.
+        Intent info = SystemSettings.appInfo(this, pkg);
+        if (info != null) addSettingsMenuRow(rows, popup, R.string.library_app_info, () -> open(info));
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
         // Dock tiles sit near the bottom of the screen: open the menu above the tile when it would not fit below.

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vpn_location_title">VPN location</string>
+    <string name="vpn_location_explanation">Android notification access is required to read the country in the connection notification of your configured VPN app. Android grants access to all notifications; this launcher only reads the VPN app connection title. Nothing is saved or sent. Without permission, only VPN status is shown.</string>
+</resources>

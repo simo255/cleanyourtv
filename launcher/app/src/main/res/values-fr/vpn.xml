@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vpn_location_title">Localisation VPN</string>
+    <string name="vpn_location_explanation">L’accès Android aux notifications permet de lire le pays dans la notification de connexion de votre application VPN configurée. Android donne accès à toutes les notifications ; ce launcher ne lit que le titre de connexion de cette application. Rien n’est enregistré ni envoyé. Sans autorisation, seul le statut VPN est affiché.</string>
+</resources>

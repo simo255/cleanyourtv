@@ -10,5 +10,8 @@
   "dock_opacity": 100,
   "dock_even_padding": true,
   "always_show_names": true,
-  "rows_below_dock": 0
+  "rows_below_dock": 0,
+  "uniform_tiles": true,
+  "vpn_active_only": true,
+  "vpn_location": true
 }

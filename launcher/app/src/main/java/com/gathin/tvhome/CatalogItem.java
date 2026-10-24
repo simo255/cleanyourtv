@@ -35,6 +35,15 @@ final class CatalogItem {
         genres = tags == null || !present(json, "genre").isEmpty() ? present(json, "genre") : labels.toString();
     }
 
+    /** Some providers put a JSON array in the singular genre field, including in saved catalogs. */
+    String genreLabel() {
+        try {
+            return String.join(" · ", strings(new JSONArray(genres), 3));
+        } catch (org.json.JSONException ignored) {
+            return genres;
+        }
+    }
+
     static List<String> strings(JSONArray values, int limit) {
         List<String> result = new ArrayList<>();
         if (values != null) for (int i = 0; i < Math.min(limit, values.length()); i++) {

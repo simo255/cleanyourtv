@@ -56,8 +56,12 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   title; hold OK retains the classification menu. Enable `themes/nocturne/config.json`.
 - **Quick menu** for recommendations, dock editing, network, Bluetooth pairing, sound,
   applications, an optional VPN app, inputs and system settings.
-- **VPN indicator** from Android's VPN transport state, without a remote IP lookup.
-- **French and English**, cached catalogs/posters, finite network limits and no background service.
+- **VPN indicator** from Android's VPN transport state, hidden while inactive in Nocturne. Optional country
+  comes from the configured VPN application's ongoing connection notification, with explicit Android notification
+  access via **Quick menu > VPN location**. Recognized English/French titles are supported; unknown formats or
+  missing permission show VPN status alone. This is the app-advertised country, without an IP lookup, disk cache
+  or account access. Nocturne also enables uniform icon tiles on backgrounds sampled from each icon.
+- **French and English**, cached catalogs/posters, finite network limits and no background catalog service.
 
 The shelf is optional: without private configuration it stays hidden unless you explicitly select
 public Trending or New releases from the menu. Trakt supplies candidates and local positive preferences can refine their ranking. This launcher reads
@@ -65,8 +69,12 @@ catalogs; it does not upload history, report playback, or write to your Stremio/
 
 This branch integrates upstream through `cc4c7c59`, including themes, adaptive tile sizes, module
 cards, improved focus animation, remote navigation fixes and additional translations.
-The VPN capsule now uses upstream's network-pill display, including an inactive indicator when
-a VPN app is configured. Upstream keeps its reference launcher free of content feeds;
+Version 2.35 selectively ports upstream wallpaper memory release, key-helper recovery with concurrent-change
+checks, remote action targets, package-name launches, input targeting, App info availability and uniform icon
+tiles. It preserves the private recommendation and Nocturne code; it does not merge upstream wholesale.
+Version 2.36 displays JSON-encoded genres as readable labels, including in saved catalogs.
+The VPN capsule uses upstream's network pill; Nocturne hides it while inactive and optionally adds the
+country from the configured VPN app notification. Upstream keeps its reference launcher free of content feeds;
 this fork deliberately takes a different direction. Original authorship and MIT licensing remain.
 
 ## Build and try the launcher

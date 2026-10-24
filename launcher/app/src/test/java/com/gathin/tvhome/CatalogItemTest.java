@@ -8,6 +8,18 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class CatalogItemTest {
+    @Test public void genreArraysDisplayWithoutJsonSyntaxIncludingSavedCatalogs() throws Exception {
+        for (String type : new String[]{"movie", "series"}) {
+            CatalogItem item = new CatalogItem(movie("tt123").put("type", type)
+                    .put("genre", new JSONArray().put("Drama").put("Mystery")));
+            assertEquals("Drama · Mystery", item.genreLabel());
+            assertEquals("Drama · Mystery", new CatalogItem(item.json()).genreLabel());
+            assertEquals("[\"Drama\",\"Mystery\"]", item.genres);
+        }
+        assertEquals("Drama", new CatalogItem(movie("tt123").put("genre", "Drama")).genreLabel());
+        assertEquals("", new CatalogItem(movie("tt123").put("genre", "[]")).genreLabel());
+    }
+
     private JSONObject movie(String id) throws Exception {
         return new JSONObject().put("id", id).put("type", "movie").put("name", "Example");
     }
