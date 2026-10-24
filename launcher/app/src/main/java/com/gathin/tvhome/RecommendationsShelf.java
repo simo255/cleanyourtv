@@ -273,7 +273,7 @@ final class RecommendationsShelf {
     }
     private void refresh(boolean force, boolean interactive) {
         if (source == CatalogSource.STREMIO) {
-            if (interactive && !stremio.connected()) stremio.connect(); else stremio.refresh(force);
+            if (interactive && !stremio.connected() && !stremio.sessionPending) stremio.connect(); else stremio.refresh(force);
             return;
         }
         if (source != TV) {
@@ -354,7 +354,8 @@ final class RecommendationsShelf {
                 cards.add(card); resumeItems.put(item.key(), item);
             } catch (Exception ignored) { }
         }
-        if (!stremio.connected()) syncStatus = activity.getString(stremio.expired ? R.string.stremio_session_expired : R.string.stremio_setup);
+        if (stremio.sessionPending) syncStatus = activity.getString(R.string.reco_feed_loading, "Stremio");
+        else if (!stremio.connected()) syncStatus = activity.getString(stremio.expired ? R.string.stremio_session_expired : R.string.stremio_setup);
         else if (stremio.loading) syncStatus = activity.getString(R.string.reco_feed_loading, "Stremio");
         else if (stremio.failed) syncStatus = activity.getString(stremio.syncedAt > 0 ? R.string.reco_feed_cached : R.string.reco_feed_error, "Stremio");
         else if (stremio.syncedAt > 0) syncStatus = activity.getString(R.string.reco_feed_synced, "Stremio",

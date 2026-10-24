@@ -42,7 +42,8 @@ history, mark episodes watched, or change any account. Authentication uses Strem
 protocol; no password is entered or stored by this launcher. The bearer key is encrypted with
 AES-GCM using a non-exportable Android Keystore key. The encrypted session and private resume
 cache live in `no_backup`, separate from recommendation configuration. Disconnect removes both.
-An invalid session clears the resume data and asks for reconnection. Network failures retain the
+In 2.34, transient Keystore errors retain the session and caches for a later retry. Only an unreadable
+or expired session (codes 1 / 401) clears the resume data and asks for reconnection. Network failures retain the
 dated last successful cache; an empty successful library replaces it rather than showing stale titles.
 
 **In progress** keeps films/series from any release year, with the episode, remaining minutes and

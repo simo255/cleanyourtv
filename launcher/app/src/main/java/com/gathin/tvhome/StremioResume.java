@@ -40,12 +40,16 @@ final class StremioResume {
     private ViewingListener viewingListener;
     private JSONObject viewing = new JSONObject();
     private AlertDialog dialog;
-    boolean loading, failed, expired;
+    boolean loading, failed, expired, sessionPending;
     long syncedAt;
     List<StremioProgress.Item> watching = new ArrayList<>(), upcoming = new ArrayList<>();
 
     StremioResume(Activity activity) {
-        this.activity = activity; session = new StremioSession(activity); key = session.load();
+        this.activity = activity; session = new StremioSession(activity); loadSession();
+    }
+    private void loadSession() {
+        try { key = session.load(); sessionPending = false; }
+        catch (StremioSession.Unavailable failure) { key = ""; sessionPending = true; return; }
         if (!connected()) return;
         try { viewing = session.viewing(key); } catch (Exception ignored) { }
         try {
@@ -66,6 +70,11 @@ final class StremioResume {
         return current;
     }
     void refresh(boolean force) {
+        if (sessionPending) {
+            loadSession(); if (sessionPending) return;
+            if (viewingListener != null) viewingListener.changed(viewing);
+            publish();
+        }
         long now = System.currentTimeMillis();
         if (closed || loading || !connected() || (!force && now - lastAttempt < 60_000)) return;
         lastAttempt = now; loading = true; failed = false; publish();
@@ -125,7 +134,7 @@ final class StremioResume {
     }
     void disconnect() {
         generation++; pause(); if (task != null) task.cancel(true);
-        key = ""; session.clear(); watching.clear(); upcoming.clear(); syncedAt = 0; lastAttempt = 0;
+        sessionPending = false; key = ""; session.clear(); watching.clear(); upcoming.clear(); syncedAt = 0; lastAttempt = 0;
         loading = false; failed = false; expired = false;
         viewing = new JSONObject();
         if (viewingListener != null) viewingListener.changed(viewing);

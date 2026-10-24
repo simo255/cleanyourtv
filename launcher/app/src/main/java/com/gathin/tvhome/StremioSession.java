@@ -27,14 +27,22 @@ final class StremioSession {
         cache = new AtomicFile(new File(context.getNoBackupFilesDir(), "stremio-resume-cache.json"));
         viewing = new AtomicFile(new File(context.getNoBackupFilesDir(), "stremio-viewing-cache.json"));
     }
-    String load() {
+    static final class Unavailable extends Exception { Unavailable(Throwable cause) { super(cause); } }
+    String load() throws Unavailable {
+        File file = auth.getBaseFile();
+        if (!file.exists()) return "";
+        if (file.length() > 16_000) { clear(); return ""; }
         try {
             JSONObject stored = read(auth, 16_000);
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(128, Base64.decode(stored.getString("iv"), Base64.NO_WRAP)));
             String value = new String(cipher.doFinal(Base64.decode(stored.getString("data"), Base64.NO_WRAP)), StandardCharsets.UTF_8);
-            return StremioApi.validKey(value) ? value : "";
-        } catch (Exception ignored) { clear(); return ""; }
+            if (!StremioApi.validKey(value)) { clear(); return ""; }
+            return value;
+        } catch (Exception failure) {
+            if (SessionLoadFailure.definitive(failure)) { clear(); return ""; }
+            throw new Unavailable(failure);
+        }
     }
     void save(String value) throws Exception {
         if (!StremioApi.validKey(value)) throw new Exception("Invalid session");
