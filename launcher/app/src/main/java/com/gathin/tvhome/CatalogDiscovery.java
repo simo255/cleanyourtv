@@ -21,13 +21,16 @@ final class CatalogDiscovery {
         catch (DateTimeParseException ignored) { return null; }
     }
     static List<CatalogItem> recommendations(List<CatalogItem> items, int source, LocalDate today) {
+        return recommendations(items, source, today, true);
+    }
+    static List<CatalogItem> recommendations(List<CatalogItem> items, int source, LocalDate today, boolean recentOnly) {
         if (source != CatalogSource.TRAKT && source != CatalogSource.GOOGLE
                 && source != CatalogSource.TRENDING && source != CatalogSource.RECENT) return new ArrayList<>(items);
         List<CatalogItem> result = new ArrayList<>();
         for (CatalogItem item : items) {
             int year = year(item);
             LocalDate date = released(item);
-            if (year >= today.getYear() - 1 && year <= today.getYear()
+            if ((!recentOnly || year >= today.getYear() - 1) && year <= today.getYear()
                     && (date == null || !date.isAfter(today))) result.add(item);
         }
         return result;

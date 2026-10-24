@@ -30,6 +30,9 @@ final class RecommendationFeedback {
         try { return new JSONArray(entries.toString()); } catch (Exception ignored) { return new JSONArray(); }
     }
     synchronized boolean choose(CatalogItem item, String decision) {
+        return choose(item, decision, null);
+    }
+    synchronized boolean choose(CatalogItem item, String decision, JSONArray seasons) {
         if (!decision.isEmpty() && !RecommendationTaste.MORE.equals(decision)
                 && !RecommendationTaste.HIDE.equals(decision) && !RecommendationTaste.SEEN.equals(decision)
                 && !RecommendationTaste.COMPLETED.equals(decision)) return false;
@@ -41,7 +44,9 @@ final class RecommendationFeedback {
             }
             if (!decision.isEmpty()) next.put(new JSONObject().put("id", item.id).put("type", item.type)
                     .put("name", item.name.substring(0, Math.min(120, item.name.length())))
-                    .put("genre", item.genres.substring(0, Math.min(500, item.genres.length()))).put("decision", decision));
+                    .put("genre", item.genres.substring(0, Math.min(500, item.genres.length())))
+                    .put("genres", new JSONArray(item.allGenres)).put("cast", new JSONArray(item.cast))
+                    .put("directors", new JSONArray(item.directors)).put("decision", decision).put("seasons", seasons));
             while (next.length() > 300) next.remove(0);
             return save(next);
         } catch (Exception ignored) { return false; }

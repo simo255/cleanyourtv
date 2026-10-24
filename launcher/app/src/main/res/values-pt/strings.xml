@@ -108,4 +108,7 @@
     <string name="race_live">%1$s · ao vivo</string>
     <string name="race_finished">Bandeira quadriculada</string>
     <string name="last_opened">Aberto %1$s</string>
+    <string name="reco_discover">Descobrir</string>
+    <string name="reco_all_years">Mostrar todos os anos</string>
+    <string name="reco_recent_years">Mostrar anos recentes</string>
 </resources>

@@ -17,6 +17,12 @@ final class RecommendationTaste {
     static final String MORE = "more", HIDE = "hide", SEEN = "seen", COMPLETED = "completed";
     private final Map<String, Double> affinity = new HashMap<>();
     private final Set<String> completed = new HashSet<>(), hidden = new HashSet<>();
+    private DiscoveryTaste discovery;
+
+    RecommendationTaste(JSONArray finished, JSONArray choices, JSONArray viewing, JSONArray positives, Set<String> movies) {
+        this(new JSONArray(), new JSONArray());
+        discovery = new DiscoveryTaste(finished, choices, viewing, positives, movies);
+    }
 
     RecommendationTaste(JSONArray finished, JSONArray choices) {
         Set<String> learned = new HashSet<>();
@@ -32,7 +38,7 @@ final class RecommendationTaste {
             if (record == null || !valid(record)) continue;
             String decision = record.optString("decision"), key = key(record.optString("type"), record.optString("id"));
             if (MORE.equals(decision)) learn(tags(record), 2);
-            if (COMPLETED.equals(decision)) learn(tags(record), 1);
+            if (COMPLETED.equals(decision) && learned.add(key)) learn(tags(record), 1);
             if (HIDE.equals(decision) || SEEN.equals(decision) || COMPLETED.equals(decision)) hidden.add(key);
         }
     }
@@ -76,11 +82,13 @@ final class RecommendationTaste {
         for (String genre : genres) affinity.put(genre, affinity.getOrDefault(genre, 0.0) + weight / genres.size());
     }
     double score(CatalogItem item) {
+        if (discovery != null) return discovery.score(item);
         List<String> genres = tags(item.genres); double score = 0;
         for (String genre : genres) score += affinity.getOrDefault(genre, 0.0);
         return genres.isEmpty() ? 0 : score / Math.sqrt(genres.size());
     }
     List<CatalogItem> apply(List<CatalogItem> items, int source) {
+        if (discovery != null) return discovery.apply(items, source);
         if (source == CatalogSource.TV || source == CatalogSource.WATCHLIST) return new ArrayList<>(items);
         boolean personalized = source == CatalogSource.TRAKT || source == CatalogSource.RECENT;
         List<CatalogItem> result = new ArrayList<>();
@@ -111,5 +119,5 @@ final class RecommendationTaste {
         return result;
     }
     private String primary(CatalogItem item) { List<String> genres = tags(item.genres); return genres.isEmpty() ? "" : genres.get(0); }
-    boolean learned() { return !affinity.isEmpty(); }
+    boolean learned() { return discovery != null ? discovery.learned() : !affinity.isEmpty(); }
 }

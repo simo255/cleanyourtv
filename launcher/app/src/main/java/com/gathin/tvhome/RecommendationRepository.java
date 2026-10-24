@@ -48,6 +48,10 @@ final class RecommendationRepository {
     private final File posterDir;
     private final RecommendationFeedback feedback;
     private final JSONArray completed;
+    private final JSONArray reviewed, positives;
+    private JSONArray observed = new JSONArray();
+    private final boolean enhanced;
+    private final android.content.SharedPreferences preferences;
     private final TmdbCatalog tmdb;
     private final ContentResolver resolver;
     private final Feed[] feeds = new Feed[CatalogSource.COUNT];
@@ -89,6 +93,11 @@ final class RecommendationRepository {
         JSONObject profile = options.optJSONObject("taste_profile");
         completed = profile != null && profile.optInt("schema") == 1 && profile.optJSONArray("completed") != null
                 ? profile.optJSONArray("completed") : new JSONArray();
+        reviewed = profile != null && profile.optInt("schema") == 1 ? profile.optJSONArray("viewing") : null;
+        positives = profile != null && profile.optInt("schema") == 1 ? profile.optJSONArray("positives") : null;
+        JSONObject tuning = options.optJSONObject("recommendation_options");
+        enhanced = tuning != null && tuning.optBoolean("enhanced", false);
+        preferences = context.getSharedPreferences("discovery", 0);
         feedback = new RecommendationFeedback(new File(context.getFilesDir(), "recommendation-feedback.json"), fingerprint);
         tmdb = new TmdbCatalog(options.optString("tmdb_read_token"), new File(context.getCacheDir(), "tmdb"));
         for (int source = 0; source < feeds.length; source++) {
@@ -101,30 +110,59 @@ final class RecommendationRepository {
                     addIds(watchedMovies, cache.optJSONArray("watched_movie_ids"));
                     addIds(watchedShows, cache.optJSONArray("watched_series_ids"));
                 }
-                feed.movies = recommendations(CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU, watchedMovies), source);
-                feed.shows = recommendations(CatalogItem.parse(cache.getJSONArray("shows"), "series", false, watchedShows), source);
+                feed.movies = CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU && !enhanced, watchedMovies);
+                feed.shows = CatalogItem.parse(cache.getJSONArray("shows"), "series", false, watchedShows);
                 feed.syncedAt = cache.optLong("synced_at");
             } catch (Exception ignored) { }
         }
     }
     boolean configured() { return !base.isEmpty(); }
+    boolean enhanced() { return enhanced; }
+    boolean recentOnly() { return !enhanced || preferences.getBoolean("recent_only", true); }
+    void togglePeriod() { preferences.edit().putBoolean("recent_only", !recentOnly()).apply(); }
+    void observe(JSONArray values) { if (enhanced) { observed = values; rankedTaste = null; } }
     Feed feed(int source) {
         Feed stored = feeds[source], feed = new Feed(stored.cache);
         // Reapply on reads too: saved catalogs cannot retain the old window across New Year's Day.
         RecommendationTaste taste = taste();
         java.time.LocalDate today = java.time.LocalDate.now();
-        feed.movies = stored.movieRanking.apply(stored.movies, source, today, taste);
-        feed.shows = stored.showRanking.apply(stored.shows, source, today, taste);
+        feed.movies = stored.movieRanking.apply(stored.movies, source, today, taste, recentOnly());
+        feed.shows = stored.showRanking.apply(stored.shows, source, today, taste, recentOnly());
         feed.syncedAt = stored.syncedAt; feed.lastAttempt = stored.lastAttempt; feed.loading = stored.loading; feed.error = stored.error;
         return feed;
     }
     private RecommendationTaste taste() {
-        if (rankedTaste == null) rankedTaste = new RecommendationTaste(completed, feedback.entries());
+        if (rankedTaste == null) {
+            if (!enhanced) rankedTaste = new RecommendationTaste(completed, feedback.entries());
+            else {
+                rankedTaste = new RecommendationTaste(completed, feedback.entries(), new JSONArray(currentViewing().values()), positives, watchedMovies);
+            }
+        }
         return rankedTaste;
     }
     boolean learned() { return taste().learned(); }
+    private java.util.Map<String, JSONObject> currentViewing() {
+        java.util.Map<String, JSONObject> seasons = DiscoveryTaste.records(reviewed);
+        for (java.util.Map.Entry<String, JSONObject> entry : DiscoveryTaste.records(observed).entrySet()) {
+            JSONObject previous = seasons.get(entry.getKey());
+            seasons.put(entry.getKey(), previous == null ? entry.getValue() : SeasonViewing.merge(previous, entry.getValue()));
+        }
+        return seasons;
+    }
     boolean choose(CatalogItem item, String decision) {
-        boolean saved = feedback.choose(item, decision);
+        JSONArray seasons = null;
+        if (enhanced && RecommendationTaste.COMPLETED.equals(decision)) try {
+            JSONObject state = currentViewing().get(RecommendationTaste.key(item.type, item.id));
+            if (state != null && state.optJSONArray("seasons") != null) {
+                seasons = new JSONArray();
+                JSONArray values = state.getJSONArray("seasons");
+                for (int i = 0; i < values.length(); i++) {
+                    JSONObject season = new JSONObject(values.getJSONObject(i).toString());
+                    if (season.optInt("aired") > 0 && season.optInt("future") == 0) seasons.put(season.put("status", "watched"));
+                }
+            }
+        } catch (Exception ignored) { seasons = null; }
+        boolean saved = feedback.choose(item, decision, seasons);
         if (saved) rankedTaste = null;
         return saved;
     }
@@ -138,10 +176,7 @@ final class RecommendationRepository {
         for (CatalogItem item : feed.shows) if ("TMDb".equals(item.provider)) return true;
         return false;
     }
-    private static List<CatalogItem> recommendations(List<CatalogItem> items, int source) {
-        return CatalogDiscovery.recommendations(items, source, java.time.LocalDate.now());
-    }
-    String account(int source) { return source == RECENT ? "cinemeta-recent-v2-" + java.time.LocalDate.now().getYear() : source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
+    String account(int source) { return source == RECENT ? (enhanced ? "cinemeta-discovery-v1-" : "cinemeta-recent-v2-") + java.time.LocalDate.now().getYear() : source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
     void listen(Listener listener) { this.listener = listener; }
     private void publish(int source) { if (!closed && listener != null) listener.changed(source); }
 
@@ -164,10 +199,10 @@ final class RecommendationRepository {
                 }
                 String endpoint = source == FOR_YOU ? "recommendations" : source == WATCHLIST ? "watchlist" : "top";
                 String origin = CatalogSource.publicFeed(source) ? POPULAR_BASE : base;
-                List<CatalogItem> movies = recommendations(source == RECENT ? recent("movie")
-                        : CatalogItem.parse(catalog(origin, "movie", endpoint), "movie", source == FOR_YOU, movieSeen), source);
-                List<CatalogItem> shows = recommendations(source == RECENT ? recent("series")
-                        : CatalogItem.parse(catalog(origin, "series", endpoint), "series", false, showSeen), source);
+                List<CatalogItem> movies = source == RECENT ? recent("movie")
+                        : CatalogItem.parse(catalog(origin, "movie", endpoint), "movie", source == FOR_YOU && !enhanced, movieSeen);
+                List<CatalogItem> shows = source == RECENT ? recent("series")
+                        : CatalogItem.parse(catalog(origin, "series", endpoint), "series", false, showSeen);
                 long at = System.currentTimeMillis();
                 JSONObject cache = new JSONObject().put("account", account(source)).put("source", source).put("synced_at", at)
                         .put("movies", CatalogItem.json(movies)).put("shows", CatalogItem.json(shows));
@@ -179,6 +214,7 @@ final class RecommendationRepository {
                         watchedMovies.clear(); watchedMovies.addAll(movieSeen);
                         watchedShows.clear(); watchedShows.addAll(showSeen);
                     }
+                    rankedTaste = null;
                     feed.movies = movies; feed.shows = shows; feed.syncedAt = at;
                     feed.error = 0; feed.loading = false; publish(source);
                 });
@@ -195,6 +231,20 @@ final class RecommendationRepository {
     }
     /** Four public, bounded requests; the year feed supplies titles missing from the popular top page. */
     private List<CatalogItem> recent(String type) throws Exception {
+        if (enhanced) {
+            List<List<CatalogItem>> pages = new ArrayList<>();
+            long deadline = android.os.SystemClock.elapsedRealtime() + 60_000;
+            Exception failure = null;
+            java.time.LocalDate today = java.time.LocalDate.now();
+            for (String path : CinemetaDiscovery.paths(today.getYear(), today.getDayOfYear())) {
+                if (closed || Thread.currentThread().isInterrupted()) throw new InterruptedException();
+                if (android.os.SystemClock.elapsedRealtime() >= deadline) break;
+                try { pages.add(CatalogItem.parse(catalog(POPULAR_BASE, type, path), type, false, java.util.Collections.emptySet())); }
+                catch (Exception e) { failure = e; }
+            }
+            if (pages.isEmpty()) throw failure == null ? new Exception() : failure;
+            return CinemetaDiscovery.merge(pages);
+        }
         List<CatalogItem> items = new ArrayList<>();
         int currentYear = java.time.LocalDate.now().getYear();
         for (int year : new int[]{currentYear, currentYear - 1}) {

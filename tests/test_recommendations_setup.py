@@ -14,6 +14,30 @@ BASE = "https://www.strem.io/trakt/addon/example_private_id/"
 
 
 class SetupTests(unittest.TestCase):
+    def test_enhanced_profile_is_opt_in_and_only_known_fields_survive(self):
+        season = {"season": 1, "total": 8, "aired": 8, "watched": 4, "status": "unfinished", "secret": "discard"}
+        value = {"addon_base": BASE, "recommendation_options": {"enhanced": True, "secret": "discard"},
+                 "taste_profile": {"schema": 1, "viewing": [{"id": "tt1", "type": "series", "seasons": [season], "cast": ["Actor"]}],
+                                   "positives": [{"id": "tt2", "type": "movie", "directors": ["Director"]}]}}
+        normalized = setup.normalize_config(value)
+        self.assertNotIn("secret", json.dumps(normalized))
+        self.assertEqual({"enhanced": True}, normalized["recommendation_options"])
+        self.assertEqual("unfinished", normalized["taste_profile"]["viewing"][0]["seasons"][0]["status"])
+        self.assertEqual(["Actor"], normalized["taste_profile"]["viewing"][0]["cast"])
+        self.assertNotIn("recommendation_options", setup.normalize_config({"addon_base": BASE}))
+
+    def test_malformed_seasons_and_options_are_rejected(self):
+        good = {"season": 1, "total": 8, "aired": 8, "watched": 4}
+        for bad in ({**good, "watched": 9}, {**good, "aired": 7}, {**good, "season": True}, {**good, "status": "maybe"}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                setup.normalize_seasons([bad])
+        with self.assertRaises(ValueError):
+            setup.normalize_seasons([good, good])
+        with self.assertRaises(ValueError):
+            setup.normalize_config({"addon_base": BASE, "recommendation_options": {"enhanced": "true"}})
+        with self.assertRaises(ValueError):
+            setup.metadata_fields({"cast": ["Actor\nInjected"]})
+
     def test_secondary_trakt_connection_is_discarded_and_existing_catalog_is_preserved(self):
         auth = {"client_id": "a" * 64, "access_token": "b" * 64,
                 "client_secret": "c" * 64, "refresh_token": "d" * 64, "email": "discard"}

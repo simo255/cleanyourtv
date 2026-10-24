@@ -40,4 +40,13 @@ public class CatalogRankingTest {
         List<CatalogItem> nextYear = cache.apply(items, CatalogSource.RECENT, LocalDate.of(2027, 1, 1), neutral);
         assertEquals(1, nextYear.size()); assertEquals("tt2", nextYear.get(0).id);
     }
+    @Test public void switchingPeriodReusesRawCandidatesButNeverShowsFutureReleases() throws Exception {
+        CatalogRanking cache = new CatalogRanking();
+        List<CatalogItem> items = Arrays.asList(item("tt1", "2020-01-01"), item("tt2", "2026-01-01"), item("tt3", "2027-01-01"));
+        assertEquals(1, cache.apply(items, CatalogSource.TRAKT, today, neutral, true).size());
+        List<CatalogItem> all = cache.apply(items, CatalogSource.TRAKT, today, neutral, false);
+        assertEquals(2, all.size()); assertSame(all, cache.apply(items, CatalogSource.TRAKT, today, neutral, false));
+        assertEquals(1, cache.apply(items, CatalogSource.TRAKT, today, neutral, true).size());
+        assertEquals(3, cache.apply(items, CatalogSource.WATCHLIST, today, neutral, true).size());
+    }
 }

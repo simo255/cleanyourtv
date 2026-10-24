@@ -34,6 +34,12 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   unfinished viewing stays neutral. Hold OK for More like this, Not interested, Finished or Undo.
   Preferences remain private and refine Trakt/New releases, with a small diversity pass.
   Manual hidden/seen choices are explicit. No feedback is uploaded to accounts.
+- **Optional season-aware discovery (2.32)**: separate film/series taste, reviewed season rules,
+  shared watched exclusions and a recent/all-years menu switch. Discover broadens Cinemeta to bounded
+  year, genre and Featured pages. Available cast/director metadata enriches the local ranking without
+  sending private history IDs for extra metadata lookups. Enable `recommendation_options.enhanced`
+  in private configuration; see [the schema and limits](docs/recommendations.md#optional-season-aware-discovery-232).
+  No AI model is used. This version requires its own on-TV validation before deployment.
 - **Optional TMDB enrichment**: public recent candidates with IMDb mappings join New releases when
   the user's own private TMDB API read token is configured. Cinemeta remains usable without it.
 - **Optional weather on Home**: city, temperature and conditions from this fork’s separate weather

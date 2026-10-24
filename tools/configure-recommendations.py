@@ -19,6 +19,44 @@ from urllib.parse import urlsplit
 PACKAGE = "com.gathin.tvhome"
 
 
+def metadata_fields(entry):
+    result = {}
+    for key, limit in (("genres", 12), ("cast", 8), ("directors", 4)):
+        if key not in entry and key != "genres":
+            continue
+        values = entry.get(key, [])
+        if (not isinstance(values, list) or len(values) > limit
+                or not all(isinstance(v, str) and 0 < len(v.strip()) <= 120
+                           and not any(ord(c) < 32 for c in v) for v in values)):
+            raise ValueError("Invalid local metadata.")
+        result[key] = list(dict.fromkeys(v.strip() for v in values))
+    return result
+
+
+def normalize_seasons(values):
+    if not isinstance(values, list) or len(values) > 100:
+        raise ValueError("Invalid seasons.")
+    result, seen = [], set()
+    for value in values:
+        if not isinstance(value, dict):
+            raise ValueError("Invalid season.")
+        fields = {k: value.get(k, 0) for k in ("season", "total", "watched", "aired", "future", "undated")}
+        if (any(type(v) is not int or not 0 <= v <= 10000 for v in fields.values())
+                or not 1 <= fields["season"] <= 1000 or fields["season"] in seen
+                or fields["watched"] > fields["total"]
+                or fields["watched"] > fields["aired"] + fields["undated"]
+                or fields["aired"] + fields["future"] + fields["undated"] != fields["total"]):
+            raise ValueError("Invalid season counts.")
+        state = value.get("status", "")
+        if state not in ("", "watched", "unfinished", "unwatched"):
+            raise ValueError("Invalid season decision.")
+        if state:
+            fields["status"] = state
+        seen.add(fields["season"])
+        result.append(fields)
+    return sorted(result, key=lambda s: s["season"])
+
+
 def normalize_taste_profile(profile):
     if not isinstance(profile, dict) or profile.get("schema") != 1:
         raise ValueError("Invalid taste profile.")
@@ -41,8 +79,27 @@ def normalize_taste_profile(profile):
         if (kind, identity) not in seen:
             seen.add((kind, identity))
             result.append({"id": identity, "type": kind, "completed": True,
-                           "genres": list(dict.fromkeys(g.strip() for g in genres))})
-    return {"schema": 1, "completed": result}
+                           **metadata_fields(entry)})
+    normalized = {"schema": 1, "completed": result}
+    for key, kind in (("viewing", "series"), ("positives", "movie")):
+        if key not in profile:
+            continue
+        values = profile[key]
+        if not isinstance(values, list) or len(values) > 1000:
+            raise ValueError("Invalid local viewing profile.")
+        records, identities = [], set()
+        for entry in values:
+            if (not isinstance(entry, dict) or entry.get("type") != kind
+                    or not isinstance(entry.get("id"), str) or not re.fullmatch(r"tt[0-9]+", entry["id"])):
+                raise ValueError("Invalid local viewing record.")
+            record = {"id": entry["id"], "type": kind, **metadata_fields(entry)}
+            if key == "viewing":
+                record["seasons"] = normalize_seasons(entry.get("seasons"))
+            if entry["id"] not in identities:
+                identities.add(entry["id"])
+                records.append(record)
+        normalized[key] = records
+    return normalized
 
 
 def normalize_config(value):
@@ -71,6 +128,11 @@ def normalize_config(value):
         result[key] = sorted(set(ids))
     if "taste_profile" in value:
         result["taste_profile"] = normalize_taste_profile(value["taste_profile"])
+    if "recommendation_options" in value:
+        options = value["recommendation_options"]
+        if not isinstance(options, dict) or type(options.get("enhanced", False)) is not bool:
+            raise ValueError("Invalid recommendation options.")
+        result["recommendation_options"] = {"enhanced": options.get("enhanced", False)}
     if "tmdb_read_token" in value:
         token = value["tmdb_read_token"]
         if not isinstance(token, str) or not 20 <= len(token) <= 4096 or not re.fullmatch(r"[A-Za-z0-9._~-]+", token):
@@ -161,6 +223,7 @@ def main():
     parser.add_argument("--adb", default="adb", help="Path to the official adb executable")
     parser.add_argument("--serial", help="Authorized ADB device serial, such as your TV IP:5555")
     parser.add_argument("--taste-profile", type=Path, help="Private completed-viewing profile generated locally")
+    parser.add_argument("--enhanced-recommendations", action="store_true", help="Opt into local season-aware ranking and broader Cinemeta discovery")
     token_group = parser.add_mutually_exclusive_group()
     token_group.add_argument("--tmdb-token-file", type=Path, help="Private UTF-8 file containing your TMDB API read token")
     token_group.add_argument("--prompt-tmdb-token", action="store_true", help="Read your TMDB API read token at a hidden prompt")
@@ -188,6 +251,8 @@ def main():
             if args.taste_profile.stat().st_size > 256_000:
                 raise ValueError("Taste profile is too large.")
             value["taste_profile"] = json.loads(args.taste_profile.read_text(encoding="utf-8-sig"))
+        if args.enhanced_recommendations:
+            value["recommendation_options"] = {"enhanced": True}
         if args.tmdb_token_file:
             if args.tmdb_token_file.stat().st_size > 8192:
                 raise ValueError("TMDB token file is too large.")

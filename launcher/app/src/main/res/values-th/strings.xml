@@ -62,4 +62,7 @@
         <item quantity="other">%1$d แอป</item>
     </plurals>
     <string name="greeting_with_name">%1$s %2$s</string>
+    <string name="reco_discover">ค้นพบ</string>
+    <string name="reco_all_years">แสดงทุกปี</string>
+    <string name="reco_recent_years">แสดงปีล่าสุด</string>
 </resources>

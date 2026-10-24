@@ -417,6 +417,7 @@ tools/theme.sh themes/aurora                                 # push a theme; --r
 |---|---|
 | [`tools/tv.py`](tools/tv.py) | Pure-Python ADB client: shell, batch, push, pull, reboot, and screenshots, optionally pressing remote keys first. Works where the stock `adb` binary is blocked. |
 | [`tools/configure-recommendations.py`](tools/configure-recommendations.py) | This fork: privately configure the optional Stremio/Trakt catalogs. [Guide](docs/recommendations.md). |
+| [`tools/build-taste-profile.py`](tools/build-taste-profile.py) | This fork: prepare a private positive-viewing profile from a saved Stremio library and local metadata. [Guide](docs/recommendations.md#positive-viewing-and-explicit-feedback). |
 | [`tools/sync-google-tv.py`](tools/sync-google-tv.py) | This fork: import a dated capture into the separate Google TV view. [Guide](docs/google-tv-personalization.md). |
 | [`tools/refresh-google-tv-termux.sh`](tools/refresh-google-tv-termux.sh) | Run the optional Google TV capture on the box itself using Termux. [Setup](docs/google-tv-personalization.md#run-locally-in-termux-without-a-computer). |
 | [`tools/b64push.py`](tools/b64push.py) | Uploads large files such as APKs in base64 chunks and verifies the checksum. |

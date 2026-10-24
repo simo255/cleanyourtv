@@ -88,4 +88,7 @@
         <item quantity="other">%1$d uygulama</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
+    <string name="reco_discover">Keşfet</string>
+    <string name="reco_all_years">Tüm yılları göster</string>
+    <string name="reco_recent_years">Son yılları göster</string>
 </resources>

@@ -105,4 +105,7 @@
     <string name="race_live">%1$s · jonli</string>
     <string name="race_finished">Marra</string>
     <string name="last_opened">Oxirgi marta ochilgan: %1$s</string>
+    <string name="reco_discover">Kashf etish</string>
+    <string name="reco_all_years">Barcha yillarni ko‘rsatish</string>
+    <string name="reco_recent_years">So‘nggi yillarni ko‘rsatish</string>
 </resources>

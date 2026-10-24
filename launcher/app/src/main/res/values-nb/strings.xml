@@ -105,4 +105,7 @@
     <string name="race_live">%1$s · direkte</string>
     <string name="race_finished">Målgang</string>
     <string name="last_opened">Sist åpnet %1$s</string>
+    <string name="reco_discover">Oppdag</string>
+    <string name="reco_all_years">Vis alle år</string>
+    <string name="reco_recent_years">Vis nyere år</string>
 </resources>

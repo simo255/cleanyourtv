@@ -99,4 +99,7 @@
     <string name="race_live">%1$s · in diretta</string>
     <string name="race_finished">Bandiera a scacchi</string>
     <string name="last_opened">Ultima apertura: %1$s</string>
+    <string name="reco_discover">Scopri</string>
+    <string name="reco_all_years">Mostra tutti gli anni</string>
+    <string name="reco_recent_years">Mostra gli anni recenti</string>
 </resources>

@@ -79,6 +79,10 @@ final class RecommendationsShelf {
         repository = new RecommendationRepository(activity);
         tv = new TvCatalog(activity);
         stremio = new StremioResume(activity);
+        if (repository.enhanced()) {
+            sourceNames[CatalogSource.RECENT] = R.string.reco_discover;
+            stremio.observeViewing(repository::observe);
+        }
         enabled = activity.getSharedPreferences("recommendations", 0).getBoolean("enabled", true);
         showSeries = activity.getSharedPreferences("recommendations", 0).getBoolean("series", false);
         tvResume = activity.getSharedPreferences("recommendations", 0).getBoolean("tv_resume", false);
@@ -411,6 +415,7 @@ final class RecommendationsShelf {
             options.add(activity.getString(enabled ? R.string.reco_hide : R.string.reco_show));
             options.add(activity.getString(R.string.reco_reset_feedback));
             options.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
+            if (repository.enhanced()) options.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
             CinemaMenu.show(activity, activity.getString(R.string.reco_menu), syncStatus, options, choice -> {
                 if (choice == 0) refresh(true, true);
                 else if (choice == 1) {
@@ -419,6 +424,8 @@ final class RecommendationsShelf {
                 } else if (choice == 2) {
                     if (!repository.resetFeedback()) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
                     render();
+                } else if (choice == 4) {
+                    repository.togglePeriod(); render();
                 } else {
                     enabled = true; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", true).apply();
                     source(CatalogSource.STREMIO, false); dockVisible(true); stremio.connect();
@@ -433,9 +440,13 @@ final class RecommendationsShelf {
         labels.add(refreshTab.getText().toString()); labels.add(activity.getString(enabled ? R.string.reco_hide : R.string.reco_show));
         labels.add(activity.getString(R.string.reco_reset_feedback));
         labels.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
+        if (repository.enhanced()) labels.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
         new AlertDialog.Builder(activity, dialogTheme).setTitle(R.string.reco_menu)
                 .setItems(labels.toArray(new String[0]), (dialog, choice) -> {
-                    if (choice == order.length + 5) {
+                    if (choice == order.length + 6) {
+                        repository.togglePeriod(); render();
+                    }
+                    else if (choice == order.length + 5) {
                         enabled = true; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", true).apply();
                         source(CatalogSource.STREMIO, false); dockVisible(true); stremio.connect();
                     }
@@ -462,7 +473,8 @@ final class RecommendationsShelf {
         String[] labels = new String[names.length]; for (int i = 0; i < names.length; i++) labels[i] = activity.getString(names[i]);
         new AlertDialog.Builder(activity, dialogTheme).setTitle(item.name)
                 .setItems(labels, (dialog, choice) -> {
-                    if (choice == 0 && RecommendationTaste.tags(item.genres).isEmpty()) {
+                    if (choice == 0 && RecommendationTaste.tags(item.genres).isEmpty()
+                            && (!repository.enhanced() || (item.allGenres.isEmpty() && item.cast.isEmpty() && item.directors.isEmpty()))) {
                         Toast.makeText(activity, R.string.reco_not_enough_info, Toast.LENGTH_LONG).show(); return;
                     }
                     String[] decisions = {RecommendationTaste.MORE, RecommendationTaste.HIDE,

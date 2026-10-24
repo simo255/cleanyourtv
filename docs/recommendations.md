@@ -49,7 +49,8 @@ dated last successful cache; an empty successful library replaces it rather than
 progress when supplied by Stremio. OK opens that exact title/episode in the Stremio app, which owns
 playback and restoring the position. The Stremio 1 ms next-episode marker retains its exact episode;
 a 90%-watched episode is never silently skipped. Recently caught-up series can show a newly released
-next episode when Cinemeta supplies its date. No completion/dislike preference is inferred from this data.
+next episode when Cinemeta supplies its date. The default resume view does not infer taste preferences.
+The separately enabled season-aware ranking below can reuse these already fetched episode records locally.
 
 **Coming next** lists future, dated episodes of at most eight recently watched/followed IMDb series
 checked per refresh, sorted by date. It is a bounded preview, not a complete account-wide calendar.
@@ -74,11 +75,11 @@ The [quicodomingo fork](https://github.com/quicodomingo/tv-vibehack) supplied th
   this is not a guarantee of streaming availability in your country.
   A series year is its premiere; a new season of an older series does not make it a recent premiere.
 
-One control row sits above a full-width poster row. There is no side summary or year selector.
+One control row sits above a full-width poster row. There is no side summary or inline year selector.
 Previously saved `period_*` choices are ignored. Instead, all recommendation feeds (Trakt,
 Popular and New releases) automatically retain the current and previous release year: 2025/2026 in
-2026, 2026/2027 in 2027, and so on. This policy applies to movies and series when responses are read,
-before writing network caches, and when existing caches are loaded. Google TV was removed in 2.20;
+2026, 2026/2027 in 2027, and so on. This default policy applies to movies and series before display;
+raw candidates remain cached so an enabled period switch can work offline. Google TV was removed in 2.20;
 its old source ID stays reserved, but its snapshot is no longer read. Unknown release
 years and known future release dates do not pass. Trakt keeps its personalized order and watched
 exclusions; public titles are not inserted into that candidate list. A series year is its premiere, so an
@@ -132,6 +133,54 @@ Then, only when an installation/configuration update is authorized:
 ```sh
 python tools/configure-recommendations.py --serial YOUR_TV_IP:5555 --config /private/recommendations-config.json --taste-profile /private/taste-profile.json
 ```
+
+## Optional season-aware discovery (2.32)
+
+Set `recommendation_options.enhanced` to `true` in the private configuration, or use
+`--enhanced-recommendations` with `tools/configure-recommendations.py` during an authorized configuration
+update. It is off by default. No AI model, new permission, dependency or account write is involved.
+
+- Films and series learn separate positive profiles. Available genres, cast and directors contribute;
+  repeated completion imports/manual choices count once per title. Unfinished/unwatched records do not
+  infer dislikes. Ranking combines normalized content overlap (65%) with provider position (35%), then
+  applies a small diversity pass. These weights are heuristics, not a measured quality guarantee.
+- **Discover** replaces the New releases label. Per type, a refresh tries the current/previous year,
+  page two of the current year (`skip=100`), one Popular genre and Featured (`imdbRating`): at most ten
+  public catalog requests in total. The genre rotates by calendar day, independently of private tastes.
+  A 60-second start budget per type bounds slow providers (an in-flight request may finish afterwards).
+  Successful pages are interleaved and deduplicated to at most 300 candidates per type. Failed pages
+  are skipped; if every page fails, the previous feed remains available. The four-hour cache still applies.
+- The catalog menu offers **Show all years / Show recent years**, initially recent. This changes discovery
+  filtering only; Watchlist and Continue retain their membership. Future dated releases remain excluded.
+  Older raw caches that already lost titles need one refresh. Trakt candidates still come exclusively
+  from the official Trakt add-on; public Cinemeta results are never inserted into that feed.
+- Watched movies and completed series are excluded across Trakt, Discover and Trending. Trending retains
+  provider order; Google/app channels and saved lists are not personalized by this option.
+- No extra metadata request sends a private history ID to Cinemeta. Ranking uses metadata already present
+  in the imported profile or catalog responses. Missing cast/director fields simply contribute no signal.
+  Enhanced discovery uses Cinemeta only; the older optional TMDB path is not invoked in this mode.
+
+The optional schema-1 profile accepts `viewing` series records with `id`, `type`, optional `genres`, `cast`,
+`directors`, and `seasons`. Each season has integer `season`, `total`, `watched`, `aired`, `future`, `undated`
+counts and an optional `status`: `watched`, `unfinished` or `unwatched`. Counts must agree. Explicit review
+decisions take precedence over inferred counts. At least half the known season episodes marks that season
+viewed and implies earlier known seasons unless explicitly vetoed or containing future episodes. A gap
+of one or two aired episodes is tolerated across the whole title, not separately in every season.
+An unseen later aired season keeps the series eligible while earlier viewed seasons remain positive.
+Wholly future seasons are never inferred viewed and do not erase completion of currently aired seasons.
+Unknown dates prevent inferred whole-series completion. A fresh **Finished** choice overrides the reviewed
+states of currently known aired seasons; a subsequently discovered season remains eligible.
+
+While Continue refreshes, the enhanced option also interprets its already downloaded episode arrays
+for up to eight shows. Only mapped watched bits and the exact episode playback pointer at at least 75%
+count; the 1 ms next-episode marker never does. No extra requests are added. These observations live only
+in memory, are replaced on refresh and cleared on disconnect. They do not constitute a full account sync.
+The imported baseline remains a dated snapshot and should be refreshed when needed.
+
+The optional `positives` array holds local metadata for movies; a record contributes only when its ID is
+also in `watched_movie_ids`. The provisioning normalizer strips unrelated fields and rejects invalid counts.
+Keep these files private. The original `build-taste-profile.py` retains its stricter complete-episode policy;
+it does not generate the optional reviewed season records automatically.
 
 ## Optional TMDB enrichment
 

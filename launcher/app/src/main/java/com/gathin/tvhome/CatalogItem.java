@@ -10,6 +10,7 @@ import java.util.Set;
 /** Shared Stremio catalog parsing; list membership and personalized exclusions stay distinct. */
 final class CatalogItem {
     final String id, type, name, year, poster, description, released, rating, genres, provider;
+    final List<String> allGenres, cast, directors;
 
     CatalogItem(JSONObject json) {
         id = json.optString("id", json.optString("imdb_id"));
@@ -20,12 +21,29 @@ final class CatalogItem {
         provider = json.optString("provider");
         released = present(json, "released"); rating = present(json, "imdbRating");
         JSONArray tags = json.optJSONArray("genres");
+        allGenres = tags == null ? RecommendationTaste.tags(present(json, "genre")) : strings(tags, 12);
+        cast = strings(json.optJSONArray("cast"), 8);
+        Object director = json.opt("director");
+        directors = strings(json.optJSONArray("directors") != null ? json.optJSONArray("directors")
+                : director instanceof JSONArray ? (JSONArray) director
+                : director instanceof String ? new JSONArray().put(director) : null, 4);
         StringBuilder labels = new StringBuilder();
         if (tags != null) for (int i = 0; i < Math.min(3, tags.length()); i++) {
             String tag = tags.optString(i).trim();
             if (!tag.isEmpty()) { if (labels.length() > 0) labels.append(" · "); labels.append(tag); }
         }
-        genres = tags == null ? present(json, "genre") : labels.toString();
+        genres = tags == null || !present(json, "genre").isEmpty() ? present(json, "genre") : labels.toString();
+    }
+
+    static List<String> strings(JSONArray values, int limit) {
+        List<String> result = new ArrayList<>();
+        if (values != null) for (int i = 0; i < Math.min(limit, values.length()); i++) {
+            Object raw = values.opt(i);
+            if (!(raw instanceof String)) continue;
+            String value = ((String) raw).trim();
+            if (!value.isEmpty() && value.length() <= 120 && !result.contains(value)) result.add(value);
+        }
+        return result;
     }
 
     private static String present(JSONObject json, String key) {
@@ -36,7 +54,8 @@ final class CatalogItem {
     JSONObject json() throws Exception {
         return new JSONObject().put("id", id).put("type", type).put("name", name)
                 .put("year", year).put("poster", poster).put("description", description)
-                .put("released", released).put("imdbRating", rating).put("genre", genres).put("provider", provider);
+                .put("released", released).put("imdbRating", rating).put("genre", genres).put("provider", provider)
+                .put("genres", new JSONArray(allGenres)).put("cast", new JSONArray(cast)).put("directors", new JSONArray(directors));
     }
 
     static JSONArray metas(JSONObject response) throws Exception {

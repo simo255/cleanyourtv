@@ -117,4 +117,7 @@
     <string name="no_more_apps">Toutes les applis disponibles sont déjà dans le dock.</string>
     <string name="dock_full_title">Dock complet</string>
     <string name="dock_full_message">Le dock accueille %1$d applis sur une ligne. Retirez d’abord une appli du dock pour libérer une place.</string>
+    <string name="reco_discover">Découvrir</string>
+    <string name="reco_all_years">Afficher toutes les années</string>
+    <string name="reco_recent_years">Afficher les années récentes</string>
 </resources>

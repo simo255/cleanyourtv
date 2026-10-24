@@ -116,4 +116,7 @@
     <string name="race_countdown_days">%1$d ngày %2$d giờ</string>
     <string name="last_opened">Mở lần cuối %1$s</string>
     <string name="tile_move">Di chuyển</string>
+    <string name="reco_discover">Khám phá</string>
+    <string name="reco_all_years">Hiện tất cả các năm</string>
+    <string name="reco_recent_years">Hiện các năm gần đây</string>
 </resources>

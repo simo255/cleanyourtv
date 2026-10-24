@@ -172,4 +172,7 @@
     <string name="no_more_apps">All available apps are already in the dock.</string>
     <string name="dock_full_title">Dock full</string>
     <string name="dock_full_message">The dock fits %1$d apps on one row. Remove an app from the dock first to make room.</string>
+    <string name="reco_discover">Discover</string>
+    <string name="reco_all_years">Show all years</string>
+    <string name="reco_recent_years">Show recent years</string>
 </resources>

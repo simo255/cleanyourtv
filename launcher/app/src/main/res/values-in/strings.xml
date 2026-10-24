@@ -104,4 +104,7 @@
     <string name="race_live">%1$s · langsung</string>
     <string name="race_finished">Bendera finis</string>
     <string name="last_opened">Terakhir dibuka %1$s</string>
+    <string name="reco_discover">Jelajahi</string>
+    <string name="reco_all_years">Tampilkan semua tahun</string>
+    <string name="reco_recent_years">Tampilkan tahun terbaru</string>
 </resources>
