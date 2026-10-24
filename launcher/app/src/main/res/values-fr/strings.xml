@@ -88,4 +88,33 @@
         <item quantity="other">%1$d applications</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
+
+    <string name="vpn_active">● VPN actif</string>
+    <string name="vpn_inactive">● VPN inactif</string>
+    <string name="vpn_unknown">● VPN inconnu</string>
+    <string name="quick_menu_button">Menu</string>
+    <string name="quick_menu">Menu rapide</string>
+    <string name="edit_dock">Modifier le dock</string>
+    <string name="hidden_apps_menu">Applications masquées</string>
+    <string name="quick_network">Réseau et Internet</string>
+    <string name="quick_bluetooth">Associer un appareil Bluetooth</string>
+    <string name="bluetooth_permission_needed">Autorisez les appareils à proximité pour ouvrir l’association Bluetooth.</string>
+    <string name="quick_audio">Affichage et son</string>
+    <string name="quick_apps">Gérer les applications</string>
+    <string name="quick_vpn">Ouvrir le VPN</string>
+    <string name="done">Terminer</string>
+    <string name="cancel">Annuler</string>
+    <string name="dock_editor_title">Dock · %1$d / %2$d applis</string>
+    <string name="add_to_dock">Ajouter au dock</string>
+    <string name="remove_from_dock">Retirer du dock</string>
+    <string name="move_left">Déplacer à gauche</string>
+    <string name="move_right">Déplacer à droite</string>
+    <string name="hide_app">Masquer sur l’accueil</string>
+    <string name="show_app">Afficher sur l’accueil</string>
+    <string name="hidden_state">masquée</string>
+    <string name="app_info">Informations sur l’application</string>
+    <string name="no_hidden_apps">Aucune application masquée. Maintenez OK sur une appli pour la masquer.</string>
+    <string name="no_more_apps">Toutes les applis disponibles sont déjà dans le dock.</string>
+    <string name="dock_full_title">Dock complet</string>
+    <string name="dock_full_message">Le dock accueille %1$d applis sur une ligne. Retirez d’abord une appli du dock pour libérer une place.</string>
 </resources>

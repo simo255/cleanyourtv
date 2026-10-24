@@ -48,4 +48,5 @@ jobs:
         run: |
           size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)
           echo "release APK: $((size / 1024)) KB"
-          test "$size" -lt 491520 || { echo "APK is over 480 KB; the launcher targets 1 GB TVs, keep it small"; exit 1; }
+          # This fork includes opt-in catalogs and the remote dock editor; keep a bounded fork budget.
+          test "$size" -lt 655360 || { echo "APK is over this fork's 640 KiB budget; keep it small"; exit 1; }

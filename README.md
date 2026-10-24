@@ -1,3 +1,7 @@
+> This fork adds a configurable dock, VPN indicator and optional Stremio/Trakt + Google TV
+> recommendations. Start with **[the personalization guide](PERSONALIZATION.md)** to connect your own account.
+> The upstream project documentation follows below; its offline reference launcher differs from this fork.
+
 <p align="center">
   <a href="https://cleanyour.tv"><img src="https://raw.githubusercontent.com/Gathin23/cleanyourtv/main/docs/banner.png" alt="CleanYourTV. Your TV, minus the ads. Strip the bloatware from any Android TV or Google TV over Wi-Fi and replace the ad-filled home screen with a clean launcher that looks like an Apple TV. No root, no cable, nothing uninstalled, and a one-line restore." width="800"></a>
 </p>
@@ -412,6 +416,9 @@ tools/theme.sh themes/aurora                                 # push a theme; --r
 | Tool | What it does |
 |---|---|
 | [`tools/tv.py`](tools/tv.py) | Pure-Python ADB client: shell, batch, push, pull, reboot, and screenshots, optionally pressing remote keys first. Works where the stock `adb` binary is blocked. |
+| [`tools/configure-recommendations.py`](tools/configure-recommendations.py) | This fork: privately configure the optional Stremio/Trakt catalogs. [Guide](docs/recommendations.md). |
+| [`tools/sync-google-tv.py`](tools/sync-google-tv.py) | This fork: import a dated Google TV capture and combine identified titles with Trakt. [Guide](docs/google-tv-personalization.md). |
+| [`tools/refresh-google-tv-termux.sh`](tools/refresh-google-tv-termux.sh) | Run the optional Google TV capture on the box itself using Termux. [Setup](docs/google-tv-personalization.md#run-locally-in-termux-without-a-computer). |
 | [`tools/b64push.py`](tools/b64push.py) | Uploads large files such as APKs in base64 chunks and verifies the checksum. |
 | [`tools/relay.py`](tools/relay.py) | Forwards a local port to the TV's ADB port, for assistants whose sandbox can't reach your network. Listens on this computer only. [Guide](tools/relay.md). |
 | [`tools/disable.sh`](tools/disable.sh), [`restore.sh`](tools/restore.sh) | Apply or undo a debloat list, the undo from the state recorded before the change. |

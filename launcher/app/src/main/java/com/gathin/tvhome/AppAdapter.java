@@ -23,6 +23,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.view.ViewConfiguration;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.ImageView;
@@ -53,6 +54,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         /** Called for a D-pad direction key on a tile. Return true when handled (focus stays put). */
         boolean onTileVerticalKey(int position, int keyCode);
+
+        void onTileLongPressed(Entry entry);
 
         void onLibraryRequested();
         void onLibraryFocused();
@@ -184,6 +187,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final boolean cinematic;
     /** Dock order (config.xml dock_apps, or a theme's config.json). */
     private final List<String> favourites;
+    private final LauncherPreferences preferences;
+    private final List<Entry> catalog = new ArrayList<>();
     /** Grid apps fill the dock slots dock_apps leaves free (config.xml, fill_dock). */
     private final boolean fillDock;
     /** Dock apps found at the last reload, and the empty slots after them. */
@@ -210,11 +215,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     private final List<Entry> items = new ArrayList<>();
 
-    AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
+    AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg, LauncherPreferences preferences) {
         this.ctx = ctx;
         this.listener = listener;
         this.dockSize = dockSize;
-        this.favourites = cfg.dockApps;
+        this.preferences = preferences;
+        this.favourites = new ArrayList<>(preferences.dock());
         this.fillDock = cfg.fillDock;
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.libraryPreload = new HashSet<>(cfg.libraryApps);
@@ -243,6 +249,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
      * so focus follows it); hidden_apps wins over a card, and a card's package in dock_apps takes that slot.
      */
     void reload(List<Cards.Card> cards, List<ResolveInfo> leanback) {
+        favourites.clear();
+        favourites.addAll(preferences.dock());
         PackageManager pm = ctx.getPackageManager();
         // The LEANBACK query is shared with the module-card check (MainActivity); copy it before adding
         // library apps so the caller's list stays as it was.
@@ -292,6 +300,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 fresh.add(new Entry(label, component, banner, icon));
             }
         }
+        catalog.clear();
+        catalog.addAll(fresh);
+        Collections.sort(catalog, (a, b) -> a.label.compareToIgnoreCase(b.label));
+        Set<String> userHidden = preferences.hidden();
+        fresh.removeIf(entry -> userHidden.contains(entry.pkg));
         Collections.sort(fresh, (a, b) -> {
             // The owner's own order first; tiles it does not know (new installs) follow by the rule below.
             int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
@@ -325,6 +338,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         items.addAll(fresh);
         notifyDataSetChanged();
     }
+
+    int getDockCount() { return dockRow ? Math.min(dockSize, docked) : 0; }
+    boolean isDockPosition(int position) { return position >= 0 && position < getDockCount(); }
+    List<Entry> allApps() { return new ArrayList<>(catalog); }
 
     /** A banner_* drawable bundled with the launcher, or null for none or a name that is not one. */
     private Drawable bundledBanner(String name) {
@@ -457,12 +474,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
                 return true;
             }
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + e.pkg));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            try {
-                ctx.startActivity(i);
-            } catch (ActivityNotFoundException ignored) {
-            }
+            if (e.kind == Entry.HOME_SETTINGS) return false;
+            listener.onTileLongPressed(e);
             return true;
         });
     }
@@ -593,7 +606,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** A position focus can land on: an empty dock slot gives the last dock app. */
     int focusablePosition(int position) {
-        return DockSlots.focusable(position, docked, emptySlots);
+        int target = DockSlots.focusable(position, docked, emptySlots);
+        // This fork permits removing every dock app: the first grid app replaces an absent last dock app.
+        return target >= 0 ? target : Math.min(docked + emptySlots, items.size() - 1);
     }
 
     String labelAt(int position) {
@@ -684,6 +699,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final boolean animations;
         final boolean advancedEffects;
         final boolean reducedMotion;
+        final Runnable longPress;
+        boolean longPressHandled;
         /** Alpha of the name while the tile is not focused (always_show_names). */
         final float restNameAlpha;
         final boolean overshoot;
@@ -700,6 +717,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             this.animations = animations;
             this.advancedEffects = advancedEffects;
             this.reducedMotion = reducedMotion;
+            longPress = () -> {
+                if (!longPressHandled && card.hasFocus()) {
+                    longPressHandled = true;
+                    card.setPressed(false);
+                    card.performLongClick();
+                }
+            };
             this.restNameAlpha = restNameAlpha;
             this.overshoot = overshoot;
 
@@ -714,6 +738,28 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             card.setClipToOutline(true);
 
             card.setOnKeyListener((view, keyCode, event) -> {
+                // TextView's long press alone does not consistently consume remote OK repeats.
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER
+                        || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (event.getRepeatCount() == 0) {
+                            longPressHandled = false;
+                            view.setPressed(true);
+                            view.postDelayed(longPress, ViewConfiguration.getLongPressTimeout());
+                        } else if (event.isLongPress()
+                                || event.getEventTime() - event.getDownTime() >= ViewConfiguration.getLongPressTimeout()) {
+                            view.removeCallbacks(longPress);
+                            longPress.run();
+                        }
+                        return true;
+                    }
+                    if (event.getAction() == KeyEvent.ACTION_UP) {
+                        view.removeCallbacks(longPress);
+                        view.setPressed(false);
+                        if (!longPressHandled && !event.isCanceled() && view.hasFocus()) view.performClick();
+                        return true;
+                    }
+                }
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
                 if (keyCode != KeyEvent.KEYCODE_DPAD_UP && keyCode != KeyEvent.KEYCODE_DPAD_DOWN
                         && keyCode != KeyEvent.KEYCODE_DPAD_LEFT && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT) return false;
@@ -722,6 +768,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             });
 
             card.setOnFocusChangeListener((view, focused) -> {
+                if (!focused) { view.removeCallbacks(longPress); view.setPressed(false); }
                 view.animate().cancel();
                 banner.animate().cancel();
                 name.animate().cancel();

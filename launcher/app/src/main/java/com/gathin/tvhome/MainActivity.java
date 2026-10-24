@@ -131,6 +131,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean coocaaSources;
 
     private AppAdapter adapter;
+    private LauncherPreferences preferences;
+    private LauncherMenus menus;
+    private RecommendationsShelf recommendations;
     private RecyclerView grid;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
@@ -344,6 +347,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (festive) updateWifiLabel();
             sky.update();
             wallpaperPlayer.update();
+            if (recommendations != null) recommendations.resume();
             handler.postDelayed(this, MINUTE_MS);
         }
     };
@@ -435,6 +439,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             });
         }
         btnWifi = findViewById(R.id.btnWifi);
+        // Compound drawable padding is only final after layout. Refit the VPN capsule then,
+        // rather than leaving it ellipsized until the first minute/network tick after startup.
+        btnWifi.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+            if (r - l != oldR - oldL || b - t != oldB - oldT) btnWifi.post(this::updateWifiLabel);
+        });
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
         raceCalendar = cfg.raceCalendar;
@@ -511,15 +520,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public void onChildViewDetachedFromWindow(@NonNull View v) {
             }
         });
-        if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding));
+        if (dockRow) grid.addItemDecoration(new DockDecoration(() -> adapter.getDockCount(), density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding));
         if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
         if (animations && !reducedMotion) {
             grid.setLayoutAnimation(new LayoutAnimationController(
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
-        adapter = new AppAdapter(this, this, COLUMNS, cfg);
-        dockApps = cfg.dockApps;
+        preferences = new LauncherPreferences(this, COLUMNS, cfg.dockApps);
+        adapter = new AppAdapter(this, this, COLUMNS, cfg, preferences);
+        menus = new LauncherMenus(this, preferences, adapter, this::refreshApps, this::showInputs, cfg.vpnApp);
+        recommendations = new RecommendationsShelf(this, findViewById(R.id.recommendationShelf),
+                () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))));
+        menus.setRecommendations(recommendations::menu);
+        dockApps = preferences.dock();
         fillDockLeavesSlots = !cfg.fillDock;
         Order savedOrder = Order.load(Order.file(this));
         adapter.setSavedOrder(Order.ranks(savedOrder, dockApps), Order.docked(savedOrder, dockApps));
@@ -591,7 +605,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         btnInputs = findViewById(R.id.btnInputs);
         View btnSettings = findViewById(R.id.btnSettings);
-        btnInputs.setOnClickListener(v -> showInputs());
+        btnInputs.setOnClickListener(v -> menus.showQuickMenu());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -662,6 +676,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (recommendations.focusCard(lastFocused % COLUMNS)) return true;
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(lastFocused % COLUMNS);
                 return true;
@@ -856,6 +871,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (showStats) startStats();
         sky.update();
         wallpaperPlayer.start();
+        recommendations.resume();
         handler.postDelayed(minuteTick, MINUTE_MS);
         if (festive && diya != null) {
             diya.start();
@@ -981,12 +997,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // One LEANBACK query for both the tiles and the card checks.
         final List<ResolveInfo> leanback = getPackageManager().queryIntentActivities(
                 new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0);
-        cards = moduleCards ? CardFeature.run(() -> Cards.discover(this, hiddenApps,
+        Set<String> hidden = new HashSet<>(hiddenApps);
+        hidden.addAll(preferences.hidden());
+        cards = moduleCards ? CardFeature.run(() -> Cards.discover(this, hidden,
                 () -> Cards.load(Cards.storeFile(this)), leanback), none) : none;
         adapter.reload(cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none), leanback);
+        grid.invalidateItemDecorations();
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
+    }
+
+    private void refreshApps(String preferredKey) {
+        dockApps = preferences.dock();
+        Order saved = Order.load(Order.file(this));
+        adapter.setSavedOrder(Order.ranks(saved, dockApps), Order.docked(saved, dockApps));
+        lastFocusedKey = preferredKey;
+        reloadApps(true);
     }
 
     /**
@@ -1085,6 +1112,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (recommendations != null) recommendations.close();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
@@ -1373,8 +1401,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         dockInSession = null;
         if (!keys.equals(before) || (fillDockLeavesSlots && docked != dockedAtStart)) {
-            Order order = new Order(Order.dockKey(dockApps), keys, docked);
+            List<String> updatedDock = new ArrayList<>();
+            int dockLimit = docked >= 0 ? docked : Math.min(COLUMNS, keys.size());
+            for (int i = 0; i < Math.min(dockLimit, keys.size()); i++) {
+                ComponentName component = ComponentName.unflattenFromString(keys.get(i));
+                if (component != null) updatedDock.add(component.getPackageName());
+            }
+            Order order = new Order(Order.dockKey(updatedDock), keys, docked);
             if (Order.save(Order.file(this), order)) {
+                preferences.replaceDock(updatedDock);
+                dockApps = preferences.dock();
                 adapter.setSavedOrder(Order.ranks(order, dockApps), Order.docked(order, dockApps));
             } else {
                 Toast.makeText(this, R.string.reorder_not_saved, Toast.LENGTH_SHORT).show();
@@ -1448,7 +1484,30 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
+        if (recommendations != null && recommendations.focused()) focusTile(0);
         // Home screen: Back goes nowhere.
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_MENU) {
+            menus.showQuickMenu();
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    @Override
+    public void onTileLongPressed(AppAdapter.Entry entry) { menus.showAppActions(entry, false); }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == TvCatalog.REQUEST_PERMISSION && recommendations != null) {
+            recommendations.resume();
+            return;
+        }
+        if (menus != null) menus.onPermissionsResult(requestCode, results);
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
@@ -1478,6 +1537,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onTileFocused(int position, View card) {
+        recommendations.dockVisible(adapter.isDockPosition(position));
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
@@ -1579,6 +1639,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
+        recommendations.fitAboveDock(dockTopInRoot);
+        if (recommendations.visible()) {
+            hero.animate().cancel(); hero.setAlpha(0f); heroShown = false;
+            setAmbient(color); ambient.animate().alpha(0.35f).setDuration(reducedMotion ? 100 : 300).start();
+            return;
+        }
         float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic && heroArtAlpha > 0f) showHeroArt(position);
@@ -2107,8 +2173,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
-            target = position - COLUMNS;
+            if (position < COLUMNS) return recommendations.focusCard(position);
+            if (position < 2 * COLUMNS) {
+                if (adapter.getDockCount() == 0) {
+                    btnInputs.requestFocus();
+                    return true;
+                }
+                target = Math.min(position - COLUMNS, adapter.getDockCount() - 1);
+            } else target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
             if (position >= lastRowStart) {
@@ -2404,6 +2476,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         } catch (Exception ignored) {
         }
+        btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
         // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
         boolean vpnDown = !vpn && online && !vpnApp.isEmpty();
         if (vpn || vpnDown) {
@@ -2545,25 +2618,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return SystemSettings.intent(this, standardAction);
     }
 
-    /** Hides the Inputs pill when it would have nothing to list: streaming boxes have no HDMI-in, AV or tuner. */
+    /** This fork uses the Inputs pill as its always-available quick menu, including on streaming boxes. */
     private void updateInputsButton() {
-        if (!showInputsPill) {
-            btnInputs.setVisibility(View.GONE);
-            return;
-        }
-        boolean any = liveTvIntent() != null || !sourcePanelService.isEmpty()
-                || (coocaaSources && !CoocaaSources.list(this).isEmpty());
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (!any && tim != null) {
-            for (TvInputInfo info : tim.getTvInputList()) {
-                // Inputs hidden in Settings > Inputs are left out of the menu, so they don't count here either.
-                if (info.isPassthroughInput() && !info.isHidden(this)) {
-                    any = true;
-                    break;
-                }
-            }
-        }
-        btnInputs.setVisibility(any ? View.VISIBLE : View.GONE);
+        btnInputs.setVisibility(View.VISIBLE);
     }
 
     /** boot_to_live_tv: the first time Home comes up after the TV starts, open the Live TV app instead. Once per

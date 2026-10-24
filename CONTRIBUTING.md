@@ -1,5 +1,11 @@
 # Contributing
 
+This fork adds optional Android TV personalization to tv-vibehack (now cleanyourtv).
+It deliberately adds an optional network-backed shelf. The original project's guidance below
+describes its reference launcher; its restrictions on recommendations and network access do not
+describe this fork. Keep catalog access opt-in, account data private, and changes free of telemetry.
+See [the personalization guide](PERSONALIZATION.md) and [integration notes](docs/recommendations.md).
+
 Thanks for helping more TVs lose their ads. Three kinds of contributions are especially welcome.
 
 Working with a coding agent? Point it at [`AGENTS.md`](AGENTS.md): the same rules, written for agents.

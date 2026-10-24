@@ -384,6 +384,16 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- The fork's optional shelf is required by MainActivity in every Home layout. -->
+    <FrameLayout
+        android:id="@+id/recommendationShelf"
+        android:layout_width="match_parent"
+        android:layout_height="232dp"
+        android:layout_marginStart="56dp"
+        android:layout_marginEnd="56dp"
+        android:layout_marginTop="126dp"
+        android:visibility="gone" />
+
     <!-- The single floating glass highlight that springs between tiles. -->
     <com.gathin.tvhome.GlassView
         android:id="@+id/glass"

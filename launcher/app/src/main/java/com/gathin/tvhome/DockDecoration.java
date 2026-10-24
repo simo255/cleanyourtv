@@ -10,11 +10,12 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import java.util.function.IntSupplier;
 
 /** Draws the tvOS style lighter band behind the first (dock) row and adds a gap below it. */
 public class DockDecoration extends RecyclerView.ItemDecoration {
 
-    private final int dockSize;
+    private final IntSupplier dockSize;
     private final float density;
     private final Paint band = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -36,7 +37,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
      * @param lightGlass  a light frosted band like the pills, for a sky or wallpaper behind it.
      * @param evenPadding the band's padding is the gap between the tiles on all four sides (dock_even_padding).
      */
-    DockDecoration(int dockSize, float density, boolean translucent, boolean names, int opacity, boolean lightGlass,
+    DockDecoration(IntSupplier dockSize, float density, boolean translucent, boolean names, int opacity, boolean lightGlass,
                    boolean evenPadding) {
         this.dockSize = dockSize;
         this.density = density;
@@ -67,7 +68,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent,
                                @NonNull RecyclerView.State state) {
         int pos = parent.getChildAdapterPosition(view);
-        if (pos >= 0 && pos < dockSize) {
+        if (pos >= 0 && pos < dockSize.getAsInt()) {
             outRect.top = (int) (6 * density);
             outRect.bottom = (int) (12 * density);
         }
@@ -80,7 +81,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
         for (int i = 0; i < parent.getChildCount(); i++) {
             View child = parent.getChildAt(i);
             int pos = parent.getChildAdapterPosition(child);
-            if (pos < 0 || pos >= dockSize) continue;
+            if (pos < 0 || pos >= dockSize.getAsInt()) continue;
             RecyclerView.ViewHolder vh = parent.getChildViewHolder(child);
             View card = vh instanceof AppAdapter.Holder ? ((AppAdapter.Holder) vh).card : child.findViewById(R.id.card);
             if (card == null) continue;
@@ -110,7 +111,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
             // The same padding on all four sides, so the band's corners are concentric with the tiles' everywhere.
             int inner = parent.getWidth() - parent.getPaddingLeft() - parent.getPaddingRight();
             float room = Math.min(rect.top, Math.min(rect.left, parent.getWidth() - rect.right)) - density;
-            float even = evenPaddingPx(inner, dockSize, cardWidth, room);
+            float even = evenPaddingPx(inner, MainActivity.COLUMNS, cardWidth, room);
             rect.inset(-even, -even);
             radius = radiusPx(radius, even);
         } else {

@@ -1,0 +1,259 @@
+package com.gathin.tvhome;
+
+import android.content.Context;
+import android.content.ContentResolver;
+import android.net.Uri;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.LruCache;
+import android.widget.ImageView;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Independent read-only feeds. Private Trakt URLs never leave the official add-on origin. */
+final class RecommendationRepository {
+    static final int FOR_YOU = 0, WATCHLIST = 1, TRENDING = 2;
+    static final long REFRESH_MS = 15 * 60_000L;
+    private static final String POPULAR_BASE = "https://v3-cinemeta.strem.io/";
+    private static final String POPULAR_ACCOUNT = "cinemeta-popular-v1";
+    static final class Feed {
+        final File cache;
+        List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
+        long syncedAt, lastAttempt;
+        boolean loading;
+        int error;
+        Feed(File cache) { this.cache = cache; }
+    }
+    interface Listener { void changed(int source); }
+    private final File posterDir;
+    private final ContentResolver resolver;
+    private final Feed[] feeds = new Feed[3];
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService publicWorker = Executors.newSingleThreadExecutor();
+    private final ExecutorService images = Executors.newFixedThreadPool(2);
+    private final LruCache<String, Bitmap> bitmaps = new LruCache<String, Bitmap>(6 * 1024 * 1024) {
+        @Override protected int sizeOf(String key, Bitmap bitmap) { return bitmap.getByteCount(); }
+    };
+    private final Set<String> watchedMovies = new HashSet<>(), watchedShows = new HashSet<>();
+    private String base = "", fingerprint = "";
+    private volatile boolean closed;
+    private Listener listener;
+    private GoogleTvSnapshot google;
+
+    RecommendationRepository(Context context) {
+        resolver = context.getApplicationContext().getContentResolver();
+        posterDir = new File(context.getCacheDir(), "posters"); posterDir.mkdirs();
+        feeds[FOR_YOU] = new Feed(new File(context.getFilesDir(), "recommendations-cache.json"));
+        feeds[WATCHLIST] = new Feed(new File(context.getFilesDir(), "watchlist-cache.json"));
+        feeds[TRENDING] = new Feed(new File(context.getFilesDir(), "trending-cache.json"));
+        try {
+            JSONObject config = readJson(new File(context.getFilesDir(), "recommendations-config.json"));
+            base = config.getString("addon_base");
+            URI uri = URI.create(base);
+            if (!"https".equals(uri.getScheme()) || !"www.strem.io".equals(uri.getHost())
+                    || uri.getPort() != -1 || uri.getRawQuery() != null || uri.getRawFragment() != null || uri.getUserInfo() != null
+                    || !uri.getPath().matches("/trakt/addon/[A-Za-z0-9_-]+/")) throw new Exception();
+            fingerprint = hash(base);
+            addIds(watchedMovies, config.optJSONArray("watched_movie_ids"));
+            addIds(watchedShows, config.optJSONArray("watched_series_ids"));
+        } catch (Exception ignored) { base = ""; fingerprint = ""; }
+        for (int source = 0; source < feeds.length; source++) {
+            if (source != TRENDING && !configured()) continue;
+            Feed feed = feeds[source];
+            try {
+                JSONObject cache = readJson(feed.cache);
+                if (!CatalogItem.cacheMatches(cache, account(source), source)) continue;
+                if (source == FOR_YOU) {
+                    addIds(watchedMovies, cache.optJSONArray("watched_movie_ids"));
+                    addIds(watchedShows, cache.optJSONArray("watched_series_ids"));
+                }
+                feed.movies = CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU, watchedMovies);
+                feed.shows = CatalogItem.parse(cache.getJSONArray("shows"), "series", source == FOR_YOU, watchedShows);
+                feed.syncedAt = cache.optLong("synced_at");
+            } catch (Exception ignored) { }
+        }
+        try { google = new GoogleTvSnapshot(readJson(new File(context.getFilesDir(), "google-tv-cache.json")), fingerprint); }
+        catch (Exception ignored) { google = null; }
+    }
+    boolean configured() { return !base.isEmpty(); }
+    boolean hasGoogle() { return google != null; }
+    long googleCapturedAt() { return google == null ? 0 : google.capturedAt; }
+    boolean fromGoogle(CatalogItem item) { return google != null && google.contains(item); }
+    List<CatalogItem> forYou(boolean series) {
+        List<CatalogItem> trakt = series ? feeds[FOR_YOU].shows : feeds[FOR_YOU].movies;
+        if (google == null) return trakt;
+        return GoogleTvSnapshot.mix(series ? google.shows : google.movies, trakt, series ? watchedShows : watchedMovies);
+    }
+    Feed feed(int source) { return feeds[source]; }
+    String account(int source) { return source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
+    void listen(Listener listener) { this.listener = listener; }
+    private void publish(int source) { if (!closed && listener != null) listener.changed(source); }
+
+    void refresh(int source, boolean force) {
+        Feed feed = feeds[source]; long now = System.currentTimeMillis();
+        if (closed || (source != TRENDING && !configured()) || feed.loading) return;
+        if (!force && (now - feed.syncedAt < REFRESH_MS || now - feed.lastAttempt < 60_000)) return;
+        feed.loading = true; feed.lastAttempt = now; feed.error = 0; publish(source);
+        Set<String> movieSeen = new HashSet<>(watchedMovies), showSeen = new HashSet<>(watchedShows);
+        boolean knownHistory = !movieSeen.isEmpty() || !showSeen.isEmpty();
+        // Only the selected source is fetched. Switching source queues another bounded operation.
+        (source == TRENDING ? publicWorker : worker).execute(() -> {
+            try {
+                if (source != TRENDING) {
+                    int movieHistory = readHistory("movie", movieSeen), showHistory = readHistory("series", showSeen);
+                    // Invalid private IDs may return HTTP 200 with empty catalogs. Keep prior private caches.
+                    if (movieHistory + showHistory == 0 && knownHistory)
+                        throw new StatusException(401);
+                }
+                String endpoint = source == FOR_YOU ? "recommendations" : source == WATCHLIST ? "watchlist" : "top";
+                String origin = source == TRENDING ? POPULAR_BASE : base;
+                List<CatalogItem> movies = CatalogItem.parse(catalog(origin, "movie", endpoint), "movie", source == FOR_YOU, movieSeen);
+                List<CatalogItem> shows = CatalogItem.parse(catalog(origin, "series", endpoint), "series", source == FOR_YOU, showSeen);
+                long at = System.currentTimeMillis();
+                JSONObject cache = new JSONObject().put("account", account(source)).put("source", source).put("synced_at", at)
+                        .put("movies", CatalogItem.json(movies)).put("shows", CatalogItem.json(shows));
+                if (source == FOR_YOU) cache.put("watched_movie_ids", new JSONArray(movieSeen)).put("watched_series_ids", new JSONArray(showSeen));
+                writeAtomic(feed.cache, cache.toString().getBytes(StandardCharsets.UTF_8));
+                main.post(() -> {
+                    if (closed) return;
+                    if (source == FOR_YOU) {
+                        watchedMovies.clear(); watchedMovies.addAll(movieSeen);
+                        watchedShows.clear(); watchedShows.addAll(showSeen);
+                    }
+                    feed.movies = movies; feed.shows = shows; feed.syncedAt = at;
+                    feed.error = 0; feed.loading = false; publish(source);
+                });
+            } catch (Exception failure) {
+                final int status = failure instanceof StatusException ? ((StatusException) failure).status : -1;
+                main.post(() -> { if (!closed) { feed.loading = false; feed.error = status; publish(source); } });
+            }
+        });
+    }
+    private JSONArray catalog(String origin, String type, String name) throws Exception {
+        JSONObject response = new JSONObject(new String(download(origin + "catalog/" + type + "/" + name + ".json",
+                2_000_000, POPULAR_BASE.equals(origin) ? 1 : 0), StandardCharsets.UTF_8));
+        return CatalogItem.metas(response);
+    }
+    private int readHistory(String type, Set<String> seen) throws Exception {
+        JSONArray metas = catalog(base, type, "history");
+        for (int i = 0; i < metas.length(); i++) {
+            String id = metas.getJSONObject(i).optString("id");
+            if (id.matches("tt[0-9]+")) seen.add(id);
+        }
+        return metas.length();
+    }
+    private static void addIds(Set<String> ids, JSONArray values) {
+        if (values == null) return;
+        for (int i = 0; i < values.length(); i++) { String id = values.optString(i); if (id.matches("tt[0-9]+")) ids.add(id); }
+    }
+    private static JSONObject readJson(File file) throws Exception {
+        if (file.length() > 2_000_000) throw new Exception();
+        return new JSONObject(new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8));
+    }
+    private static void writeAtomic(File file, byte[] bytes) throws Exception {
+        android.util.AtomicFile atomic = new android.util.AtomicFile(file);
+        FileOutputStream stream = atomic.startWrite();
+        try { stream.write(bytes); atomic.finishWrite(stream); }
+        catch (Exception e) { atomic.failWrite(stream); throw e; }
+    }
+    private static final class StatusException extends Exception {
+        final int status;
+        StatusException(int status) { this.status = status; }
+    }
+    // 0: no redirects (private catalogs); 1: public Cinemeta; 2: public MetaHub artwork.
+    private static byte[] download(String address, int maxBytes, int redirectPolicy) throws Exception {
+        for (int redirects = 0; redirects <= 2; redirects++) {
+            URI uri = URI.create(address);
+            if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) throw new Exception();
+            if (redirectPolicy == 1 && !CatalogEndpoint.publicCinemeta(uri)) throw new Exception();
+            if (redirectPolicy == 2 && !CatalogEndpoint.publicPoster(uri)) throw new Exception();
+            HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(12_000); connection.setReadTimeout(18_000);
+            connection.setRequestProperty("User-Agent", "OnnTvHome/2.8");
+            connection.setInstanceFollowRedirects(false);
+            try {
+                int status = connection.getResponseCode();
+                if (redirectPolicy != 0 && redirects < 2 && (status == 301 || status == 302 || status == 303 || status == 307 || status == 308)) {
+                    String location = connection.getHeaderField("Location");
+                    if (location == null) throw new Exception();
+                    address = uri.resolve(location).toString();
+                    continue;
+                }
+                if (status != 200) throw new StatusException(status);
+                try (InputStream input = connection.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    byte[] buf = new byte[8192]; int count;
+                    while ((count = input.read(buf)) != -1) { if (out.size() + count > maxBytes) throw new Exception(); out.write(buf, 0, count); }
+                    return out.toByteArray();
+                }
+            } finally { connection.disconnect(); }
+        }
+        throw new Exception();
+    }
+    void poster(String address, ImageView view) {
+        view.setTag(address); view.setImageDrawable(null);
+        if (closed || address.isEmpty()) return;
+        Bitmap ready = bitmaps.get(address);
+        if (ready != null) { view.setImageBitmap(ready); return; }
+        images.execute(() -> {
+            try {
+                File file = new File(posterDir, hash(address));
+                byte[] data;
+                if (file.isFile()) data = Files.readAllBytes(file.toPath());
+                else {
+                    if (address.startsWith("content://")) {
+                        try (InputStream input = resolver.openInputStream(Uri.parse(address)); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                            if (input == null) throw new Exception();
+                            byte[] buffer = new byte[8192]; int count;
+                            while ((count = input.read(buffer)) != -1) {
+                                if (out.size() + count > 3_000_000) throw new Exception();
+                                out.write(buffer, 0, count);
+                            }
+                            data = out.toByteArray();
+                        }
+                    } else data = download(address, 3_000_000, CatalogEndpoint.publicPoster(URI.create(address)) ? 2 : 0);
+                    synchronized (posterDir) {
+                        writeAtomic(file, data);
+                        File[] files = posterDir.listFiles();
+                        if (files != null) {
+                            long total = 0; for (File f : files) total += f.length();
+                            java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
+                            for (File f : files) { if (total <= 12_000_000) break; long bytes = f.length(); if (f.delete()) total -= bytes; }
+                        }
+                    }
+                }
+                BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return;
+                BitmapFactory.Options options = new BitmapFactory.Options(); options.inSampleSize = 1;
+                while (bounds.outWidth / options.inSampleSize > 300 || bounds.outHeight / options.inSampleSize > 450) options.inSampleSize *= 2;
+                Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
+                if (bitmap == null || closed) return;
+                bitmaps.put(address, bitmap);
+                main.post(() -> { if (!closed && address.equals(view.getTag())) view.setImageBitmap(bitmap); });
+            } catch (Exception ignored) { }
+        });
+    }
+    private static String hash(String text) throws Exception {
+        byte[] bytes = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+        StringBuilder result = new StringBuilder(); for (byte b : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", b & 255)); return result.toString();
+    }
+    void close() { closed = true; listener = null; worker.shutdownNow(); publicWorker.shutdownNow(); images.shutdownNow(); bitmaps.evictAll(); }
+}

@@ -7,6 +7,19 @@ launcher/app/build/
 launcher/local.properties
 # your own TV's dumps (serial, android_id, device names) stay local
 backup/
+# Account exports and private catalog configuration must never be published.
+**/recommendations-config*.json
+**/stremioExport*.json
+**/trakt-import*.json
+**/google-tv-cache*.json
+**/google-tv-capture*.json
+**/recommendations-cache*.json
+**/watchlist-cache*.json
+**/trending-cache*.json
+**/.refresh-lock/
+**/last-refresh.log
+**/last-refresh.exit
+tests/__pycache__/
 # session screenshots and working notes (may show the Wi-Fi name or account avatar) stay local
 shots/
 work/

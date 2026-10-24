@@ -145,4 +145,31 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+
+    <string name="vpn_active">● VPN active</string>
+    <string name="vpn_inactive">● VPN inactive</string>
+    <string name="vpn_unknown">● VPN status unknown</string>
+    <string name="quick_menu_button">Menu</string>
+    <string name="quick_menu">Quick menu</string>
+    <string name="edit_dock">Edit dock</string>
+    <string name="hidden_apps_menu">Hidden apps</string>
+    <string name="quick_bluetooth">Pair a Bluetooth device</string>
+    <string name="bluetooth_permission_needed">Allow Nearby devices permission to open Bluetooth pairing.</string>
+    <string name="quick_audio">Display and sound</string>
+    <string name="quick_vpn">Open VPN app</string>
+    <string name="done">Done</string>
+    <string name="cancel">Cancel</string>
+    <string name="dock_editor_title">Dock · %1$d / %2$d apps</string>
+    <string name="add_to_dock">Add to dock</string>
+    <string name="remove_from_dock">Remove from dock</string>
+    <string name="move_left">Move left</string>
+    <string name="move_right">Move right</string>
+    <string name="hide_app">Hide from home</string>
+    <string name="show_app">Show on home</string>
+    <string name="hidden_state">hidden</string>
+    <string name="app_info">App information</string>
+    <string name="no_hidden_apps">No apps are hidden. Hold OK on an app to hide it.</string>
+    <string name="no_more_apps">All available apps are already in the dock.</string>
+    <string name="dock_full_title">Dock full</string>
+    <string name="dock_full_message">The dock fits %1$d apps on one row. Remove an app from the dock first to make room.</string>
 </resources>

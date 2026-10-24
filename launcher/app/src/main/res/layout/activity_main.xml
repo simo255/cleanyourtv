@@ -308,14 +308,14 @@
                 <TextView
                     android:id="@+id/btnInputs"
                     style="@style/TopButton"
-                    android:text="@string/inputs"
-                    android:drawableStart="@drawable/ic_input"
+                    android:text="@string/quick_menu_button"
+                    android:drawableStart="@drawable/ic_menu"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
                     android:id="@+id/btnWifi"
                     style="@style/TopButton"
-                    android:maxWidth="180dp"
+                    android:maxWidth="230dp"
                     android:singleLine="true"
                     android:ellipsize="end"
                     android:text="@string/wifi"
@@ -368,6 +368,16 @@
                 android:descendantFocusability="afterDescendants" />
         </FrameLayout>
     </LinearLayout>
+
+    <!-- Optional private Stremio/Trakt shelf; grid and header keep upstream layout behavior. -->
+    <FrameLayout
+        android:id="@+id/recommendationShelf"
+        android:layout_width="match_parent"
+        android:layout_height="232dp"
+        android:layout_marginStart="56dp"
+        android:layout_marginEnd="56dp"
+        android:layout_marginTop="126dp"
+        android:visibility="gone" />
 
     <!-- The single floating glass highlight that springs between tiles. -->
     <com.gathin.tvhome.GlassView

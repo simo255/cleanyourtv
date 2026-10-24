@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reco_for_you">Pour vous</string>
+    <string name="reco_hybrid_status">Google TV · Capture du %1$s | %2$s</string>
+    <string name="reco_watchlist">À regarder</string>
+    <string name="reco_trending">Tendances</string>
+    <string name="reco_tv">Mes applis</string>
+    <string name="reco_tv_channels">Chaînes…</string>
+    <string name="reco_tv_resume">Reprendre</string>
+    <string name="reco_tv_all">Toutes les chaînes des applis</string>
+    <string name="reco_tv_provider">Android TV · Contenus partagés des applis</string>
+    <string name="reco_tv_status">%1$s · %2$d titres · Mis à jour par vos applis</string>
+    <string name="reco_tv_permission">Autorisation des contenus TV requise · Sélectionnez Actualiser pour autoriser</string>
+    <string name="reco_tv_empty">Aucun contenu partagé dans cette vue. Essayez une autre chaîne ou ouvrez vos applis de streaming pour actualiser leurs suggestions.</string>
+    <string name="reco_provider_for_you">Trakt · D’après votre historique</string>
+    <string name="reco_provider_watchlist">Trakt · Votre watchlist</string>
+    <string name="reco_provider_trending">Cinemeta · Populaires</string>
+    <string name="reco_feed_loading">%1$s · Actualisation…</string>
+    <string name="reco_feed_synced">%1$s · À jour à %2$s</string>
+    <string name="reco_feed_cached">%1$s indisponible · Catalogue enregistré</string>
+    <string name="reco_feed_error">%1$s indisponible · Réessayez avec Actualiser</string>
+    <string name="reco_watchlist_empty">Trakt · Watchlist vide dans cette catégorie. Ajoutez des titres dans Trakt, puis actualisez.</string>
+    <string name="reco_movies">Films</string>
+    <string name="reco_shows">Séries</string>
+    <string name="reco_refresh">Actualiser</string>
+    <string name="reco_menu">Contenus de l’accueil</string>
+    <string name="reco_hide">Masquer sur l’accueil</string>
+    <string name="reco_show">Afficher sur l’accueil</string>
+    <string name="reco_loading">Trakt · Actualisation des recommandations…</string>
+    <string name="reco_synced">Trakt · D’après votre historique · À jour à %1$s</string>
+    <string name="reco_cached">Trakt indisponible · Recommandations enregistrées</string>
+    <string name="reco_check_connection">Connexion Trakt à vérifier dans Stremio · Recommandations enregistrées</string>
+    <string name="reco_empty">Aucun titre disponible dans cette catégorie pour le moment.</string>
+    <string name="reco_error">Synchronisation Trakt impossible. Réessayez ou reconnectez Trakt dans Stremio.</string>
+    <string name="reco_setup">Connectez le catalogue officiel Stremio–Trakt à cet accueil.</string>
+    <string name="reco_open_error">Impossible d’ouvrir ce titre dans Stremio.</string>
+</resources>
