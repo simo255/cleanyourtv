@@ -31,8 +31,9 @@ final class StremioResume {
     private final Map<String, JSONArray> episodes = new LinkedHashMap<>();
     private final Map<String, Long> fetched = new LinkedHashMap<>();
     private String key;
-    private boolean closed;
-    private int generation, pairGeneration, pollCount;
+    private volatile boolean closed;
+    private volatile int generation;
+    private int pairGeneration, pollCount;
     private long deadline;
     private final AccountRefresh schedule = new AccountRefresh();
     private Future<?> task, pairTask;
@@ -91,9 +92,10 @@ final class StremioResume {
                 JSONObject movieViewing = summarizeViewing ? StremioViewing.update(previousViewing, rawLibrary,
                         java.util.Collections.emptyMap(), java.time.LocalDate.now()) : previousViewing;
                 // Movie exclusions need no episode metadata and must not wait behind slow series lookups.
-                if (summarizeViewing) main.post(() -> {
+                boolean moviesChanged = summarizeViewing && !StremioViewing.sameEvidence(previousViewing, movieViewing);
+                if (moviesChanged && persist(expected, auth, movieViewing, null)) main.post(() -> {
                     if (closed || generation != expected) return;
-                    updateViewing(auth, movieViewing); publish();
+                    showViewing(movieViewing); publish();
                 });
                 Map<String, JSONArray> metadata = new LinkedHashMap<>();
                 for (String id : summarizeViewing ? StremioViewing.lookups(library, previousViewing, now) : StremioProgress.lookups(library, now)) {
@@ -112,12 +114,13 @@ final class StremioResume {
                 JSONObject nextViewing = summarizeViewing ? StremioViewing.update(movieViewing, rawLibrary, metadata, java.time.LocalDate.now()) : previousViewing;
                 JSONObject cache = new JSONObject().put("watching", StremioProgress.json(nextWatching))
                         .put("upcoming", StremioProgress.json(nextUpcoming)).put("synced_at", now);
+                boolean seriesChanged = summarizeViewing && !StremioViewing.sameEvidence(movieViewing, nextViewing);
+                if (!persist(expected, auth, seriesChanged ? nextViewing : null, cache)) return;
                 main.post(() -> {
                     if (closed || generation != expected) return;
                     watching = nextWatching; upcoming = nextUpcoming; syncedAt = now; loading = false; failed = false;
                     schedule.succeeded();
-                    try { session.cache(auth, cache); } catch (Exception ignored) { }
-                    if (viewingListener != null) updateViewing(auth, nextViewing);
+                    if (seriesChanged) showViewing(nextViewing);
                     publish();
                 });
             } catch (Exception failure) {
@@ -132,9 +135,17 @@ final class StremioResume {
             }
         });
     }
-    private void updateViewing(String auth, JSONObject next) {
+    /** Persists on the worker; false when the account changed or Home closed meanwhile. */
+    private boolean persist(int expected, String auth, JSONObject viewingSnapshot, JSONObject cacheSnapshot) {
+        synchronized (session) {
+            if (closed || generation != expected) return false;
+            try { if (viewingSnapshot != null) session.viewing(auth, viewingSnapshot); } catch (Exception ignored) { }
+            try { if (cacheSnapshot != null) session.cache(auth, cacheSnapshot); } catch (Exception ignored) { }
+            return true;
+        }
+    }
+    private void showViewing(JSONObject next) {
         viewing = next;
-        try { session.viewing(auth, viewing); } catch (Exception ignored) { }
         if (viewingListener != null) viewingListener.changed(viewing);
     }
     void disconnect() {
@@ -201,7 +212,7 @@ final class StremioResume {
                         if (!currentPair(expected)) return;
                         if (auth.isEmpty()) { schedulePoll(code, expected, label); return; }
                         try {
-                            session.save(auth); key = auth; expired = false; failed = false; schedule.reset();
+                            generation++; session.save(auth); sessionPending = false; key = auth; expired = false; failed = false; schedule.reset();
                             dialog.dismiss(); publish(); refresh(AccountRefresh.Trigger.FORCE);
                         } catch (Exception ignored) { label.setText(R.string.stremio_pair_error); }
                     });

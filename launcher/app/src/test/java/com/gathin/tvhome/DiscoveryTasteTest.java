@@ -80,4 +80,12 @@ public class DiscoveryTasteTest {
         assertTrue(taste.score(new CatalogItem(record("tt2", "movie", "Crime"))) > 0);
         assertEquals(0, taste.score(new CatalogItem(record("tt3", "movie", "Comedy"))), 0);
     }
+    @Test public void diversityOnlyPromotesTitlesWithAPositiveContentScore() throws Exception {
+        RecommendationTaste profile = taste(new JSONArray(), new JSONArray().put(record("tt99", "movie", "Crime").put("decision", "more")), new JSONArray());
+        CatalogItem a = new CatalogItem(record("tt1", "movie", "Crime")), b = new CatalogItem(record("tt2", "movie", "Crime")),
+                c = new CatalogItem(record("tt3", "movie", "Crime")), neutral = new CatalogItem(record("tt4", "movie", "Comedy"));
+        assertTrue(profile.score(a) > 0);
+        assertEquals(0, profile.score(neutral), 0);
+        assertEquals(Arrays.asList(a, b, c, neutral), profile.apply(Arrays.asList(a, b, c, neutral), CatalogSource.TRAKT));
+    }
 }

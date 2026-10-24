@@ -44,7 +44,7 @@ final class StremioSession {
             throw new Unavailable(failure);
         }
     }
-    void save(String value) throws Exception {
+    synchronized void save(String value) throws Exception {
         if (!StremioApi.validKey(value)) throw new Exception("Invalid session");
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, key());
         write(auth, new JSONObject().put("iv", Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
@@ -56,14 +56,21 @@ final class StremioSession {
         if (!fingerprint(value).equals(stored.optString("account"))) throw new Exception("Different session");
         return stored;
     }
-    void cache(String value, JSONObject data) throws Exception { write(cache, data.put("account", fingerprint(value))); }
+    synchronized void cache(String value, JSONObject data) throws Exception { write(cache, bound(value, data)); }
     JSONObject viewing(String value) throws Exception {
         JSONObject stored = read(viewing, 2_000_000);
         if (!fingerprint(value).equals(stored.optString("account"))) throw new Exception("Different session");
         return stored;
     }
-    void viewing(String value, JSONObject data) throws Exception { write(viewing, data.put("account", fingerprint(value)), 2_000_000); }
-    void clear() { auth.delete(); cache.delete(); viewing.delete(); }
+    synchronized void viewing(String value, JSONObject data) throws Exception { write(viewing, bound(value, data), 2_000_000); }
+    synchronized void clear() { auth.delete(); cache.delete(); viewing.delete(); }
+    private static JSONObject bound(String value, JSONObject data) throws Exception {
+        JSONObject copy = new JSONObject();
+        for (java.util.Iterator<String> keys = data.keys(); keys.hasNext();) {
+            String key = keys.next(); copy.put(key, data.opt(key));
+        }
+        return copy.put("account", fingerprint(value));
+    }
     private static SecretKey key() throws Exception {
         KeyStore store = KeyStore.getInstance("AndroidKeyStore"); store.load(null);
         if (store.containsAlias(ALIAS)) return (SecretKey) store.getKey(ALIAS, null);

@@ -114,8 +114,12 @@ final class DiscoveryTaste {
         for (CatalogItem item : items) if (!excluded.contains(RecommendationTaste.key(item.type, item.id))
                 && added.add(RecommendationTaste.key(item.type, item.id))) result.add(item);
         if (source != CatalogSource.TRAKT && source != CatalogSource.RECENT) return result;
-        Map<CatalogItem, Double> scores = new HashMap<>(); double maximum = 0;
-        for (CatalogItem item : result) { double score = score(item); scores.put(item, score); maximum = Math.max(maximum, score); }
+        Map<CatalogItem, Double> scores = new HashMap<>(), raw = new HashMap<>();
+        Map<CatalogItem, String> primaries = new HashMap<>(); double maximum = 0;
+        for (CatalogItem item : result) {
+            double score = score(item); raw.put(item, score); scores.put(item, score);
+            primaries.put(item, primary(item)); maximum = Math.max(maximum, score);
+        }
         if (maximum == 0) return result;
         // Retain provider order as a substantial prior; no candidate is added to a private feed.
         for (int i = 0; i < result.size(); i++) {
@@ -123,10 +127,10 @@ final class DiscoveryTaste {
         }
         result.sort((a, b) -> Double.compare(scores.get(b), scores.get(a)));
         for (int i = 2; i < result.size(); i++) {
-            String genre = primary(result.get(i));
-            if (genre.isEmpty() || !genre.equals(primary(result.get(i - 1))) || !genre.equals(primary(result.get(i - 2)))) continue;
+            String genre = primaries.get(result.get(i));
+            if (genre.isEmpty() || !genre.equals(primaries.get(result.get(i - 1))) || !genre.equals(primaries.get(result.get(i - 2)))) continue;
             for (int j = i + 1; j < Math.min(result.size(), i + 6); j++) {
-                if (!genre.equals(primary(result.get(j))) && score(result.get(j)) > 0) { result.add(i, result.remove(j)); break; }
+                if (!genre.equals(primaries.get(result.get(j))) && raw.get(result.get(j)) > 0) { result.add(i, result.remove(j)); break; }
             }
         }
         return result;

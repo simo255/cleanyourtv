@@ -357,6 +357,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+            android.os.StrictMode.setThreadPolicy(new android.os.StrictMode.ThreadPolicy.Builder()
+                    .detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build());
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         density = getResources().getDisplayMetrics().density;

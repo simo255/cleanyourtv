@@ -101,4 +101,9 @@ public class StremioViewingTest {
         assertTrue(StremioViewing.movieIds(snapshot).isEmpty());
         assertEquals(0, snapshot.getJSONArray("series").length());
     }
+    @Test public void updatingWithAnUnchangedLibraryKeepsTheSameEvidence() throws Exception {
+        JSONObject raw = row("tt1", "movie", state(1, 0));
+        JSONObject first = update(new JSONObject(), raw);
+        assertTrue(StremioViewing.sameEvidence(first, update(first, raw)));
+    }
 }

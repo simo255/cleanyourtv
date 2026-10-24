@@ -26,7 +26,9 @@ Hold OK retains the original classification menu for catalog films/series: More 
 Seen/Finished and Clear choice. The Continue view keeps its original read-only progress behavior.
 The preview and side menus are inactive when `refined_home` is off.
 
-Catalog ranking is reused until provider data, local feedback or the date changes. Cached poster
+Catalog ranking is reused until provider data, changed watched evidence, local feedback or the date changes.
+In 2.34, account snapshots are persisted on the worker without mutating shared JSON; unchanged evidence
+does not notify the ranking listener. Diversity uses precomputed content scores and primary genres. Cached poster
 decoding has its own queue, separate from network downloads; obsolete queued requests are dropped
 when the displayed list changes. The poster row retains enough reusable cards for a full strip.
 

@@ -100,4 +100,24 @@ final class StremioViewing {
         CatalogItem item = new CatalogItem(row);
         target.put("genres", new JSONArray(item.allGenres)).put("cast", new JSONArray(item.cast)).put("directors", new JSONArray(item.directors));
     }
+/** True when two snapshots carry the same watched evidence. Ignores the account binding and key order. */
+static boolean sameEvidence(JSONObject a, JSONObject b) {
+    return canonical(a.optJSONArray("movies")).equals(canonical(b.optJSONArray("movies")))
+            && canonical(a.optJSONArray("series")).equals(canonical(b.optJSONArray("series")));
+}
+static String canonical(Object value) { StringBuilder out = new StringBuilder(); canonical(value, out); return out.toString(); }
+private static void canonical(Object value, StringBuilder out) {
+    if (value instanceof JSONObject) {
+        JSONObject object = (JSONObject) value; java.util.TreeSet<String> keys = new java.util.TreeSet<>();
+        for (java.util.Iterator<String> it = object.keys(); it.hasNext(); ) keys.add(it.next());
+        out.append('{');
+        for (String key : keys) { out.append(JSONObject.quote(key)).append(':'); canonical(object.opt(key), out); out.append(','); }
+        out.append('}');
+    } else if (value instanceof JSONArray) {
+        JSONArray array = (JSONArray) value; out.append('[');
+        for (int i = 0; i < array.length(); i++) { canonical(array.opt(i), out); out.append(','); }
+        out.append(']');
+    } else if (value instanceof String) out.append(JSONObject.quote((String) value));
+    else out.append(value == null ? "null" : String.valueOf(value));
+}
 }
