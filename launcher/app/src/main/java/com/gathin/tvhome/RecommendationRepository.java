@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
 /** Independent read-only feeds. Private Trakt URLs never leave the official add-on origin. */
 final class RecommendationRepository {
     static final int FOR_YOU = CatalogSource.TRAKT, WATCHLIST = CatalogSource.WATCHLIST,
-            TRENDING = CatalogSource.TRENDING, GOOGLE = CatalogSource.GOOGLE;
+            TRENDING = CatalogSource.TRENDING, GOOGLE = CatalogSource.GOOGLE, RECENT = CatalogSource.RECENT;
     static final long REFRESH_MS = 15 * 60_000L;
     private static final String POPULAR_BASE = "https://v3-cinemeta.strem.io/";
     private static final String POPULAR_ACCOUNT = "cinemeta-popular-v1";
@@ -44,8 +44,11 @@ final class RecommendationRepository {
     }
     interface Listener { void changed(int source); }
     private final File posterDir, googleCache;
+    private final RecommendationFeedback feedback;
+    private final JSONArray completed;
+    private final TmdbCatalog tmdb;
     private final ContentResolver resolver;
-    private final Feed[] feeds = new Feed[3];
+    private final Feed[] feeds = new Feed[CatalogSource.COUNT];
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ExecutorService publicWorker = Executors.newSingleThreadExecutor();
@@ -68,6 +71,8 @@ final class RecommendationRepository {
         feeds[FOR_YOU] = new Feed(new File(context.getFilesDir(), "recommendations-cache.json"));
         feeds[WATCHLIST] = new Feed(new File(context.getFilesDir(), "watchlist-cache.json"));
         feeds[TRENDING] = new Feed(new File(context.getFilesDir(), "trending-cache.json"));
+        feeds[RECENT] = new Feed(new File(context.getFilesDir(), "recent-cache.json"));
+        JSONObject options = new JSONObject();
         try {
             JSONObject config = readJson(new File(context.getFilesDir(), "recommendations-config.json"));
             base = config.getString("addon_base");
@@ -78,9 +83,15 @@ final class RecommendationRepository {
             fingerprint = hash(base);
             addIds(watchedMovies, config.optJSONArray("watched_movie_ids"));
             addIds(watchedShows, config.optJSONArray("watched_series_ids"));
+            options = config;
         } catch (Exception ignored) { base = ""; fingerprint = ""; }
+        JSONObject profile = options.optJSONObject("taste_profile");
+        completed = profile != null && profile.optInt("schema") == 1 && profile.optJSONArray("completed") != null
+                ? profile.optJSONArray("completed") : new JSONArray();
+        feedback = new RecommendationFeedback(new File(context.getFilesDir(), "recommendation-feedback.json"), fingerprint);
+        tmdb = new TmdbCatalog(options.optString("tmdb_read_token"), new File(context.getCacheDir(), "tmdb"));
         for (int source = 0; source < feeds.length; source++) {
-            if (source != TRENDING && !configured()) continue;
+            if (feeds[source] == null || (!CatalogSource.publicFeed(source) && !configured())) continue;
             Feed feed = feeds[source];
             try {
                 JSONObject cache = readJson(feed.cache);
@@ -89,8 +100,8 @@ final class RecommendationRepository {
                     addIds(watchedMovies, cache.optJSONArray("watched_movie_ids"));
                     addIds(watchedShows, cache.optJSONArray("watched_series_ids"));
                 }
-                feed.movies = CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU, watchedMovies);
-                feed.shows = CatalogItem.parse(cache.getJSONArray("shows"), "series", source == FOR_YOU, watchedShows);
+                feed.movies = recommendations(CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU, watchedMovies), source);
+                feed.shows = recommendations(CatalogItem.parse(cache.getJSONArray("shows"), "series", false, watchedShows), source);
                 feed.syncedAt = cache.optLong("synced_at");
             } catch (Exception ignored) { }
         }
@@ -101,9 +112,29 @@ final class RecommendationRepository {
     boolean hasGoogle() { return google != null; }
     long googleCapturedAt() { return google == null ? 0 : google.capturedAt; }
     boolean googleLoading() { return googleLoading; }
-    List<CatalogItem> googleItems(boolean series) { return google == null ? new ArrayList<>() : google.items(series); }
-    Feed feed(int source) { return feeds[source]; }
-    String account(int source) { return source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
+    List<CatalogItem> googleItems(boolean series) { return google == null ? new ArrayList<>() : taste().apply(recommendations(google.items(series), GOOGLE), GOOGLE); }
+    Feed feed(int source) {
+        Feed stored = feeds[source], feed = new Feed(stored.cache);
+        // Reapply on reads too: saved catalogs cannot retain the old window across New Year's Day.
+        RecommendationTaste taste = taste();
+        feed.movies = taste.apply(recommendations(stored.movies, source), source);
+        feed.shows = taste.apply(recommendations(stored.shows, source), source);
+        feed.syncedAt = stored.syncedAt; feed.lastAttempt = stored.lastAttempt; feed.loading = stored.loading; feed.error = stored.error;
+        return feed;
+    }
+    private RecommendationTaste taste() { return new RecommendationTaste(completed, feedback.entries()); }
+    boolean learned() { return taste().learned(); }
+    boolean choose(CatalogItem item, String decision) { return feedback.choose(item, decision); }
+    boolean resetFeedback() { return feedback.reset(); }
+    static boolean hasTmdb(Feed feed) {
+        for (CatalogItem item : feed.movies) if ("TMDb".equals(item.provider)) return true;
+        for (CatalogItem item : feed.shows) if ("TMDb".equals(item.provider)) return true;
+        return false;
+    }
+    private static List<CatalogItem> recommendations(List<CatalogItem> items, int source) {
+        return CatalogDiscovery.recommendations(items, source, java.time.LocalDate.now());
+    }
+    String account(int source) { return source == RECENT ? "cinemeta-recent-v2-" + java.time.LocalDate.now().getYear() : source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
     void listen(Listener listener) { this.listener = listener; }
     private void publish(int source) { if (!closed && listener != null) listener.changed(source); }
 
@@ -111,24 +142,26 @@ final class RecommendationRepository {
         if (source == GOOGLE) { reloadGoogle(force); return; }
         if (!CatalogSource.networkFeed(source)) return;
         Feed feed = feeds[source]; long now = System.currentTimeMillis();
-        if (closed || (source != TRENDING && !configured()) || feed.loading) return;
+        if (closed || (!CatalogSource.publicFeed(source) && !configured()) || feed.loading) return;
         if (!force && (now - feed.syncedAt < REFRESH_MS || now - feed.lastAttempt < 60_000)) return;
         feed.loading = true; feed.lastAttempt = now; feed.error = 0; publish(source);
         Set<String> movieSeen = new HashSet<>(watchedMovies), showSeen = new HashSet<>(watchedShows);
         boolean knownHistory = !movieSeen.isEmpty() || !showSeen.isEmpty();
         // Only the selected source is fetched. Switching source queues another bounded operation.
-        (source == TRENDING ? publicWorker : worker).execute(() -> {
+        (CatalogSource.publicFeed(source) ? publicWorker : worker).execute(() -> {
             try {
-                if (source != TRENDING) {
+                if (!CatalogSource.publicFeed(source)) {
                     int movieHistory = readHistory("movie", movieSeen), showHistory = readHistory("series", showSeen);
                     // Invalid private IDs may return HTTP 200 with empty catalogs. Keep prior private caches.
                     if (movieHistory + showHistory == 0 && knownHistory)
                         throw new StatusException(401);
                 }
                 String endpoint = source == FOR_YOU ? "recommendations" : source == WATCHLIST ? "watchlist" : "top";
-                String origin = source == TRENDING ? POPULAR_BASE : base;
-                List<CatalogItem> movies = CatalogItem.parse(catalog(origin, "movie", endpoint), "movie", source == FOR_YOU, movieSeen);
-                List<CatalogItem> shows = CatalogItem.parse(catalog(origin, "series", endpoint), "series", source == FOR_YOU, showSeen);
+                String origin = CatalogSource.publicFeed(source) ? POPULAR_BASE : base;
+                List<CatalogItem> movies = recommendations(source == RECENT ? recent("movie")
+                        : CatalogItem.parse(catalog(origin, "movie", endpoint), "movie", source == FOR_YOU, movieSeen), source);
+                List<CatalogItem> shows = recommendations(source == RECENT ? recent("series")
+                        : CatalogItem.parse(catalog(origin, "series", endpoint), "series", false, showSeen), source);
                 long at = System.currentTimeMillis();
                 JSONObject cache = new JSONObject().put("account", account(source)).put("source", source).put("synced_at", at)
                         .put("movies", CatalogItem.json(movies)).put("shows", CatalogItem.json(shows));
@@ -171,6 +204,17 @@ final class RecommendationRepository {
         JSONObject response = new JSONObject(new String(download(origin + "catalog/" + type + "/" + name + ".json",
                 2_000_000, POPULAR_BASE.equals(origin) ? 1 : 0), StandardCharsets.UTF_8));
         return CatalogItem.metas(response);
+    }
+    /** Four public, bounded requests; the year feed supplies titles missing from the popular top page. */
+    private List<CatalogItem> recent(String type) throws Exception {
+        List<CatalogItem> items = new ArrayList<>();
+        int currentYear = java.time.LocalDate.now().getYear();
+        for (int year : new int[]{currentYear, currentYear - 1}) {
+            JSONArray metas = catalog(POPULAR_BASE, type, "year/genre=" + year);
+            items.addAll(CatalogItem.parse(metas, type, false, java.util.Collections.emptySet()));
+        }
+        items.addAll(tmdb.items(type, java.time.LocalDate.now()));
+        return CatalogDiscovery.recent(items, java.time.LocalDate.now());
     }
     private int readHistory(String type, Set<String> seen) throws Exception {
         JSONArray metas = catalog(base, type, "history");

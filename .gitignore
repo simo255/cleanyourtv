@@ -16,6 +16,14 @@ backup/
 **/recommendations-cache*.json
 **/watchlist-cache*.json
 **/trending-cache*.json
+**/recent-cache*.json
+**/recommendation-feedback*.json
+**/taste-profile*.json
+**/trakt-auth*.json
+**/trakt-client*.json
+**/trakt-history*.json
+**/.trakt-private-*
+**/tmdb-token*.txt
 **/.refresh-lock/
 **/last-refresh.log
 **/last-refresh.exit

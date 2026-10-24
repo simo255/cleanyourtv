@@ -9,6 +9,8 @@
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Optional local weather summary; granted only when both APKs use the same signing key. -->
+    <uses-permission android:name="io.github.sumyabazar1.weather.permission.READ_HOME_WEATHER" />
     <!-- Optional app-published TV channels; requested only when opening My apps. -->
     <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -29,6 +31,7 @@
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
     <queries>
+        <provider android:authorities="io.github.sumyabazar1.weather.home" />
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
             <action android:name="android.settings.SETTINGS" />

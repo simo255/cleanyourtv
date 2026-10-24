@@ -14,6 +14,27 @@ BASE = "https://www.strem.io/trakt/addon/example_private_id/"
 
 
 class SetupTests(unittest.TestCase):
+    def test_secondary_trakt_connection_is_discarded_and_existing_catalog_is_preserved(self):
+        auth = {"client_id": "a" * 64, "access_token": "b" * 64,
+                "client_secret": "c" * 64, "refresh_token": "d" * 64, "email": "discard"}
+        config = setup.normalize_config({"addon_base": BASE, "trakt_history": auth})
+        self.assertEqual(config, {"addon_base": BASE, "watched_movie_ids": [], "watched_series_ids": []})
+        self.assertNotIn("access_token", json.dumps(config))
+
+    def test_taste_import_keeps_only_positive_completed_records_and_discards_unknown_fields(self):
+        profile = {"schema": 1, "completed": [{"id": "tt123", "type": "series", "completed": True,
+                   "genres": ["Drama"], "access_token": "never-forward"},
+                   {"id": "tt456", "type": "series", "completed": False, "genres": ["Comedy"]}]}
+        result = setup.normalize_config({"addon_base": BASE, "taste_profile": profile})
+        self.assertEqual(result["taste_profile"], {"schema": 1, "completed": [{"id": "tt123", "type": "series", "completed": True, "genres": ["Drama"]}]})
+
+    def test_tmdb_read_token_is_explicit_and_cannot_inject_request_headers(self):
+        token = "example.TMDB.read-token-only"
+        self.assertEqual(setup.normalize_config({"addon_base": BASE, "tmdb_read_token": token})["tmdb_read_token"], token)
+        for bad in ("bad\r\nHeader: value", "", "a" * 5000):
+            with self.assertRaises(ValueError):
+                setup.normalize_config({"addon_base": BASE, "tmdb_read_token": bad})
+
     def test_accepts_official_manifest_and_preserves_only_known_fields(self):
         config = setup.normalize_config({"addon_base": BASE + "manifest.json",
                                         "watched_movie_ids": ["tt123", "tt123"],
@@ -75,6 +96,7 @@ class SetupTests(unittest.TestCase):
         self.assertIn("cache/posters", script)
         self.assertIn("files/watchlist-cache.json", script)
         self.assertIn("files/trending-cache.json", script)
+        self.assertIn("files/recent-cache.json", script)
         self.assertIn("files/google-tv-cache.json", script)
         self.assertNotIn("shared_prefs", script)
         self.assertNotIn("pm clear", script)

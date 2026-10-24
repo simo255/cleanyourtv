@@ -322,6 +322,8 @@
     <!-- Where the TV is, in decimal degrees, so the sky's sunrise and sunset glows follow the real sun
          (computed on the TV, no network). Empty: a fixed temperate day, sunset glow around 19:00.
          Vilnius: 54.69 and 25.28. -->
+    <!-- Optional local weather summary, signed with the same key. No work while false. -->
+    <bool name="home_weather">false</bool>
     <string name="latitude" translatable="false"></string>
     <string name="longitude" translatable="false"></string>
 

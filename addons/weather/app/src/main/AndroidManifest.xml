@@ -6,6 +6,9 @@
 
     <!-- The only permission: Open-Meteo, for the place search, the weather and the air quality. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <permission android:name="io.github.sumyabazar1.weather.permission.READ_HOME_WEATHER"
+        android:protectionLevel="signature" android:label="@string/home_permission"
+        android:description="@string/home_permission_description" />
 
     <application
         android:allowBackup="false"
@@ -14,6 +17,11 @@
         android:label="@string/app_name"
         android:supportsRtl="false"
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
+
+        <provider android:name=".HomeWeatherProvider"
+            android:authorities="io.github.sumyabazar1.weather.home"
+            android:exported="true"
+            android:permission="io.github.sumyabazar1.weather.permission.READ_HOME_WEATHER" />
 
         <activity
             android:name=".WeatherActivity"

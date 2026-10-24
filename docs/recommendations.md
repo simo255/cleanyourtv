@@ -1,11 +1,104 @@
 # Home catalogs: Trakt, Cinemeta and Android TV apps
 
 The optional shelf consumes the user's **existing official Stremio Trakt Integration add-on**.
+It uses only the existing official add-on connection for Trakt recommendations: no GitHub link,
+separate Trakt application, OAuth token import or second account connection is required.
 It does not reuse a Trakt OAuth token, register an API application, or write to either account.
-The home shelf has four movie/show catalog views and a separate local app-content view:
+The home header and catalog menu expose four sources: **Trakt**, **Google TV**, **New releases**
+and **Trending**. Watchlist and My apps are removed from both menus. Previously saved selections
+of either removed section return to Trakt; existing source IDs and private saved data are preserved.
+The legacy Watchlist/app-content notes below describe retained formats, rather than visible controls.
 
-- **Trakt**: the official add-on provides personalized recommendations; known watched titles are excluded.
-  This view contains only Trakt recommendations in their own provider order.
+- **Trakt**: the official add-on supplies the candidates. Known watched movies and positively confirmed
+  completed series are excluded. Local positive viewing and explicit choices can refine this view's order.
+  An unfinished series is neutral; merely appearing in episode history never means it was disliked or finished.
+- **New releases / Nouveautés**: official Cinemeta `year` catalogs for the current and previous year. Each refresh
+  reads at most four bounded public responses (movies/shows × two years). Entries are deduplicated,
+  require a parseable release date no later than today, and initially sort newest first. A configured
+  local taste profile can refine that order. Optional TMDB candidates broaden this public pool;
+  this is not a guarantee of streaming availability in your country.
+  A series year is its premiere; a new season of an older series does not make it a recent premiere.
+
+One control row sits above a full-width poster row. There is no side summary or year selector.
+Previously saved `period_*` choices are ignored. Instead, all recommendation feeds (Trakt, Google TV,
+Popular and New releases) automatically retain the current and previous release year: 2025/2026 in
+2026, 2026/2027 in 2027, and so on. This policy applies to movies and series when responses are read,
+before writing network caches, and when existing caches or Google snapshots are loaded. Existing
+Google imports are preserved on disk; their filtered results keep Google's order. Unknown release
+years and known future release dates do not pass. Trakt keeps its personalized order and watched
+exclusions; public titles are not inserted into that candidate list. A series year is its premiere, so an
+older series with a new season does not pass solely because its displayed year range ends recently.
+
+Watchlist and app channels/Continue are saved or resume lists, and keep their full membership.
+No new private API query parameters are assumed: the recommendation policy filters the catalogs
+returned by the existing official integration. It cannot invent recent personalized candidates if
+that provider returns none; the empty state reports that outcome. Google TV remains a saved capture,
+and new Google suggestions still need an explicitly requested capture.
+
+The New releases cache is separate (`recent-cache.json`), public and account-independent. It uses
+the existing 15-minute refresh policy and Cinemeta redirect allowlist. It does not read Trakt history.
+
+## Positive viewing and explicit feedback
+
+An optional private `taste_profile` contains confirmed completed series and their genres. A completed
+series contributes positive genre affinity; unfinished or unknown viewing contributes no negative
+weight. Trakt and New releases can use these weights, with stable provider order on tied scores and
+a small diversity pass to avoid repeated runs of the same leading genre. With no learned genres,
+their default ordering remains. Google TV and Popular keep their own order.
+
+Hold OK on a poster for **More like this**, **Not interested**, **Finished the series** (or Already
+watched for a movie), and **Undo my choice**. An explicit rejection hides that title, without treating
+other incomplete viewing or its whole genre as disliked. Finished the series adds a positive signal
+and excludes that title from discovery. More like this needs genre information; the app explains when
+it is absent instead of pretending to learn. These actions are local and never mark anything in Trakt.
+Manual hidden/seen choices apply to recommendation views, including Google, but do not alter Watchlist
+or app-channel/Continue membership. Imported Trakt completion does not filter Google's membership.
+
+**Home catalogs → Reset my recommendation choices** clears manual choices, preserving imported
+completed-viewing positives. Feedback is stored atomically in the account-bound private
+`recommendation-feedback.json`. Ranked/hidden results are derived from raw cached candidates, so a
+reset works offline; it does not require a fresh catalog download.
+
+To prepare the completion baseline without accessing the TV or an account API:
+
+```sh
+python tools/build-taste-profile.py --library /private/stremio-library.json --metadata-dir /private/cinemeta --as-of 2026-10-01 --output /private/taste-profile.json
+```
+
+Use the date of that viewing snapshot. The tool decodes Stremio's watched bitmap against the full
+cached episode ordering. Every dated, already-aired regular episode must be watched; specials and
+future episodes are not required. Missing metadata/dates, malformed bitmaps or missing anchors stay
+neutral. The known broken export that repeats one title is rejected. The output copies no account
+fields or titles. Its accompanying report records counts and the snapshot date. This is an imported
+baseline, not continuous synchronization of full Trakt episode progress: refresh it with newer data
+or use the explicit Finished action for new completions.
+
+Then, only when an installation/configuration update is authorized:
+
+```sh
+python tools/configure-recommendations.py --serial YOUR_TV_IP:5555 --config /private/recommendations-config.json --taste-profile /private/taste-profile.json
+```
+
+## Optional TMDB enrichment
+
+The default works with Cinemeta and the official Trakt integration. TMDB is opt-in and needs the
+user's own **API Read Access Token**, read from a private file with `--tmdb-token-file` or a hidden
+prompt with `--prompt-tmdb-token` on the configuration tool. It is never embedded in the APK or
+printed. The normalizer accepts only this explicit field, not account/export tokens.
+
+TMDB is requested only for the selected New releases view: public Discover movie/TV results for
+the current/previous year, sorted by popularity, with at least ten votes. At most ten details per
+type are mapped to IMDb for Stremio links, within a bounded fetch window. Public mappings are cached
+for a week with a 300-file cap. The resulting candidates join Cinemeta before deduplication/date
+checks and local ranking. The view identifies both sources when it contains TMDB entries.
+
+The Bearer token is sent only to fixed HTTPS `api.themoviedb.org` Discover/detail endpoints; redirects
+are disabled and responses are bounded. Viewing history, private addon URLs and the local taste
+profile are not sent to TMDB. A missing token or failed TMDB request leaves Cinemeta usable. A local
+build/test without a token does not validate live TMDB authentication or results. This product uses
+the TMDB API but is not endorsed or certified by TMDB.
+
+The other sources keep their own membership:
 - **Google TV**: a separate, dated [Google TV snapshot](google-tv-personalization.md), in its identified
   Google order. It is never interleaved with Trakt or filtered using Trakt's watched history. Reload
   reads the saved import only; a fresh capture is explicitly launched on a computer or in Termux.
@@ -19,11 +112,12 @@ The home shelf has four movie/show catalog views and a separate local app-conten
 - **My apps / Mes applis**: app-published channels and resume entries read from Android TV's
   shared `TvProvider`. The Channels chooser and Continue control replace Movies/TV shows in this view.
 
-Up to 40 items are displayed per view. The movie/show catalog views keep provider order and open Stremio
+Up to 100 items are displayed per view, so recent titles beyond the former 40-item cutoff remain reachable.
+The movie/show catalog views use their documented provider/local preference order and open Stremio
 details without starting playback. The app view balances channels and uses each app's published
 intent, which may start or resume playback. This launcher does not edit the watchlist or mark titles watched.
 
-## Android TV app channels
+## Legacy Android TV app channels (not exposed in the current interface)
 
 Select My apps and grant Android's standard `READ_TV_LISTINGS` runtime permission. Denying it keeps
 the other catalogs usable and shows an explanation; Refresh can request access again. This does not
@@ -90,7 +184,7 @@ python tools/configure-recommendations.py --serial YOUR_TV_IP:5555
 python tools/configure-recommendations.py --serial YOUR_TV_IP:5555 --clear
 ```
 
-`--clear` removes the connection, accumulated watched exclusions, all three catalogs and poster cache from
+`--clear` removes the connection, accumulated watched exclusions, catalog caches and poster cache from
 this launcher only, including any imported Google TV snapshot. It does not revoke the independent TV-listings permission or erase app-published
 TV data. Dock preferences and Stremio/Trakt accounts are preserved. A connection change
 is a deliberate setup action; ordinary refreshes do not need ADB or a computer.
@@ -119,8 +213,10 @@ storage. No configuration or credential is printed in logs or displayed on the T
 
 Without a seed, only the latest 100 history events per category are fetched initially. Repeated
 episode plays may therefore cover fewer than 100 distinct shows. This is not a full Trakt-history
-mirror. A show is excluded as soon as its series ID is known as watched, even if only one episode
-was watched. Personalized ranking comes from the official integration, not a local recommender.
+mirror. A series ID alone does not establish completion. Series completion exclusions and positive
+genre learning require the imported completion profile or an explicit Finished choice; merely having
+started a show never adds negative affinity. Trakt supplies the base candidates, and local positive
+preferences refine them without claiming to reproduce Trakt's own recommendation engine.
 
 ## Refresh and cache
 
@@ -128,7 +224,9 @@ Only the selected view is refreshed. Trakt and Watchlist each read movie/series 
 the private connection, then their two corresponding catalogs. Popular reads two public Cinemeta
 catalogs on a separate worker so a slow private connection does not block it. Responses must be valid
 JSON catalogs, including legitimately empty arrays. Duplicate and malformed IDs are removed in all
-views; watched exclusions apply only to For-you. No write endpoint or playback reporting is used.
+views; automatic history-based movie exclusions apply only to For-you. Confirmed completed series
+are excluded from local personal discovery, and explicit hidden/seen choices apply as described above.
+No write endpoint or playback reporting is used.
 
 Refresh is checked on resume and each visible minute; fresh data is reused for 15 minutes.
 Failed automatic attempts are spaced at least a minute apart. The manual Refresh control can
@@ -158,8 +256,8 @@ empty recommendations category has its own empty-state message.
 ## TV controls
 
 - Up from a dock app enters the poster row; Left/Right navigates posters.
-- Up from a poster reaches the category controls; Left/Right traverses all seven header buttons.
-- The header switches For-you / Watchlist / Trending / My apps, then two view controls and Refresh.
+- Up from a poster reaches the category controls; Left/Right traverses the single header row.
+- The header switches Trakt / Google TV / New releases / Trending, then Movies/TV shows and Refresh.
 - My apps uses Channels… / Continue; the other sources use Movies / TV shows.
 - Down from an empty header returns to the dock, avoiding a focus trap; Up reaches the main menu.
 - Down from a poster returns to the dock; Down from the dock opens the app grid.

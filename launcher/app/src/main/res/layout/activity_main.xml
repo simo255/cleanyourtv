@@ -270,6 +270,24 @@
                             android:fontFamily="@string/font_regular"
                             android:letterSpacing="0.14"
                             android:textAllCaps="true" />
+                        <TextView
+                            android:id="@+id/homeWeather"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:paddingTop="2dp"
+                            android:paddingBottom="2dp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:textSize="12sp"
+                            android:textColor="@color/home_weather_text"
+                            android:fontFamily="@string/font_regular"
+                            android:background="@drawable/pill_bg"
+                            android:focusable="true"
+                            android:clickable="true"
+                            android:visibility="gone" />
                     </LinearLayout>
                 </LinearLayout>
 

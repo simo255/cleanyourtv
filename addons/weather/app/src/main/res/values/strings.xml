@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Weather</string>
+    <string name="home_permission">Read home weather</string>
+    <string name="home_permission_description">Read the selected city and its weather summary. Only apps signed with the same certificate can read it.</string>
 
     <string name="feels_like">Feels like %1$d°</string>
     <string name="humidity">Humidity %1$d%%</string>

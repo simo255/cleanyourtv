@@ -1,5 +1,15 @@
 # Weather
 
+This fork also supports a compact weather summary directly on Home. Build this add-on (1.1+)
+and the launcher with the same signing key, choose a city in Weather, then set `"home_weather": true`
+in the launcher's private theme configuration. The option is off by default. OK on the summary opens
+the full forecast. The launcher reads only city, temperature, feels-like, conditions and update time
+through a signature-protected, read-only local content provider; coordinates remain in the add-on.
+While Home is visible it checks the summary once a minute. The add-on refreshes data at most every
+30 minutes (5-minute retry after failure), keeps dated readings when offline, and schedules no work
+when both screens are closed. An already started finite request may finish after leaving Home.
+The full weather page and its conditions are available in French and English.
+
 The weather for one city, full screen on the TV: now (temperature, feels-like, conditions), the US air quality
 index as a coloured pill, and the next three days. For the [Clean Your TV](../../README.md) launcher it declares a
 [module card](../../docs/modules.md), so once you answer **Show card** its tile reads "Weather" with a

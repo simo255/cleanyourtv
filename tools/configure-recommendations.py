@@ -19,6 +19,32 @@ from urllib.parse import urlsplit
 PACKAGE = "com.gathin.tvhome"
 
 
+def normalize_taste_profile(profile):
+    if not isinstance(profile, dict) or profile.get("schema") != 1:
+        raise ValueError("Invalid taste profile.")
+    entries = profile.get("completed", [])
+    if not isinstance(entries, list) or len(entries) > 1000:
+        raise ValueError("Invalid completed-viewing list.")
+    result, seen = [], set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError("Invalid completed-viewing entry.")
+        if entry.get("completed") is not True:
+            continue  # incomplete and unknown records are neutral, never dislikes
+        identity, kind = entry.get("id", ""), entry.get("type")
+        genres = entry.get("genres", [])
+        if (not isinstance(identity, str) or not re.fullmatch(r"tt[0-9]+", identity)
+                or kind not in ("movie", "series") or not isinstance(genres, list) or len(genres) > 12
+                or not all(isinstance(g, str) and 0 < len(g.strip()) <= 80
+                           and not any(ord(c) < 32 for c in g) for g in genres)):
+            raise ValueError("Invalid completed-viewing details.")
+        if (kind, identity) not in seen:
+            seen.add((kind, identity))
+            result.append({"id": identity, "type": kind, "completed": True,
+                           "genres": list(dict.fromkeys(g.strip() for g in genres))})
+    return {"schema": 1, "completed": result}
+
+
 def normalize_config(value):
     if not isinstance(value, dict):
         raise ValueError("Configuration must be a JSON object.")
@@ -43,6 +69,13 @@ def normalize_config(value):
         if not isinstance(ids, list) or not all(isinstance(x, str) and re.fullmatch(r"tt[0-9]+", x) for x in ids):
             raise ValueError("Watched baselines must be arrays of IMDb IDs.")
         result[key] = sorted(set(ids))
+    if "taste_profile" in value:
+        result["taste_profile"] = normalize_taste_profile(value["taste_profile"])
+    if "tmdb_read_token" in value:
+        token = value["tmdb_read_token"]
+        if not isinstance(token, str) or not 20 <= len(token) <= 4096 or not re.fullmatch(r"[A-Za-z0-9._~-]+", token):
+            raise ValueError("Invalid TMDB read token.")
+        result["tmdb_read_token"] = token
     return result
 
 
@@ -94,7 +127,10 @@ class Device:
                          "files/recommendations-cache.json.new files/watchlist-cache.json "
                          "files/watchlist-cache.json.bak files/watchlist-cache.json.new "
                          "files/trending-cache.json files/trending-cache.json.bak "
-                         "files/trending-cache.json.new files/google-tv-cache.json "
+                         "files/trending-cache.json.new files/recent-cache.json "
+                         "files/recent-cache.json.bak files/recent-cache.json.new files/google-tv-cache.json "
+                         "files/recommendation-feedback.json files/recommendation-feedback.json.bak "
+                         "files/recommendation-feedback.json.new "
                          "files/google-tv-cache.json.tmp files/google-tv-cache.json.bak "
                          "files/google-tv-cache.json.new && rm -rf cache/posters")
         finally:
@@ -124,6 +160,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adb", default="adb", help="Path to the official adb executable")
     parser.add_argument("--serial", help="Authorized ADB device serial, such as your TV IP:5555")
+    parser.add_argument("--taste-profile", type=Path, help="Private completed-viewing profile generated locally")
+    token_group = parser.add_mutually_exclusive_group()
+    token_group.add_argument("--tmdb-token-file", type=Path, help="Private UTF-8 file containing your TMDB API read token")
+    token_group.add_argument("--prompt-tmdb-token", action="store_true", help="Read your TMDB API read token at a hidden prompt")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--config", type=Path, help="Private local JSON configuration; never commit this file")
     group.add_argument("--stremio-export", type=Path, help="Local Stremio export; extracts only the official add-on URL")
@@ -144,6 +184,16 @@ def main():
                 value = config_from_export(value)
         else:
             value = {"addon_base": getpass.getpass("Private official Stremio Trakt manifest URL (hidden): ")}
+        if args.taste_profile:
+            if args.taste_profile.stat().st_size > 256_000:
+                raise ValueError("Taste profile is too large.")
+            value["taste_profile"] = json.loads(args.taste_profile.read_text(encoding="utf-8-sig"))
+        if args.tmdb_token_file:
+            if args.tmdb_token_file.stat().st_size > 8192:
+                raise ValueError("TMDB token file is too large.")
+            value["tmdb_read_token"] = args.tmdb_token_file.read_text(encoding="utf-8-sig").strip()
+        elif args.prompt_tmdb_token:
+            value["tmdb_read_token"] = getpass.getpass("Personal TMDB API read token (hidden): ").strip()
         device.provision(normalize_config(value))
         print("Private connection configured and verified. Press Home, then Menu > Trakt recommendations.")
         return 0

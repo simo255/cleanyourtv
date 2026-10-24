@@ -27,7 +27,8 @@ import java.util.concurrent.Executors;
 /**
  * The weather for one place, full screen: now, the air quality and the next days (options.xml). It reads Open-Meteo only
  * while it is on screen (every {@link Forecast#REFRESH_MS}, or {@link Forecast#RETRY_MS} after a failure) and
- * does nothing in the background. The place is chosen once with a search and kept in the app's preferences.
+ * does nothing in the background. A separately enabled Home summary can request its own bounded refresh through
+ * HomeWeatherProvider. The place is chosen once with a search and kept in the app's preferences.
  */
 public final class WeatherActivity extends Activity {
     private static final String PREFS = "place";
@@ -87,6 +88,7 @@ public final class WeatherActivity extends Activity {
         main.removeCallbacks(tick);
         double lat = Double.longBitsToDouble(place.getLong("lat", 0));
         double lon = Double.longBitsToDouble(place.getLong("lon", 0));
+        String requestedPlace = HomeWeatherStore.key(place);
         io.execute(() -> {
             Forecast.Report report;
             try {
@@ -97,7 +99,11 @@ public final class WeatherActivity extends Activity {
             Forecast.Report result = report;
             main.post(() -> {
                 if (isDestroyed()) return;
-                if (result != null) show(result);
+                if (!requestedPlace.equals(HomeWeatherStore.key(place))) { refresh(); return; }
+                if (result != null) {
+                    HomeWeatherStore.save(this, requestedPlace, result);
+                    show(result);
+                }
                 else if (!shown) message.setText(R.string.offline);
                 main.postDelayed(tick, result != null ? Forecast.REFRESH_MS : Forecast.RETRY_MS);
             });

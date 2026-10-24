@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="reco_provider_recent_tmdb">Cinemeta + TMDB · Recent releases</string>
+    <string name="reco_taste_label">Based on your completed viewing and choices</string>
+    <string name="reco_more_like_this">More like this</string>
+    <string name="reco_not_interested">Not interested</string>
+    <string name="reco_seen">Already watched (local)</string>
+    <string name="reco_finished_series">Finished the series (local)</string>
+    <string name="reco_not_enough_info">Not enough information about this title to find similar suggestions.</string>
+    <string name="reco_clear_choice">Undo my choice for this title</string>
+    <string name="reco_reset_feedback">Reset my recommendation choices</string>
+    <string name="reco_feedback_error">Unable to save this choice.</string>
+    <item name="recommendation_recent" type="id" />
+    <string name="reco_recent">New releases</string>
+    <string name="reco_provider_recent">Cinemeta · Recent releases</string>
+    <string name="home_weather_reading">%1$s · %2$d°</string>
+    <string name="home_weather_saved">Saved reading · %1$s</string>
+    <string name="home_weather_detail">%1$s, %2$d degrees Celsius, %3$s. Updated %4$s. Open forecast.</string>
     <item name="recommendation_movies" type="id" />
     <item name="recommendation_for_you" type="id" />
     <item name="recommendation_watchlist" type="id" />
@@ -16,7 +32,7 @@
     <string name="reco_google_status">Google TV · Captured %1$s · Reload reads the saved snapshot</string>
     <string name="reco_google_reload">Reload</string>
     <string name="reco_google_setup">Google TV · Import a snapshot with the capture tool or Termux.</string>
-    <string name="reco_google_empty">No Google TV titles identified in this category. Import a new snapshot to update it.</string>
+    <string name="reco_google_empty">No current or previous-year titles in this Google TV category. Import a new snapshot to update it.</string>
     <string name="reco_watchlist">Watchlist</string>
     <string name="reco_trending">Trending</string>
     <string name="reco_tv">My apps</string>
@@ -45,7 +61,7 @@
     <string name="reco_synced">Trakt · Based on your history · Updated %1$s</string>
     <string name="reco_cached">Trakt unavailable · Showing saved recommendations</string>
     <string name="reco_check_connection">Check the Trakt connection in Stremio · Showing saved recommendations</string>
-    <string name="reco_empty">No titles available in this category yet.</string>
+    <string name="reco_empty">No recommendations from the current or previous year in this category yet.</string>
     <string name="reco_error">Unable to sync Trakt. Try Refresh or reconnect Trakt in Stremio.</string>
     <string name="reco_setup">Connect the official Stremio–Trakt catalog to this launcher.</string>
     <string name="reco_open_error">Unable to open this title in Stremio.</string>

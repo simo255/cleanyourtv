@@ -9,17 +9,24 @@ public class CatalogSourceTest {
         assertEquals(1, CatalogSource.WATCHLIST);
         assertEquals(2, CatalogSource.TRENDING);
         assertEquals(3, CatalogSource.TV);
-        for (int saved = 0; saved <= 3; saved++) assertEquals(saved, CatalogSource.restore(saved));
-        assertEquals(CatalogSource.GOOGLE, CatalogSource.restore(CatalogSource.GOOGLE));
+        for (int saved : new int[]{CatalogSource.TRAKT, CatalogSource.GOOGLE, CatalogSource.RECENT, CatalogSource.TRENDING})
+            assertEquals(saved, CatalogSource.restore(saved));
     }
     @Test public void googleIsAdjacentToTraktWithoutChangingTheOtherSourceIds() {
-        assertArrayEquals(new int[]{0, 4, 1, 2, 3}, CatalogSource.displayOrder());
-        assertEquals(5, CatalogSource.COUNT);
+        assertArrayEquals(new int[]{0, 4, 5, 2}, CatalogSource.displayOrder());
+        assertEquals(6, CatalogSource.COUNT);
+    }
+    @Test public void removedSectionsFallBackToTraktWhenRestoringSavedPreferences() {
+        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(CatalogSource.WATCHLIST));
+        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(CatalogSource.TV));
     }
     @Test public void googleAndLocalAppsDoNotUseTheTraktOrPopularNetworkFeeds() {
         assertTrue(CatalogSource.networkFeed(CatalogSource.TRAKT));
         assertTrue(CatalogSource.networkFeed(CatalogSource.WATCHLIST));
         assertTrue(CatalogSource.networkFeed(CatalogSource.TRENDING));
+        assertTrue(CatalogSource.networkFeed(CatalogSource.RECENT));
+        assertTrue(CatalogSource.publicFeed(CatalogSource.RECENT));
+        assertFalse(CatalogSource.publicFeed(CatalogSource.TRAKT));
         assertFalse(CatalogSource.networkFeed(CatalogSource.GOOGLE));
         assertFalse(CatalogSource.networkFeed(CatalogSource.TV));
         assertEquals(CatalogSource.TRAKT, CatalogSource.restore(-1));

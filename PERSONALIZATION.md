@@ -12,15 +12,29 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
 ## What this fork adds
 
 - **Trakt**: Movies and TV shows from your existing official Stremio **Trakt Integration**
-  add-on, with known watched titles and duplicates excluded. OK opens the title in Stremio.
+  add-on, with known watched movies, confirmed completed series and duplicates excluded. A local
+  positive-viewing profile can refine ordering. OK opens the title in Stremio.
 - **Google TV**: an independent, dated capture of Google's visible Top picks. Its tab keeps Google's
   identified order and does not use Trakt's watched exclusions or recommendation ranking.
-- **Watchlist / À regarder**: your Trakt watchlist with its own empty state and cache.
 - **Trending / Tendances**: public **Popular** movie/show catalogs from official Cinemeta,
   identified on screen and independent of your account history.
-- **My apps / Mes applis**: searchable Android TV channels published locally by installed apps,
-  plus **Continue / Reprendre** from Watch Next and entries with playback progress. Choose a
-  channel or mix all channels; cards identify and open their owning app.
+- **New releases / Nouveautés**: official Cinemeta catalogs for the current and previous year,
+  deduplicated and ordered by known release date. Upcoming and undated entries are excluded.
+  For shows this means their premiere, not a new season of an older show.
+- **Simple recommendation shelf**: one control row and a full-width poster row, without a side
+  summary or year selector. Trakt, Google TV and Popular automatically retain only the current
+  and previous release year. This applies to fetched and saved catalogs, before display.
+  The header and catalog menu show only Trakt, Google TV, New releases and Trending; older
+  saved Watchlist/My apps selections return to Trakt without renumbering stored source IDs.
+- **Positive-only viewing preferences**: a confirmed completed series is a positive example;
+  unfinished viewing stays neutral. Hold OK for More like this, Not interested, Finished or Undo.
+  Preferences remain private and refine Trakt/New releases, with a small diversity pass. Google TV
+  keeps its own ranking; manual hidden/seen choices are explicit. No feedback is uploaded to accounts.
+- **Optional TMDB enrichment**: public recent candidates with IMDb mappings join New releases when
+  the user's own private TMDB API read token is configured. Cinemeta remains usable without it.
+- **Optional weather on Home**: city, temperature and conditions from this fork’s separate weather
+  add-on, with dated saved readings when offline. Enable the private theme’s `home_weather` option;
+  both apps must be signed with the same key. No city or coordinates are included in the launcher.
 - **Seven dock slots on one row**, with an editor controlled by the remote. Hold OK on an app
   to reorder, pin, remove or hide it. Hidden apps can be shown again from the menu.
 - **Quick menu** for recommendations, dock editing, network, Bluetooth pairing, sound,
@@ -29,7 +43,7 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
 - **French and English**, cached catalogs/posters, finite network limits and no background service.
 
 The shelf is optional: without private configuration it stays hidden unless you explicitly select
-public Trending or My apps from the menu. Personalized Trakt ranking comes from the official integration. This launcher reads
+public Trending or New releases from the menu. Trakt supplies candidates and local positive preferences can refine their ranking. This launcher reads
 catalogs; it does not upload history, report playback, or write to your Stremio/Trakt account.
 
 This branch integrates upstream through `cc4c7c59`, including themes, adaptive tile sizes, module
@@ -89,18 +103,12 @@ Only the official add-on's private catalog URL is copied into the launcher's pri
 The account export itself is not sent to the TV. You can instead omit `--stremio-export` and paste
 your manifest URL at a hidden prompt. Use `--adb /path/to/adb` when needed.
 
-Press Home, then **Menu → Home catalogs**. Select **Trakt**, **Google TV**, **Watchlist** or **Trending** on the
+Press Home, then **Menu → Home catalogs**. Select **Trakt**, **Google TV**, **New releases** or **Trending** on the
 home header; Movies and TV shows work within each view. Only the selected source refreshes.
 Refresh happens on returning to Home or while Home is visible once the 15-minute cache interval
 expires; manual Refresh is also available.
 Up from the dock enters posters, Left/Right navigates, Up reaches category buttons, and Down
 returns to the dock. Down from the dock opens the app grid. OK opens details without starting playback.
-
-For local app content, select **My apps** and allow the TV-listings permission. **Channels…**
-selects all channels or one app/channel; **Continue** shows available resume entries. These links
-follow the publishing app's behavior and can resume playback. Google TV Home can remain disabled;
-this reads Android TV's shared data, not Google's private personalized home ranking. Apps control
-the freshness and completeness of their published suggestions.
 
 To populate the separate Google TV view, run the
 capture while your TV is available for temporary navigation:
@@ -121,9 +129,15 @@ To remove the local connection and recommendation cache while keeping dock prefe
 python tools/configure-recommendations.py --serial YOUR_TV_IP:5555 --clear
 ```
 
+Trakt recommendations use your existing official Stremio/Trakt add-on connection. No GitHub
+association or additional Trakt connection is needed. The add-on supplies the personalized
+candidates; local saved preferences can refine them without an additional account request.
+
 **Limits:** initial watched filtering covers the latest 100 history events per category, plus
 optional locally seeded IMDb IDs. Previously learned watched IDs are retained. A watched episode
-excludes its show, and removing an event in Trakt does not automatically remove a local exclusion.
+alone does not establish that its show was completed or disliked. Completion preferences use the
+imported profile or an explicit local Finished choice. Removing movie history in Trakt does not
+automatically remove an accumulated local movie exclusion.
 Historical imports and future playback scrobbling must be handled by Stremio/Trakt separately.
 See [configuration, privacy and cache details](docs/recommendations.md).
 

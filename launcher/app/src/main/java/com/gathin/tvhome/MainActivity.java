@@ -134,6 +134,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private LauncherPreferences preferences;
     private LauncherMenus menus;
     private RecommendationsShelf recommendations;
+    private HomeWeather homeWeather;
     private RecyclerView grid;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
@@ -533,6 +534,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         recommendations = new RecommendationsShelf(this, findViewById(R.id.recommendationShelf),
                 () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))));
         menus.setRecommendations(recommendations::menu);
+        if (cfg.homeWeather) homeWeather = new HomeWeather(this, findViewById(R.id.homeWeather));
         dockApps = preferences.dock();
         fillDockLeavesSlots = !cfg.fillDock;
         Order savedOrder = Order.load(Order.file(this));
@@ -682,6 +684,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             }
             int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
+            View weather = findViewById(R.id.homeWeather);
+            if (!rtlMenuBar && weather.getVisibility() == View.VISIBLE) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && v.getId() == firstButton) { weather.requestFocus(); return true; }
+                if (v == weather && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) { firstTopButton().requestFocus(); return true; }
+                if (v == weather && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return true;
+            }
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
@@ -692,6 +700,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
+        findViewById(R.id.homeWeather).setOnKeyListener(pillKeys);
         if (advancedEffects) {
             for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
@@ -872,6 +881,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         sky.update();
         wallpaperPlayer.start();
         recommendations.resume();
+        if (homeWeather != null) homeWeather.resume();
         handler.postDelayed(minuteTick, MINUTE_MS);
         if (festive && diya != null) {
             diya.start();
@@ -1052,6 +1062,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
+        if (homeWeather != null) homeWeather.pause();
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();
@@ -1113,6 +1124,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onDestroy() {
         super.onDestroy();
         if (recommendations != null) recommendations.close();
+        if (homeWeather != null) homeWeather.close();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);

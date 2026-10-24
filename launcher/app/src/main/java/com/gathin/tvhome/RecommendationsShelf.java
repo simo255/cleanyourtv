@@ -54,7 +54,7 @@ final class RecommendationsShelf {
     private boolean catalogEmpty, tvResume, googleSeries;
     private String tvChannel;
     private List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
-    private final int[] sourceNames = {R.string.reco_for_you, R.string.reco_watchlist, R.string.reco_trending, R.string.reco_tv, R.string.reco_google};
+    private final int[] sourceNames = {R.string.reco_for_you, R.string.reco_watchlist, R.string.reco_trending, R.string.reco_tv, R.string.reco_google, R.string.reco_recent};
 
     RecommendationsShelf(Activity activity, FrameLayout host, Runnable focusDock) {
         this.activity = activity; this.host = host; this.focusDock = focusDock;
@@ -70,7 +70,7 @@ final class RecommendationsShelf {
         LinearLayout panel = new LinearLayout(activity); panel.setOrientation(LinearLayout.VERTICAL);
         host.addView(panel, new FrameLayout.LayoutParams(-1, -1));
         LinearLayout header = new LinearLayout(activity); header.setGravity(Gravity.CENTER_VERTICAL);
-        int[] sourceIds = {R.id.recommendation_for_you, R.id.recommendation_watchlist, R.id.recommendation_trending, R.id.recommendation_tv, R.id.recommendation_google};
+        int[] sourceIds = {R.id.recommendation_for_you, R.id.recommendation_watchlist, R.id.recommendation_trending, R.id.recommendation_tv, R.id.recommendation_google, R.id.recommendation_recent};
         for (int i : CatalogSource.displayOrder()) {
             final int index = i;
             sources[i] = button(sourceNames[i]); sources[i].setId(sourceIds[i]);
@@ -138,7 +138,7 @@ final class RecommendationsShelf {
     private void source(int selected, boolean refresh) {
         source = selected; pendingFocus = -1;
         activity.getSharedPreferences("recommendations", 0).edit().putInt("source", source).apply();
-        for (int i = 0; i < sources.length; i++) sources[i].setTextColor(buttonColors(i == source ? 0xFF9CB7FF : 0xFFA6ADB8));
+        for (int i : CatalogSource.displayOrder()) sources[i].setTextColor(buttonColors(i == source ? 0xFF9CB7FF : 0xFFA6ADB8));
         paintTabs(); render(); list.scrollToPosition(0);
         if (refresh) refresh(false, true);
     }
@@ -192,9 +192,10 @@ final class RecommendationsShelf {
         RecommendationRepository.Feed feed = repository.feed(source);
         movies = feed.movies;
         shows = feed.shows;
-        String provider = activity.getString(source == 0 ? R.string.reco_provider_for_you
+        String provider = activity.getString(source == CatalogSource.RECENT ? (RecommendationRepository.hasTmdb(feed) ? R.string.reco_provider_recent_tmdb : R.string.reco_provider_recent) : source == 0 ? R.string.reco_provider_for_you
                 : source == 1 ? R.string.reco_provider_watchlist : R.string.reco_provider_trending);
-        if (source != 2 && !repository.configured()) syncStatus = activity.getString(R.string.reco_setup);
+        if (repository.learned() && (source == CatalogSource.TRAKT || source == CatalogSource.RECENT)) provider += " · " + activity.getString(R.string.reco_taste_label);
+        if (!CatalogSource.publicFeed(source) && !repository.configured()) syncStatus = activity.getString(R.string.reco_setup);
         else if (feed.loading) syncStatus = activity.getString(R.string.reco_feed_loading, provider);
         else if (feed.error != 0) syncStatus = activity.getString(feed.syncedAt > 0 ? R.string.reco_feed_cached : R.string.reco_feed_error, provider);
         else if (feed.syncedAt > 0) syncStatus = activity.getString(R.string.reco_feed_synced, provider,
@@ -281,9 +282,14 @@ final class RecommendationsShelf {
         for (int selected : order) labels.add(activity.getString(sourceNames[selected]));
         labels.add(movieTab.getText().toString()); labels.add(showTab.getText().toString());
         labels.add(refreshTab.getText().toString()); labels.add(activity.getString(enabled ? R.string.reco_hide : R.string.reco_show));
+        labels.add(activity.getString(R.string.reco_reset_feedback));
         new AlertDialog.Builder(activity, R.style.Theme_TvHome_Dialog).setTitle(R.string.reco_menu)
                 .setItems(labels.toArray(new String[0]), (dialog, choice) -> {
-                    if (choice == order.length + 2) refresh(true, true);
+                    if (choice == order.length + 4) {
+                        if (!repository.resetFeedback()) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
+                        render();
+                    }
+                    else if (choice == order.length + 2) refresh(true, true);
                     else if (choice == order.length + 3) {
                         enabled = !enabled; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", enabled).apply();
                         updateVisibility(); if (enabled) refresh(false, true); focusDock.run();
@@ -295,6 +301,21 @@ final class RecommendationsShelf {
                         dockVisible(true); focusDock.run(); focusCard(0);
                     }
                 }).setPositiveButton(R.string.done, null).show();
+    }
+    private void feedbackMenu(CatalogItem item) {
+        int[] names = {R.string.reco_more_like_this, R.string.reco_not_interested,
+                "series".equals(item.type) ? R.string.reco_finished_series : R.string.reco_seen, R.string.reco_clear_choice};
+        String[] labels = new String[names.length]; for (int i = 0; i < names.length; i++) labels[i] = activity.getString(names[i]);
+        new AlertDialog.Builder(activity, R.style.Theme_TvHome_Dialog).setTitle(item.name)
+                .setItems(labels, (dialog, choice) -> {
+                    if (choice == 0 && RecommendationTaste.tags(item.genres).isEmpty()) {
+                        Toast.makeText(activity, R.string.reco_not_enough_info, Toast.LENGTH_LONG).show(); return;
+                    }
+                    String[] decisions = {RecommendationTaste.MORE, RecommendationTaste.HIDE,
+                            "series".equals(item.type) ? RecommendationTaste.COMPLETED : RecommendationTaste.SEEN, ""};
+                    if (!repository.choose(item, decisions[choice])) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
+                    pendingFocus = -1; render(); focusCard(0);
+                }).setNegativeButton(R.string.done, null).show();
     }
     private void open(CatalogItem title) {
         if ("tv".equals(title.type)) {
@@ -311,7 +332,7 @@ final class RecommendationsShelf {
         private int renderedSource = -1;
         Posters() { setHasStableIds(true); }
         void replace(List<CatalogItem> next) {
-            List<CatalogItem> limited = next.subList(0, Math.min(40, next.size()));
+            List<CatalogItem> limited = next.subList(0, Math.min(100, next.size()));
             boolean same = renderedSource == source && values.size() == limited.size();
             if (same) for (int i = 0; i < values.size(); i++) {
                 CatalogItem a = values.get(i), b = limited.get(i);
@@ -333,6 +354,7 @@ final class RecommendationsShelf {
             if (params.width != width) { params.width = width; holder.itemView.setLayoutParams(params); }
             holder.itemView.setContentDescription(title.name + " \u00B7 " + caption(title));
             holder.itemView.setOnClickListener(v -> open(title)); repository.poster(title.poster, holder.image);
+            holder.itemView.setOnLongClickListener("tv".equals(title.type) ? null : v -> { feedbackMenu(title); return true; });
             holder.itemView.setOnKeyListener((v, key, event) -> {
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
                 if (key == KeyEvent.KEYCODE_DPAD_DOWN) { focusDock.run(); return true; }
@@ -380,6 +402,7 @@ final class RecommendationsShelf {
     private String caption(CatalogItem item) {
         if (source == GOOGLE) return "Google TV · " + item.year;
         if (source == CatalogSource.TRAKT) return "Trakt · " + item.year;
+        if ("TMDb".equals(item.provider)) return "TMDb · " + item.year;
         return item.year;
     }
 }

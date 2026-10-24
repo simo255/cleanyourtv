@@ -1,11 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="reco_provider_recent_tmdb">Cinemeta + TMDB · Sorties récentes</string>
+    <string name="reco_taste_label">Selon vos visionnages terminés et vos choix</string>
+    <string name="reco_more_like_this">Plus comme ça</string>
+    <string name="reco_not_interested">Pas intéressé</string>
+    <string name="reco_seen">Déjà vu (local)</string>
+    <string name="reco_finished_series">Série terminée (local)</string>
+    <string name="reco_not_enough_info">Pas assez d’informations sur ce titre pour trouver des suggestions similaires.</string>
+    <string name="reco_clear_choice">Annuler mon choix pour ce titre</string>
+    <string name="reco_reset_feedback">Réinitialiser mes choix de recommandations</string>
+    <string name="reco_feedback_error">Impossible d’enregistrer ce choix.</string>
+    <string name="reco_recent">Nouveautés</string>
+    <string name="reco_provider_recent">Cinemeta · Sorties récentes</string>
+    <string name="home_weather_reading">%1$s · %2$d°</string>
+    <string name="home_weather_saved">Relevé enregistré · %1$s</string>
+    <string name="home_weather_detail">%1$s, %2$d degrés Celsius, %3$s. À jour à %4$s. Ouvrir les prévisions.</string>
     <string name="reco_for_you">Trakt</string>
     <string name="reco_google">Google TV</string>
     <string name="reco_google_status">Google TV · Capture du %1$s · Relire charge la capture enregistrée</string>
     <string name="reco_google_reload">Relire</string>
     <string name="reco_google_setup">Google TV · Importez une capture avec l’outil dédié ou Termux.</string>
-    <string name="reco_google_empty">Aucun titre Google TV identifié dans cette catégorie. Importez une nouvelle capture pour actualiser.</string>
+    <string name="reco_google_empty">Aucun titre de l’année actuelle ou précédente dans cette catégorie Google TV. Importez une nouvelle capture pour actualiser.</string>
     <string name="reco_watchlist">À regarder</string>
     <string name="reco_trending">Tendances</string>
     <string name="reco_tv">Mes applis</string>
@@ -34,7 +49,7 @@
     <string name="reco_synced">Trakt · D’après votre historique · À jour à %1$s</string>
     <string name="reco_cached">Trakt indisponible · Recommandations enregistrées</string>
     <string name="reco_check_connection">Connexion Trakt à vérifier dans Stremio · Recommandations enregistrées</string>
-    <string name="reco_empty">Aucun titre disponible dans cette catégorie pour le moment.</string>
+    <string name="reco_empty">Aucune recommandation de l’année actuelle ou précédente dans cette catégorie pour le moment.</string>
     <string name="reco_error">Synchronisation Trakt impossible. Réessayez ou reconnectez Trakt dans Stremio.</string>
     <string name="reco_setup">Connectez le catalogue officiel Stremio–Trakt à cet accueil.</string>
     <string name="reco_open_error">Impossible d’ouvrir ce titre dans Stremio.</string>
