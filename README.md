@@ -1,63 +1,127 @@
 # Android TV Home · Stremio + Trakt
 
-A personal Android TV home screen for finding films, following series and opening your apps
-with a remote, without ads added by the launcher.
+A personal Android TV launcher that brings your favorite apps, Stremio viewing progress and
+personalized film and series recommendations onto Home. Built on
+[CleanYourTV by Gathin23 and contributors](https://github.com/Gathin23/cleanyourtv),
+with the **Nocturne** cinema interface and optional **apps-first Home**.
 
-This repository is a fork of [CleanYourTV by Gathin23 and contributors](https://github.com/Gathin23/cleanyourtv),
-formerly **tv-vibehack**. Starting from a minimal launcher and TV cleanup tools, it has grown into
-a cinema home screen with **Stremio, Trakt, personalized recommendations and the Nocturne theme**.
-The original project's cleanup tools and TV lists remain available.
+[Install and connect accounts](PERSONALIZATION.md#build-and-try-the-launcher) ·
+[Recommendation setup](docs/recommendations.md) ·
+[Themes and options](themes/README.md) ·
+[Contributing](CONTRIBUTING.md)
 
-**Get started:** [installation and account setup](PERSONALIZATION.md) ·
-[recommendation configuration](docs/recommendations.md) · [Nocturne theme](themes/nocturne/config.json)
+## Why I made this fork
 
-## What this fork offers
+I started with CleanYourTV's native launcher and reversible TV cleanup tools, then adapted the
+launcher for how I use my own TV: open my favorite apps, pick up a Stremio episode, or find
+something to watch without digging through several apps.
 
-| Feature | What it provides |
+My changes bring Stremio and Trakt into Home, add local viewing preferences, and give the interface
+a cinema layout that works with a remote. I also added an apps-first layout, so the main screen
+can stay focused on favorite apps and a wallpaper, with recommendations one Down press away.
+The original launcher, TV lists, themes and cleanup tools remain part of the project.
+
+## Two ways to use Home
+
+| Apps first | Nocturne catalog layout |
 |---|---|
-| **Continue with Stremio** | Opt-in QR sign-in, films and episodes in progress, progress indicators, remaining time and links to the exact episode in Stremio. A separate view lists dated upcoming episodes when metadata is available. |
-| **Trakt recommendations** | Film and series catalogs from your own official Stremio **Trakt Integration** add-on, filtering of known watched titles and ranking refined by local preferences. |
-| **New releases and trending** | Public Cinemeta catalogs that work without an account. New releases use known release dates; for a series, this means its premiere. |
-| **Optional enhanced discovery** | Separate film and series taste profiles, discovery by year and genre, season-aware rules and a choice between recent titles and all years. Requires `recommendation_options.enhanced` in private configuration. |
-| **Local preferences** | Confirmed completion can be a positive signal; unfinished viewing stays neutral. Hold OK for More like this, Not interested, Finished or Undo. |
-| **Optional Nocturne interface** | A dark background, large posters, available titles and synopses, visible focus and navigation between catalogs, the dock and the app grid. |
-| **Customizable dock** | Up to seven apps in one row, with remote-controlled reordering, adding, removal and hiding. Choices are saved locally. |
-| **Quick menu and VPN** | Access to catalogs, dock editing, network, Bluetooth, sound, apps, inputs and settings. VPN status comes from Android, without a remote IP lookup. |
-| **Optional weather and TMDB** | Weather through this fork's separate add-on; new-release enrichment with your own TMDB token. These features require additional setup. |
+| ![Apps-first Home on the onn TV, showing favorite apps over a wallpaper and a Recommendations shortcut](docs/switches/apps_first_home.jpg) | ![Nocturne on the onn TV, showing catalog tabs, title details, a poster strip and the app dock](themes/nocturne/screenshot.jpg) |
+| Favorite apps on the main screen; press Down to open recommendations. | Title details and recommendations above the app dock, on a solid background. |
 
-The interface added by this fork supports French and English. Inherited themes, module cards
-and upstream translations remain available.
+These are example configurations from the onn TV. Apps, recommendations and wallpaper depend on
+your own setup. The Home wallpaper is credited to NASA/JPL-Caltech in the
+[screenshot notes](docs/switches.md). Both layouts are optional; see
+[customization](PERSONALIZATION.md#customize) and the [Nocturne theme](themes/nocturne/config.json).
 
-## How personalization works
+## What I added and customized
 
-The **Stremio resume connection** and the **Trakt add-on catalog** are separate connections.
-You supply your own: no personal account or viewing history is bundled with the repository.
-The launcher opens titles in Stremio; it does not play videos itself.
+- **Stremio Continue and Coming next.** Connect by QR code, see films and episodes in progress,
+  check remaining time, and open the exact episode in Stremio. A separate view lists dated upcoming
+  episodes when metadata is available.
+- **Personalized discovery.** Read your official Stremio Trakt Integration catalogs, filter known
+  watched titles, and refine ordering with local positive viewing preferences. Public Cinemeta
+  catalogs provide discovery and trending views alongside the private Trakt feed.
+- **The Nocturne interface.** Large posters, readable title details and available synopses, clear
+  focus, blue source indicators and side menus. Title artwork stays in the poster strip; the optional
+  apps-first layout can use a wallpaper behind its content.
+- **Home organized into three levels.** With apps-first enabled, move from favorite apps to
+  recommendations to the remaining-app grid. Up, Back and Home provide a route back. Films and Series
+  change on click or OK; moving focus between those two buttons keeps the current category.
+- **Controls for everyday use.** A remote-editable dock with up to seven slots, a quick menu,
+  wallpaper rotation with Next/Keep/Resume controls, and optional weather from the separate
+  [Weather add-on](addons/weather/README.md).
+- **Local VPN status.** Show Android's VPN connection state. An optional country label comes from
+  the configured VPN app's notification, with notification access; it does not use an IP lookup.
+- **Reliability work.** Preserve encrypted Stremio sessions through temporary Keystore failures,
+  refresh viewing information on return to Home, reuse rankings when inputs are unchanged, and
+  bound catalog requests, poster decoding and caches. Selected upstream fixes are integrated
+  alongside these changes.
 
-Ranking uses catalogs and local rules, without an AI model. A series with confirmed completion
-is a positive example; leaving a series unfinished does not mean you disliked it.
-An explicit Not interested choice hides that title.
+The additions in this fork support **English and French**. Upstream translations, module cards
+and themes remain available; the upstream reference documentation is preserved below.
 
-With enhanced discovery enabled and Stremio connected, viewing information also lets the launcher
-automatically exclude films marked as watched and series with confirmed completion. Coverage depends
-on the available data; it does not guarantee a complete history sync. See the
-[rules and limits](docs/recommendations.md).
+## What each catalog does
 
-Stremio sessions are encrypted using Android Keystore. Preferences and caches stay in the app's
-private storage. The launcher makes network requests for enabled features, but adds no telemetry,
-does not upload your preferences and does not write to your Stremio or Trakt accounts.
-Account playback tracking remains the responsibility of those apps and services.
+| View | Where it comes from | What it is for |
+|---|---|---|
+| **Continue / Reprendre** | Your separate Stremio QR connection | Resume viewing or check upcoming episodes. |
+| **For you / Trakt** | Your official Stremio Trakt Integration add-on | Account recommendations, with local filtering and ranking. |
+| **Discover / Découvrir** | Public Cinemeta catalogs, in enhanced mode | Explore recent and older titles across years and genres. Basic mode shows **New releases** instead. |
+| **Trending / Tendances** | Public Cinemeta Popular catalogs | Browse popular titles in provider order, with known watched exclusions in enhanced mode. |
 
+Stremio resume and the Trakt catalog are **separate connections**. Connecting one does not connect
+the other. The launcher opens titles in Stremio; playback and account scrobbling are handled there.
 The former Google TV snapshot integration has been removed from the current flow.
 
-## Build and configure
+## How I improved recommendations
 
-The launcher requires **Android 8.0 or later**. Development and device checks have used an
-**onn Streaming Device 4K Pro running Android TV 12**; this does not automatically validate
-every recent feature or other devices and firmware.
+The guiding rule is simple: **confirmed completion is positive; unfinished viewing is neutral**.
+An explicit **Not interested** choice hides that title. Holding OK on a catalog poster opens the
+local feedback menu, including More like this, Finished and clearing a choice.
 
-Build requirements: **JDK 17**, **Android SDK 34 / build-tools 34.0.0** and Android platform-tools
-(`adb`). Configuration tools require Python 3.9+.
+The optional enhanced mode adds:
+
+- **Separate tastes for films and series.** Available genres, cast and directors contribute to
+  each profile. A watched episode alone does not establish that a whole series is finished.
+- **Ranking that adapts to the evidence.** Sparse profiles rely more on provider order. As usable
+  positive history grows, local similarity has more influence. Duplicate completion records count
+  once per title; missing metadata adds no confidence.
+- **Broader discovery.** Recent years, rotating older years, two genre pages and Featured contribute
+  candidates. Refreshes retain some previous discoveries, within a cap of 300 films and 300 series.
+  Enhanced mode starts with all years unless a period choice was saved; the menu can limit it to
+  recent years. Basic New releases keeps its recent-year scope.
+- **More variety in the first 20 results.** Among nearby positive matches, full genre, cast and
+  director overlap helps reduce repetition. Public discoveries are kept separate from the private
+  Trakt feed.
+- **Shared watched exclusions.** With enhanced mode and Stremio connected, films marked watched
+  and series with confirmed completion are filtered from Trakt, Discover and Trending. Season-aware
+  evidence keeps later unwatched seasons from being mistaken for whole-series completion.
+
+This is local, rule-based ranking, without an AI model. It depends on the history and metadata
+available; it is not a complete account-history sync. Discovery catalogs use a **four-hour cache**.
+Stremio viewing refreshes independently on return to Home, with a one-minute minimum gap, and
+every 15 minutes while Home stays visible. Failed reads back off; manual Refresh is available.
+See the [configuration, completion rules and limits](docs/recommendations.md).
+
+Enable enhanced mode in private configuration with `recommendation_options.enhanced`, or use
+`--enhanced-recommendations` with the [configuration tool](tools/configure-recommendations.py).
+It is off by default.
+
+## Your accounts stay yours
+
+Stremio session keys are encrypted using **Android Keystore**. Account configuration, local feedback
+and viewing summaries stay in private app storage. No account, export, viewing history or private
+catalog URL is bundled in the repository.
+
+Enabled features make network requests to their providers. The launcher adds no telemetry, uploads
+no local feedback or history, and does not write to your Stremio or Trakt accounts. Public discovery
+requests rotate independently of private taste, and ranking uses metadata already available locally
+or in catalog responses. Optional weather and TMDB enrichment need their own setup.
+
+## Build and get started
+
+Requires **Android 8.0+**, **JDK 17**, **Android SDK platform 34 / build-tools 34.0.0**, and Android
+platform-tools (`adb`). The configuration tools require **Python 3.9+**.
 
 ```sh
 git clone --branch main https://github.com/simo255/cleanyourtv.git
@@ -65,28 +129,36 @@ cd cleanyourtv/launcher
 ./gradlew assembleDebug
 ```
 
-On Windows, use `gradlew.bat assembleDebug`. The
-[installation guide](PERSONALIZATION.md#build-and-try-the-launcher) covers trying the app on a TV,
-selecting it as Home and connecting accounts. Updating an existing installation requires the
-same signing key to preserve app data.
+On Windows, use `gradlew.bat assembleDebug`. Set `JAVA_HOME` and `ANDROID_HOME` for your installed
+toolchain. The current private-configuration tool needs a debug build. Updates require the same
+signing key to preserve access to existing app data.
 
-- **Stremio:** select the Continue view, then connect using the QR code.
-- **Trakt:** configure your official Stremio add-on with the [configuration tool](PERSONALIZATION.md#connect-stremio--trakt).
-- **Nocturne and dock:** see [customization](PERSONALIZATION.md#customize) and [themes](themes/README.md).
+1. [Install the launcher and try it on your TV](PERSONALIZATION.md#build-and-try-the-launcher).
+2. Open Continue and approve the Stremio QR sign-in if you want resume and viewing information.
+3. [Connect your official Trakt add-on](PERSONALIZATION.md#connect-stremio--trakt) and optionally enable enhanced recommendations.
+4. [Choose a theme and edit the dock](PERSONALIZATION.md#customize). Apps-first Home and weather are separate opt-in options.
 
-Installing the launcher does not automatically clean up the TV. The inherited CleanYourTV cleanup
-procedure is a separate operation described in [PROMPT.md](PROMPT.md), with backups and reversible disabling.
+Installing the launcher does not automatically debloat the TV. The inherited cleanup procedure is
+a separate operation in [PROMPT.md](PROMPT.md), with backups and reversible package disabling.
 
-## Project origins and documentation
+## Device checks and project credits
 
-This fork preserves the work of **Gathin23 and CleanYourTV contributors**, under the
-[MIT license](LICENSE). It deliberately adds optional network features and catalogs to the
-original offline foundation. The upstream size, interface and compatibility descriptions below
-therefore do not necessarily describe this version.
+Development and device checks use an **onn Streaming Device 4K Pro running Android TV 12**.
+The latest recommendation changes passed launcher unit tests, release lint with zero errors and
+a release build; the same changes were installed in the debug variant used for private configuration.
+On that TV, checks covered enhanced catalog refresh, poster rendering, D-pad navigation,
+click-only film/series selection, and preservation of the account session, theme, dock and Home setup.
+Other devices, firmware and app playback paths need their own validation.
 
-[PERSONALIZATION.md](PERSONALIZATION.md) is the reference for this fork's features.
-The [contribution guide](CONTRIBUTING.md) explains its scope.
-This project is not an official Stremio or Trakt client.
+This is a fork of **CleanYourTV**, formerly **tv-vibehack**, by **Gathin23 and contributors**.
+Their native launcher, reversible tools, community device lists, themes and add-on system form the
+foundation. This fork deliberately adds optional network catalogs and a different Home experience.
+The original offline behavior, APK size and compatibility descriptions below belong to upstream.
+
+The project retains the [MIT license](LICENSE). The Outfit font uses the
+[SIL Open Font License](launcher/FONT-LICENSE-OFL.txt). Stremio and Trakt are independent services;
+this is not an official client of either. See [PERSONALIZATION.md](PERSONALIZATION.md) for the full
+feature guide and [CONTRIBUTING.md](CONTRIBUTING.md) for the fork's contribution scope.
 
 <details>
 <summary><strong>Upstream documentation: TV cleanup, devices, tools and credits</strong></summary>
