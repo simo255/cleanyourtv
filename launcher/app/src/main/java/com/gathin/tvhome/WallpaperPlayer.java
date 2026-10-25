@@ -51,6 +51,8 @@ final class WallpaperPlayer {
     private boolean active;
     private boolean closed;
     private boolean loading;
+    private boolean nextRequested;
+    private int requestGeneration;
     private String displayed = "";
     /** wallpaper_captions: the shown picture's name from wallpapers/captions.txt; null when off or there are none. */
     private final TextView caption;
@@ -80,7 +82,7 @@ final class WallpaperPlayer {
         String collection = collectionKey(files);
         if (!collection.equals(preferences.getString("collection", ""))) {
             preferences.edit().putString("collection", collection)
-                    .remove("image").remove("changed").apply();
+                    .remove("image").remove("changed").remove("held").apply();
         }
         DisplayMetrics metrics = context.getResources().getDisplayMetrics();
         width = metrics.widthPixels;
@@ -137,6 +139,30 @@ final class WallpaperPlayer {
         active = false;
     }
 
+    boolean available() { return !closed && !files.isEmpty() && current != null; }
+    boolean held() { return preferences.getBoolean("held", false); }
+    long rotationMinutes() { return interval / 60_000L; }
+
+    void next() {
+        if (!available() || files.size() < 2) return;
+        nextRequested = true;
+        update();
+    }
+
+    void keep() {
+        if (!available()) return;
+        // Cancel a pending automatic decode so Keep retains the picture the person actually sees.
+        requestGeneration++;
+        nextRequested = false;
+        preferences.edit().putBoolean("held", true).putString("image", displayed)
+                .putLong("changed", System.currentTimeMillis()).apply();
+    }
+
+    void resumeRotation() {
+        preferences.edit().putBoolean("held", false).apply();
+        next();
+    }
+
     /** Drops the wallpaper texture when Home is hidden and Android asks the process to free memory. */
     void releaseForMemoryPressure() {
         if (current == null) return;
@@ -150,7 +176,7 @@ final class WallpaperPlayer {
 
     /** The pictures the rotation picks from now: wallpaper_moods' group for the time of day, or the whole collection. */
     private List<File> playable() {
-        if (moods.isEmpty()) return files;
+        if (held() || moods.isEmpty()) return files;
         LocalDateTime now = LocalDateTime.now();
         if (!now.toLocalDate().equals(sunDay)) {
             sunDay = now.toLocalDate();
@@ -172,11 +198,14 @@ final class WallpaperPlayer {
         List<File> playable = playable();
         File selected = WallpaperRotation.find(playable, previous);
         long changed = preferences.getLong("changed", 0);
-        if (selected == null || WallpaperRotation.due(changed, System.currentTimeMillis(), interval)) {
+        if (selected == null || WallpaperRotation.advance(held(), nextRequested,
+                changed, System.currentTimeMillis(), interval)) {
             selected = WallpaperRotation.pick(playable, previous, order, random);
         }
+        nextRequested = false;
         if (selected == null || selected.getName().equals(displayed)) return;
         File next = selected;
+        int generation = ++requestGeneration;
         loading = true;
         decoder.execute(() -> {
             Bitmap bitmap = decode(next);
@@ -184,6 +213,11 @@ final class WallpaperPlayer {
                 loading = false;
                 if (closed || !active) {
                     if (bitmap != null) bitmap.recycle();
+                    return;
+                }
+                if (generation != requestGeneration) {
+                    if (bitmap != null) bitmap.recycle();
+                    update();
                     return;
                 }
                 if (bitmap == null) {
@@ -199,6 +233,7 @@ final class WallpaperPlayer {
                     preferences.edit().putString("image", displayed)
                             .putLong("changed", System.currentTimeMillis()).apply();
                 }
+                if (nextRequested) update();
             });
         });
     }

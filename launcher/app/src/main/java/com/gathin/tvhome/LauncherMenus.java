@@ -28,7 +28,9 @@ final class LauncherMenus {
     private final boolean refined;
     private Runnable recommendations;
     private Runnable vpnLocation;
+    private Runnable wallpaper;
     void setVpnLocation(Runnable action) { vpnLocation = action; }
+    void setWallpaper(Runnable action) { wallpaper = action; }
 
     void setRecommendations(Runnable recommendations) { this.recommendations = recommendations; }
 
@@ -59,6 +61,7 @@ final class LauncherMenus {
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
         if (recommendations != null) add(labels, actions, R.string.reco_menu, recommendations);
+        if (wallpaper != null) add(labels, actions, R.string.home_wallpaper_controls, wallpaper);
         add(labels, actions, R.string.edit_dock, this::showDockEditor);
         add(labels, actions, R.string.hidden_apps_menu, this::showHiddenApps);
         add(labels, actions, R.string.quick_network, () -> openFirst(

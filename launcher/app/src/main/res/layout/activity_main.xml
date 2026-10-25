@@ -275,11 +275,13 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
+                            android:drawableStart="@drawable/ic_home_weather"
+                            android:drawablePadding="6dp"
                             android:paddingStart="6dp"
                             android:paddingEnd="6dp"
                             android:paddingTop="2dp"
                             android:paddingBottom="2dp"
-                            android:maxLines="2"
+                            android:maxLines="1"
                             android:ellipsize="end"
                             android:textSize="12sp"
                             android:textColor="@color/home_weather_text"
@@ -322,6 +324,14 @@
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnWallpaper"
+                    style="@style/TopButton"
+                    android:text="@string/home_wallpaper_controls"
+                    android:drawableStart="@drawable/ic_wallpaper"
+                    android:visibility="gone"
+                    android:nextFocusDown="@+id/grid" />
 
                 <TextView
                     android:id="@+id/btnInputs"

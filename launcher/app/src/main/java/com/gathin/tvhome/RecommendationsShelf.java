@@ -378,8 +378,21 @@ final class RecommendationsShelf {
         emptyMessage.setText(status.getText());
         emptyPanel.setVisibility(refined && catalogEmpty ? View.VISIBLE : View.GONE);
     }
-    boolean visible() { return (repository.configured() || source >= 2) && enabled && dockVisible && fitsAboveDock; }
+    private boolean separatePage, pageVisible;
+    void separatePage() {
+        separatePage = true;
+        if (preview != null) preview.wallpaperContrast();
+        updateVisibility();
+    }
+    void showPage(boolean shown) {
+        pageVisible = shown;
+        updateVisibility();
+        if (shown) refresh(AccountRefresh.Trigger.FOREGROUND, false);
+    }
+    void focusHeader() { if (visible()) sources[source].requestFocus(); }
+    boolean visible() { return separatePage ? pageVisible : (repository.configured() || source >= 2) && enabled && dockVisible && fitsAboveDock; }
     void fitAboveDock(float dockTop) {
+        if (separatePage) return;
         lastDockTop = dockTop;
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) host.getLayoutParams();
         int available = Math.round(dockTop) - params.topMargin - dp(refined ? 22 : 18);

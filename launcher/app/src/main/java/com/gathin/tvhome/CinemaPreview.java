@@ -54,6 +54,12 @@ final class CinemaPreview extends LinearLayout {
 
     void clear() { setVisibility(INVISIBLE); }
 
+    /** A small text shadow complements the apps-first page's soft wallpaper gradient. */
+    void wallpaperContrast() {
+        for (TextView text : new TextView[]{title, meta, summary})
+            text.setShadowLayer(dp(2), 0, dp(1), 0xE6000000);
+    }
+
     @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int height = MeasureSpec.getSize(heightMeasureSpec);
         summary.setMaxLines(height >= dp(160) ? 3 : 2);

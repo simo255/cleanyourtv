@@ -24,6 +24,7 @@ the rules. Keys from before this rule are on its wanted list; a screenshot for o
 |---|---|
 | `columns` | <img src="../themes/six-columns/screenshot.jpg" width="320" alt="columns on a TV"> |
 | `refined_home` | <img src="../themes/nocturne/screenshot.jpg" width="320" alt="Nocturne on an onn Android TV"> |
+| `apps_first_home` | <img src="switches/apps_first_home.jpg" width="320" alt="Favorite apps first, with Recommendations below, on the onn TV"> |
 | `sky_intensity` | <img src="sky-sunset.jpg" width="320" alt="sky_intensity on a TV"> |
 | `wallpaper_rotation_minutes` | <img src="../themes/scenes/screenshot.jpg" width="320" alt="wallpaper_rotation_minutes on a TV"> |
 | `festival` | <img src="../themes/dussehra/screenshot.jpg" width="320" alt="festival on a TV"> |
@@ -33,3 +34,6 @@ the rules. Keys from before this rule are on its wanted list; a screenshot for o
 | `uniform_tiles` | <img src="../themes/nocturne/screenshot.jpg" width="320" alt="Uniform icon tiles on the onn TV"> |
 | `vpn_active_only` | <img src="../themes/nocturne/screenshot.jpg" width="320" alt="VPN control while active on the onn TV"> |
 | `vpn_location` | <img src="../themes/nocturne/screenshot.jpg" width="320" alt="VPN country read locally from the configured app notification"> |
+
+The `apps_first_home` screenshot uses an Andromeda wallpaper from NASA/JPL-Caltech
+([PIA04921](https://images.nasa.gov/details/PIA04921)). The feature also works with a plain background.

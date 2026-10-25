@@ -215,6 +215,27 @@
                         android:fontFamily="@string/font_regular"
                         android:letterSpacing="0.14"
                         android:textAllCaps="true" />
+                    <TextView
+                        android:id="@+id/homeWeather"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp"
+                        android:drawableStart="@drawable/ic_home_weather"
+                        android:drawablePadding="6dp"
+                        android:singleLine="true"
+                        android:ellipsize="end"
+                        android:gravity="right"
+                        android:textSize="12sp"
+                        android:textColor="@color/home_weather_text"
+                        android:fontFamily="@string/font_regular"
+                        android:background="@drawable/pill_bg"
+                        android:focusable="true"
+                        android:clickable="true"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <View
@@ -357,6 +378,13 @@
                     style="@style/TopButton"
                     android:text="@string/inputs"
                     android:drawableStart="@drawable/ic_input"
+                    android:nextFocusDown="@+id/grid" />
+                <TextView
+                    android:id="@+id/btnWallpaper"
+                    style="@style/TopButton"
+                    android:text="@string/home_wallpaper_controls"
+                    android:drawableStart="@drawable/ic_wallpaper"
+                    android:visibility="gone"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>

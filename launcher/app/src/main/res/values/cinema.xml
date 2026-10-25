@@ -1,4 +1,14 @@
 <resources>
+    <string name="home_wallpaper_controls">Wallpaper</string>
+    <string name="home_wallpaper_next">Next wallpaper</string>
+    <string name="home_wallpaper_keep">Keep this one</string>
+    <string name="home_wallpaper_resume">Resume rotation</string>
+    <string name="home_wallpaper_held">Keeping this wallpaper until you resume.</string>
+    <string name="home_wallpaper_rotating">Changes every %1$d minutes.</string>
+    <string name="home_wallpaper_manual">Choose a wallpaper with Next.</string>
+    <string name="home_weather_open">Weather · Open forecast</string>
+    <string name="home_weather_unavailable">Weather is unavailable. Open the Weather app to check its setup.</string>
+    <string name="home_recommendations_below">↓  Recommendations</string>
     <string name="cinema_for_you">For you</string>
     <string name="cinema_library_hint">↓  All apps</string>
 </resources>

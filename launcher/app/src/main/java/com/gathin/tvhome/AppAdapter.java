@@ -197,6 +197,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final boolean fillDock;
     /** Dock apps found at the last reload, and the empty slots after them. */
     private int docked, emptySlots;
+    private boolean dockCollapsed;
+
+    /** Preserve stable app positions while hiding the favorites row on the lower apps page. */
+    void collapseDock(boolean collapse) {
+        if (dockCollapsed == collapse) return;
+        dockCollapsed = collapse;
+        notifyDataSetChanged();
+    }
     /** Never shown as tiles (res/values/config.xml, hidden_apps). */
     private final Set<String> hidden;
     /** Apps pre-seeded into the App library's "added" set (config.xml library_apps); empty by default. */
@@ -219,6 +227,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Map<String, String> appLabels, appBanners;
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
+    private final boolean largeHomeIcons;
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg, LauncherPreferences preferences) {
@@ -246,6 +255,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.appLabels = cfg.appLabels;
         this.appBanners = cfg.appBanners;
         this.uniformTiles = cfg.uniformTiles;
+        this.largeHomeIcons = cfg.appsFirstHome;
         // Tiles keep their identity across reload(), so a focused tile stays on its app instead of
         // its view being rebound to whatever app now sits in that slot.
         setHasStableIds(true);
@@ -445,6 +455,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         if (isLibraryAt(position)) return;
         Holder h = (Holder) holder;
+        boolean collapsed = dockCollapsed && position < dockSize;
+        ViewGroup.LayoutParams rowParams = h.itemView.getLayoutParams();
+        rowParams.height = collapsed ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT;
+        h.itemView.setLayoutParams(rowParams);
+        h.itemView.setVisibility(collapsed ? View.INVISIBLE : View.VISIBLE);
+        if (collapsed) { h.card.setFocusable(false); return; }
+        if (uniformTiles) {
+            // Recycled grid holders must return to the normal icon size outside the Home favorites.
+            ViewGroup.LayoutParams iconParams = h.icon.getLayoutParams();
+            int size = Math.round(h.card.getLayoutParams().height
+                    * (largeHomeIcons && position < dockSize ? 0.86f : ICON_SHARE));
+            if (iconParams.width != size || iconParams.height != size) {
+                iconParams.width = iconParams.height = size;
+                h.icon.setLayoutParams(iconParams);
+            }
+        }
         Entry e = items.get(position);
         if (e.kind == Entry.EMPTY) {
             // A free dock slot keeps its place in the row and the band, but shows nothing and takes no focus.

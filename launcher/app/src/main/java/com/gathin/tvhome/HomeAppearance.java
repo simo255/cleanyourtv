@@ -54,8 +54,9 @@ final class HomeAppearance {
         date.setTextSize(12); date.setLetterSpacing(0.01f); date.setTextColor(MUTED);
         date.setAllCaps(false);
         TextView weather = activity.findViewById(R.id.homeWeather);
-        weather.setTextSize(14);
-        for (int id : new int[]{R.id.btnInputs, R.id.btnWifi, R.id.btnSettings, R.id.btnReorder, R.id.btnLibraryTop}) {
+        control(weather, false);
+        weather.setTextSize(12);
+        for (int id : new int[]{R.id.btnWallpaper, R.id.btnInputs, R.id.btnWifi, R.id.btnSettings, R.id.btnReorder, R.id.btnLibraryTop}) {
             TextView button = activity.findViewById(id);
             control(button, false);
             button.setTextSize(13);

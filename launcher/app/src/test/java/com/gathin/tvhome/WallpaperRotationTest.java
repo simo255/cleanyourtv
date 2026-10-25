@@ -19,6 +19,22 @@ import org.junit.Test;
 
 public class WallpaperRotationTest {
 
+    @Test public void keepingWallpaperStopsAutomaticChangesEvenAfterClockCorrection() {
+        assertFalse(WallpaperRotation.advance(true, false, 1_000, 1_000_000, 300_000));
+        assertFalse(WallpaperRotation.advance(true, false, 1_000, 0, 300_000));
+    }
+
+    @Test public void manualNextWorksWhileKeptAndWithRotationDisabled() {
+        assertTrue(WallpaperRotation.advance(true, true, 1_000, 1_001, 300_000));
+        assertTrue(WallpaperRotation.advance(false, true, 1_000, 1_001, 0));
+    }
+
+    @Test public void resumedRotationUsesTheConfiguredInterval() {
+        assertFalse(WallpaperRotation.advance(false, false, 1_000, 300_999, 300_000));
+        assertTrue(WallpaperRotation.advance(false, false, 1_000, 301_000, 300_000));
+        assertFalse(WallpaperRotation.advance(false, false, 1_000, 1_000_000, 0));
+    }
+
     private static File touch(File dir, String name, int bytes) throws IOException {
         File f = new File(dir, name);
         try (FileOutputStream out = new FileOutputStream(f)) {

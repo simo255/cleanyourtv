@@ -337,6 +337,8 @@
     <bool name="home_weather">false</bool>
     <!-- Optional legible, dark home layout. Enabled by the nocturne theme, off for existing themes. -->
     <bool name="refined_home">false</bool>
+    <!-- Opt-in Nocturne navigation: favorites, recommendations, then the remaining apps. Theme may enable. -->
+    <bool name="apps_first_home">false</bool>
     <string name="latitude" translatable="false"></string>
     <string name="longitude" translatable="false"></string>
 

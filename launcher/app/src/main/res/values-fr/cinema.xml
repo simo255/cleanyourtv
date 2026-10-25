@@ -1,4 +1,14 @@
 <resources>
+    <string name="home_wallpaper_controls">Fond d’écran</string>
+    <string name="home_wallpaper_next">Fond d’écran suivant</string>
+    <string name="home_wallpaper_keep">Garder celui-ci</string>
+    <string name="home_wallpaper_resume">Reprendre la rotation</string>
+    <string name="home_wallpaper_held">Ce fond reste affiché jusqu’à la reprise.</string>
+    <string name="home_wallpaper_rotating">Change toutes les %1$d minutes.</string>
+    <string name="home_wallpaper_manual">Choisissez un fond avec Suivant.</string>
+    <string name="home_weather_open">Météo · Ouvrir les prévisions</string>
+    <string name="home_weather_unavailable">Météo indisponible. Ouvrez l’application Météo pour vérifier sa configuration.</string>
+    <string name="home_recommendations_below">↓  Recommandations</string>
     <string name="cinema_for_you">Pour vous</string>
     <string name="cinema_library_hint">↓  Toutes les applications</string>
 </resources>

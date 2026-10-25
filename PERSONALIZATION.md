@@ -49,11 +49,22 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
 - **Optional weather on Home**: city, temperature and conditions from this fork’s separate weather
   add-on, with dated saved readings when offline. Enable the private theme’s `home_weather` option;
   both apps must be signed with the same key. No city or coordinates are included in the launcher.
+  The summary stays visible under the date, with an Open forecast prompt while no reading is available.
+  Press OK to open the forecast and city settings.
+- **Wallpaper controls**: the picture button on apps-first Home and **Quick menu → Wallpaper** offer
+  Next wallpaper, Keep this one and Resume rotation. Keep persists across restarts; Next also works
+  while a wallpaper is kept. Resuming advances once and restores the theme’s rotation interval.
 - **Seven dock slots on one row**, with an editor controlled by the remote. Hold OK on an app
   to reorder, pin, remove or hide it. Hidden apps can be shown again from the menu.
 - **Optional Nocturne cinema UI** with a solid background, title details, a larger poster strip, blue source indicators,
   a frameless app dock, restored poster focus and side menus. Available short synopses appear below the
   title; hold OK retains the classification menu. Enable `themes/nocturne/config.json`.
+- **Optional apps-first Home (2.37)**: enable `apps_first_home` with Nocturne and the dock row.
+  Favorite app icons are enlarged on the main Home; the remaining-app grid keeps its normal icon size.
+  Home shows favorite apps and the wallpaper; Down from favorites or a click on its bottom button
+  opens recommendations directly with a poster selected. Up from the posters reaches the tabs.
+  Down through the posters reaches All apps, which shows the remaining apps.
+  Up and Back return through these levels; Home returns to favorites. The default layout is unchanged.
 - **Quick menu** for recommendations, dock editing, network, Bluetooth pairing, sound,
   applications, an optional VPN app, inputs and system settings.
 - **VPN indicator** from Android's VPN transport state, hidden while inactive in Nocturne. Optional country

@@ -211,6 +211,7 @@ final class Config {
     final boolean tileMenu;
     final boolean homeWeather;
     final boolean refinedHome;
+    final boolean appsFirstHome;
 
     private Config(List<String> dockApps, boolean fillDock, List<String> hiddenApps, List<String> libraryApps, String liveTvPackage,
                    String liveTvAction, String liveTvInputId, Map<String, String> launchActions, Map<String, String> appLabels,
@@ -226,9 +227,10 @@ final class Config {
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, boolean fadeRows, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
-                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean homeWeather, boolean refinedHome, boolean vpnActiveOnly, boolean vpnLocation) {
+                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean homeWeather, boolean refinedHome, boolean vpnActiveOnly, boolean vpnLocation, boolean appsFirstHome) {
         this.homeWeather = homeWeather;
         this.refinedHome = refinedHome;
+        this.appsFirstHome = appsFirstHome && refinedHome && dockRow;
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -370,6 +372,7 @@ final class Config {
         boolean tileMenu = res.getBoolean(R.bool.tile_menu);
         boolean homeWeather = res.getBoolean(R.bool.home_weather);
         boolean refinedHome = res.getBoolean(R.bool.refined_home);
+        boolean appsFirstHome = res.getBoolean(R.bool.apps_first_home);
         String vpn = res.getString(R.string.vpn_app).trim();
         boolean vpnActiveOnly = res.getBoolean(R.bool.vpn_active_only);
         boolean vpnLocation = res.getBoolean(R.bool.vpn_location);
@@ -457,6 +460,7 @@ final class Config {
             vpnLocation = bool(json, "vpn_location", vpnLocation);
             homeWeather = bool(json, "home_weather", homeWeather);
             refinedHome = bool(json, "refined_home", refinedHome);
+            appsFirstHome = bool(json, "apps_first_home", appsFirstHome);
             homeSettings = bool(json, "show_home_settings_shortcut", homeSettings);
             showStats = bool(json, "show_stats", showStats);
             library = bool(json, "app_library", library);
@@ -541,7 +545,7 @@ final class Config {
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, restoreKeyServices, wallpaperEnabled, wallpaper,
                 wallpapers, rotationMinutes, wallpaperDim, dockOpacity, wallpaperOrder, applied,
                 festival, inputKeycodes, appKeys, stockHomeRedirect, json == null ? Collections.emptyList() : raceCalendar(json), cinematic, ambientGlow, appGlow, fadeRows,
-                Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs, tileMenu, dockEvenPadding, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough, homeWeather, refinedHome, vpnActiveOnly, vpnLocation);
+                Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs, tileMenu, dockEvenPadding, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough, homeWeather, refinedHome, vpnActiveOnly, vpnLocation, appsFirstHome);
     }
 
     /**

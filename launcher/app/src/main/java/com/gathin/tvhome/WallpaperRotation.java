@@ -85,4 +85,9 @@ final class WallpaperRotation {
     static boolean due(long previous, long now, long interval) {
         return interval > 0 && (previous == 0 || now < previous || now - previous >= interval);
     }
+
+    /** A manual Next works while held, without silently turning automatic rotation back on. */
+    static boolean advance(boolean held, boolean manual, long previous, long now, long interval) {
+        return manual || (!held && due(previous, now, interval));
+    }
 }

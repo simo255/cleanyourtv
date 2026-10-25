@@ -362,15 +362,23 @@ No write endpoint or playback reporting is used.
 
 Refresh is checked on resume and each visible minute; discovery catalog data is reused for 4 hours.
 Continue uses the foreground account cadence described above.
-Failed automatic catalog attempts are spaced at least a minute apart; Stremio uses its separate backoff. The manual Refresh control can
-retry immediately. Nothing runs as a background service when the launcher is paused.
+Failed automatic catalog attempts retry after 2, 4, 8, 16, then at most every 30 minutes.
+HTTP 429 and 503 responses wait at least 10 minutes. Each source has its own retry state;
+success resets the delay and restores the four-hour interval. In-process timing uses the monotonic
+clock, so correcting the TV's date does not trigger repeated requests or delay recovery.
+Stremio keeps its separate account cadence. Manual Refresh can retry immediately.
+Nothing runs as a background service when the launcher is paused.
 
 Each view has its own atomic cache and sync/error/loading state. Private caches are bound to a SHA-256
 fingerprint of the configured catalog URL and an explicit source ID. The public cache has its own
 provider identity. An existing pre-2.6 recommendations cache migrates as For-you only. A failed refresh
 leaves that view's last successful catalog available and labels it as saved data; it cannot replace
-another view's data. Posters use an approximately 6 MiB memory cache and a 12 MB disk cache, with two
-download workers and sampled bitmap decoding. All network requests have finite time and size
+another view's data. Posters use a heap-sized 6–24 MiB memory cache and a 12 MB disk cache, with two
+download workers and sampled bitmap decoding. Disk and provider image reads are capped at 3 MB.
+Empty, oversized or undecodable cached posters get one replacement attempt; downloaded images
+are cached only after successful decoding. A disk-write failure still allows the image to appear.
+Decoded images are limited to two million pixels even for extreme aspect ratios.
+All network requests have finite time and size
 limits and use HTTPS. The VPN badge continues to use Android network state without a remote IP
 lookup.
 

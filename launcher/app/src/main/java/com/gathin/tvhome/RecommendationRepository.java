@@ -33,13 +33,14 @@ final class RecommendationRepository {
     static final int FOR_YOU = CatalogSource.TRAKT, WATCHLIST = CatalogSource.WATCHLIST,
             TRENDING = CatalogSource.TRENDING, RECENT = CatalogSource.RECENT;
     static final int EMPTY_PRIVATE = -2;
-    static final long REFRESH_MS = 4 * 60 * 60_000L;
+    static final long REFRESH_MS = CatalogRefresh.INTERVAL_MS;
     private static final String POPULAR_BASE = "https://v3-cinemeta.strem.io/";
     private static final String POPULAR_ACCOUNT = "cinemeta-popular-v1";
     static final class Feed {
         final File cache;
         List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
         final CatalogRanking movieRanking = new CatalogRanking(), showRanking = new CatalogRanking();
+        final CatalogRefresh refresh = new CatalogRefresh();
         long syncedAt, lastAttempt;
         boolean loading;
         int error;
@@ -201,7 +202,7 @@ final class RecommendationRepository {
         if (!CatalogSource.networkFeed(source)) return;
         Feed feed = feeds[source]; long now = System.currentTimeMillis();
         if (closed || (!CatalogSource.publicFeed(source) && !configured()) || feed.loading) return;
-        if (!force && (now - feed.syncedAt < REFRESH_MS || now - feed.lastAttempt < 60_000)) return;
+        if (!feed.refresh.due(force, now, android.os.SystemClock.elapsedRealtime(), feed.syncedAt)) return;
         feed.loading = true; feed.lastAttempt = now; feed.error = 0; publish(source);
         Set<String> movieSeen = new HashSet<>(watchedMovies), showSeen = new HashSet<>(watchedShows);
         boolean knownHistory = !movieSeen.isEmpty() || !showSeen.isEmpty();
@@ -235,11 +236,15 @@ final class RecommendationRepository {
                     }
                     rankedTaste = null;
                     feed.movies = movies; feed.shows = shows; feed.syncedAt = at;
+                    feed.refresh.succeeded(android.os.SystemClock.elapsedRealtime());
                     feed.error = 0; feed.loading = false; publish(source);
                 });
             } catch (Exception failure) {
                 final int status = failure instanceof StatusException ? ((StatusException) failure).status : -1;
-                main.post(() -> { if (!closed) { feed.loading = false; feed.error = status; publish(source); } });
+                main.post(() -> { if (!closed) {
+                    feed.refresh.failed(android.os.SystemClock.elapsedRealtime(), status);
+                    feed.loading = false; feed.error = status; publish(source);
+                } });
             }
         });
     }
@@ -344,63 +349,80 @@ final class RecommendationRepository {
         try {
             if (closed || generation != posterGeneration) return;
             File file = new File(posterDir, hash(address));
-            byte[] data;
-            if (file.isFile()) {
-                data = Files.readAllBytes(file.toPath());
-                file.setLastModified(System.currentTimeMillis());
-            }
-            else {
-                // Cached posters never queue behind a slow remote image.
-                if (!network) {
-                    downloads.execute(() -> loadPoster(address, view, generation, true));
-                    return;
-                }
-                if (address.startsWith("content://")) {
-                    try (InputStream input = resolver.openInputStream(Uri.parse(address)); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                        if (input == null) throw new Exception();
-                        byte[] buffer = new byte[8192]; int count;
-                        while ((count = input.read(buffer)) != -1) {
-                            if (out.size() + count > 3_000_000) throw new Exception();
-                            out.write(buffer, 0, count);
-                        }
-                        data = out.toByteArray();
-                    }
-                } else data = download(address, 3_000_000, CatalogEndpoint.publicPoster(URI.create(address)) ? 2 : 0);
+            byte[] data = null;
+            if (!network) {
                 synchronized (posterDir) {
-                    if (posterBytes < 0) {
-                        posterBytes = 0; File[] initial = posterDir.listFiles();
-                        if (initial != null) for (File f : initial) posterBytes += f.length();
-                    }
-                    long previous = file.isFile() ? file.length() : 0;
-                    writeAtomic(file, data); posterBytes += data.length - previous;
-                    if (posterBytes > 12_000_000) {
-                        File[] files = posterDir.listFiles();
-                        if (files != null) {
-                            java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
-                            long[] sizes = new long[files.length]; long total = 0;
-                            for (int i = 0; i < files.length; i++) { sizes[i] = files[i].length(); total += sizes[i]; }
-                            int count = PosterSampling.evictions(sizes, total, 9_000_000);
-                            for (int i = 0; i < count; i++) files[i].delete();
-                            posterBytes = 0; for (File f : files) posterBytes += f.length();
-                        }
-                    }
+                    if (file.isFile()) try (InputStream input = new java.io.FileInputStream(file)) {
+                        data = PosterData.read(input);
+                    } catch (Exception invalidCache) { discardPoster(file); }
                 }
+            } else {
+                if (address.startsWith("content://")) {
+                    try (InputStream input = resolver.openInputStream(Uri.parse(address))) {
+                        data = PosterData.read(input);
+                    }
+                } else data = download(address, PosterData.MAX_BYTES, CatalogEndpoint.publicPoster(URI.create(address)) ? 2 : 0);
             }
-            BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
-            BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return;
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inPreferredConfig = Bitmap.Config.RGB_565;
-            options.inSampleSize = PosterSampling.sampleSize(bounds.outWidth, bounds.outHeight, posterWidth, posterHeight);
-            int sampledWidth = bounds.outWidth / options.inSampleSize;
-            if (sampledWidth > posterWidth) {
-                options.inScaled = true; options.inDensity = sampledWidth; options.inTargetDensity = posterWidth;
+            if (closed || generation != posterGeneration) return;
+            Bitmap bitmap = data == null ? null : decodePoster(data, posterWidth, posterHeight);
+            if (bitmap == null) {
+                // One replacement attempt, on the network pool. Invalid responses never enter the cache.
+                if (!network) {
+                    discardPoster(file);
+                    downloads.execute(() -> loadPoster(address, view, generation, true));
+                }
+                return;
             }
-            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
-            if (bitmap == null || closed) return;
+            if (closed || generation != posterGeneration) { bitmap.recycle(); return; }
+            if (network) {
+                // A full disk must not prevent a valid image from appearing this session.
+                try { savePoster(file, data); } catch (Exception ignored) { }
+            } else file.setLastModified(System.currentTimeMillis());
             bitmaps.put(address, bitmap);
             main.post(() -> { if (!closed && generation == posterGeneration && address.equals(view.getTag())) view.setImageBitmap(bitmap); });
         } catch (Exception ignored) { }
+    }
+    private static Bitmap decodePoster(byte[] data, int width, int height) {
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inPreferredConfig = Bitmap.Config.RGB_565;
+            options.inSampleSize = PosterSampling.sampleSize(bounds.outWidth, bounds.outHeight, width, height);
+            int sampledWidth = bounds.outWidth / options.inSampleSize;
+            if (width > 0 && sampledWidth > width) {
+                options.inScaled = true; options.inDensity = sampledWidth; options.inTargetDensity = width;
+            }
+            return BitmapFactory.decodeByteArray(data, 0, data.length, options);
+        } catch (RuntimeException invalidImage) { return null; }
+    }
+    private void discardPoster(File file) {
+        synchronized (posterDir) {
+            long size = file.length();
+            if (file.delete() && posterBytes >= 0) posterBytes -= size;
+        }
+    }
+    private void savePoster(File file, byte[] data) throws Exception {
+        synchronized (posterDir) {
+            if (posterBytes < 0) {
+                posterBytes = 0; File[] initial = posterDir.listFiles();
+                if (initial != null) for (File f : initial) posterBytes += f.length();
+            }
+            long previous = file.isFile() ? file.length() : 0;
+            writeAtomic(file, data); posterBytes += data.length - previous;
+            if (posterBytes > 12_000_000) {
+                File[] files = posterDir.listFiles();
+                if (files != null) {
+                    java.util.Arrays.sort(files, java.util.Comparator.comparingLong(File::lastModified));
+                    long[] sizes = new long[files.length]; long total = 0;
+                    for (int i = 0; i < files.length; i++) { sizes[i] = files[i].length(); total += sizes[i]; }
+                    int count = PosterSampling.evictions(sizes, total, 9_000_000);
+                    for (int i = 0; i < count; i++) files[i].delete();
+                    posterBytes = 0; for (File f : files) posterBytes += f.length();
+                }
+            }
+        }
     }
     private static String hash(String text) throws Exception {
         byte[] bytes = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));

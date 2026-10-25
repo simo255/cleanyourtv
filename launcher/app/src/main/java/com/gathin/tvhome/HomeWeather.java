@@ -31,9 +31,13 @@ final class HomeWeather {
 
     HomeWeather(Activity activity, TextView view) {
         this.activity = activity; this.view = view;
+        view.setText(R.string.home_weather_open);
+        view.setContentDescription(activity.getString(R.string.home_weather_open));
+        view.setVisibility(View.VISIBLE);
         view.setOnClickListener(v -> {
             try { activity.startActivity(new Intent().setClassName("io.github.sumyabazar1.weather", "io.github.sumyabazar1.weather.WeatherActivity")); }
-            catch (Exception ignored) { view.setVisibility(View.GONE); }
+            catch (Exception ignored) { android.widget.Toast.makeText(activity,
+                    R.string.home_weather_unavailable, android.widget.Toast.LENGTH_LONG).show(); }
         });
     }
     void resume() {
@@ -57,7 +61,7 @@ final class HomeWeather {
                     if (!city.isEmpty() && temp >= -100 && temp <= 70 && at > 0 && at <= System.currentTimeMillis() + 300_000) {
                         String time = DateFormat.getTimeFormat(activity).format(new Date(at));
                         boolean stale = System.currentTimeMillis() - at >= 30 * 60_000L;
-                        label = activity.getString(R.string.home_weather_reading, city, temp) + "\n"
+                        label = activity.getString(R.string.home_weather_reading, city, temp) + "  ·  "
                                 + (stale ? activity.getString(R.string.home_weather_saved, time) : condition);
                         detail = activity.getString(R.string.home_weather_detail, city, temp, condition, time);
                         if (stale) detail += " · " + activity.getString(R.string.home_weather_saved, time);
@@ -68,9 +72,10 @@ final class HomeWeather {
             final String text = label, description = detail;
             main.post(() -> {
                 if (!active || closed) return;
-                view.setText(text); view.setContentDescription(description);
-                if (text.isEmpty() && view.hasFocus()) activity.findViewById(R.id.btnInputs).requestFocus();
-                view.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+                view.setText(text.isEmpty() ? activity.getString(R.string.home_weather_open) : text);
+                view.setContentDescription(description.isEmpty()
+                        ? activity.getString(R.string.home_weather_open) : description);
+                view.setVisibility(View.VISIBLE);
             });
         });
     }

@@ -135,8 +135,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private LauncherMenus menus;
     private RecommendationsShelf recommendations;
     private HomeWeather homeWeather;
+    private TextView btnWallpaper;
     private View refinedBottomMask;
     private boolean refinedHome;
+    private boolean appsFirstHome;
+    private AppsFirstNavigation.Page homePage = AppsFirstNavigation.Page.HOME;
+    private TextView pageButton;
+    private int homeDockPosition;
+    private int homeDockPadding;
+    private View recommendationShade;
     private RecyclerView grid;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
@@ -368,6 +375,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
         refinedHome = cfg.refinedHome;
+        appsFirstHome = cfg.appsFirstHome;
         appLibrarySelection = cfg.appLibrarySelection;
         // restore_key_services: after a force stop, put back the remote's accessibility helpers that Android took
         // off the list (needs WRITE_SECURE_SETTINGS, granted by build-and-install with RESTORE_KEY_SERVICES=1).
@@ -534,7 +542,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public void onChildViewDetachedFromWindow(@NonNull View v) {
             }
         });
-        if (dockRow) grid.addItemDecoration(new DockDecoration(() -> adapter.getDockCount(), density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.refinedHome));
+        if (dockRow) grid.addItemDecoration(new DockDecoration(
+                () -> appsFirstHome && homePage == AppsFirstNavigation.Page.APPS && !reordering ? 0 : adapter.getDockCount(),
+                density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.refinedHome));
         if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
         if (animations && !reducedMotion) {
@@ -544,11 +554,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         preferences = new LauncherPreferences(this, COLUMNS, cfg.dockApps);
         adapter = new AppAdapter(this, this, COLUMNS, cfg, preferences);
         menus = new LauncherMenus(this, preferences, adapter, this::refreshApps, this::showInputs, cfg.vpnApp, cfg.refinedHome);
+        if (wallpaperPlayer.available()) menus.setWallpaper(this::showWallpaperControls);
         if (vpnLocationEnabled) menus.setVpnLocation(this::showVpnLocationAccess);
         if (cfg.refinedHome) refinedBottomMask = HomeAppearance.apply(this, cfg.backgroundColor);
         recommendations = new RecommendationsShelf(this, findViewById(R.id.recommendationShelf),
-                () -> focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1))), this::focusTopBar, cfg.refinedHome);
-        menus.setRecommendations(recommendations::menu);
+                () -> {
+                    if (appsFirstHome) pageButton.requestFocus();
+                    else focusTile(Math.max(0, Math.min(lastFocused, adapter.getDockCount() - 1)));
+                }, () -> {
+                    if (appsFirstHome) showHomePage(AppsFirstNavigation.Page.HOME);
+                    else focusTopBar();
+                }, cfg.refinedHome);
+        if (appsFirstHome) setUpAppsFirstHome();
+        menus.setRecommendations(() -> {
+            if (appsFirstHome) showHomePage(AppsFirstNavigation.Page.RECOMMENDATIONS);
+            recommendations.menu();
+        });
         if (cfg.homeWeather) homeWeather = new HomeWeather(this, findViewById(R.id.homeWeather));
         dockApps = preferences.dock();
         fillDockLeavesSlots = !cfg.fillDock;
@@ -576,9 +597,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (MainActivity.this.dockRow && cfg.dockTitle && rowsBelowDock > 0) want = Math.max(want, (int) (AppAdapter.TITLE_ROOM_DP * density));
             // No dock to push down: the grid starts at the top, with room for the first row's zoom and glass.
             if (!MainActivity.this.dockRow) want = (int) (AppAdapter.TOP_ROOM_DP * density);
+            if (appsFirstHome) {
+                homeDockPadding = want;
+                if (homePage == AppsFirstNavigation.Page.APPS) want = Math.round(16 * density);
+            }
             if (grid.getPaddingTop() != want) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
             }
+            updateHomeClip();
             // Cold start or column count > 4: the first focus can run before the grid has its final width or
             // padding, leaving the glass at the XML design size until a key is pressed.
             grid.post(this::refitGlass);
@@ -621,6 +647,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
 
         btnInputs = findViewById(R.id.btnInputs);
+        btnWallpaper = findViewById(R.id.btnWallpaper);
+        btnWallpaper.setVisibility(appsFirstHome && wallpaperPlayer.available() ? View.VISIBLE : View.GONE);
+        btnWallpaper.setSelected(wallpaperPlayer.held());
+        btnWallpaper.setOnClickListener(v -> showWallpaperControls());
+        makeIconOnly(btnWallpaper);
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> menus.showQuickMenu());
         btnWifi.setOnClickListener(v -> openNetworkPill());
@@ -694,17 +725,24 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (appsFirstHome) {
+                    if (homePage == AppsFirstNavigation.Page.RECOMMENDATIONS) recommendations.focusHeader();
+                    else focusTile(homePage == AppsFirstNavigation.Page.APPS ? COLUMNS : homeDockPosition);
+                    return true;
+                }
                 if (recommendations.focusCard(lastFocused % COLUMNS)) return true;
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(lastFocused % COLUMNS);
                 return true;
             }
-            int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
+            int firstButton = firstTopButton().getId();
             View weather = findViewById(R.id.homeWeather);
-            if (!rtlMenuBar && weather.getVisibility() == View.VISIBLE) {
-                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && v.getId() == firstButton) { weather.requestFocus(); return true; }
-                if (v == weather && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) { firstTopButton().requestFocus(); return true; }
-                if (v == weather && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return true;
+            if (weather.getVisibility() == View.VISIBLE) {
+                int towardWeather = rtlMenuBar ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT;
+                int towardButtons = rtlMenuBar ? KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT;
+                if (keyCode == towardWeather && v.getId() == firstButton) { weather.requestFocus(); return true; }
+                if (v == weather && keyCode == towardButtons) { firstTopButton().requestFocus(); return true; }
+                if (v == weather && keyCode == towardWeather) return true;
             }
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
@@ -712,13 +750,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
         btnInputs.setOnKeyListener(pillKeys);
+        btnWallpaper.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
         findViewById(R.id.homeWeather).setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings}) {
+            for (View button : new View[]{btnWallpaper, btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
@@ -822,6 +861,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (openLauncherSettingsIfAsked(intent)) return;
         if (openInputsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
+        if (appsFirstHome) showHomePage(AppsFirstNavigation.Page.HOME);
         grid.scrollToPosition(0);
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
@@ -1266,6 +1306,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The start shared by reorder and edit-dock mode. False when there is nothing to move. */
     private boolean beginReorder() {
         if (adapter.movableCount() < 2) return false;
+        if (appsFirstHome && homePage == AppsFirstNavigation.Page.RECOMMENDATIONS)
+            showHomePage(AppsFirstNavigation.Page.HOME);
         // Before the reload below: once it has dropped the empty slots, the dock row also shows grid apps.
         dockInSession = new HashSet<>();
         dockedAtStart = adapter.dockFilled();
@@ -1273,6 +1315,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter.setReordering(true);
         if (adapter.hasEmptySlots()) reloadTiles();   // every position must hold a tile that can move
         reordering = true;
+        if (appsFirstHome) {
+            adapter.collapseDock(false);
+            grid.invalidateItemDecorations();
+            pageButton.setVisibility(View.GONE);
+            updateHomeClip();
+        }
         orderAtStart = adapter.movableKeys();
         glass.setAccent(REORDER_ACCENT);
         btnReorder.setActivated(true);
@@ -1418,6 +1466,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         drop();
         reordering = false;
         adapter.setReordering(false);
+        if (appsFirstHome) {
+            adapter.collapseDock(homePage == AppsFirstNavigation.Page.APPS);
+            grid.invalidateItemDecorations();
+            pageButton.setVisibility(homePage == AppsFirstNavigation.Page.APPS ? View.GONE : View.VISIBLE);
+            updateHomeClip();
+        }
         glass.setAccent(festive ? festival.accentColor() : 0);
         btnReorder.setActivated(false);
         List<String> keys = adapter.movableKeys();
@@ -1515,6 +1569,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
+        if (appsFirstHome && homePage != AppsFirstNavigation.Page.HOME) {
+            showHomePage(AppsFirstNavigation.back(homePage));
+            return;
+        }
         if (recommendations != null && recommendations.focused()) focusTile(0);
         // Home screen: Back goes nowhere.
     }
@@ -1569,7 +1627,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onTileFocused(int position, View card) {
         recommendations.dockVisible(adapter.isDockPosition(position));
-        if (refinedBottomMask != null) refinedBottomMask.setVisibility(adapter.isDockPosition(position) ? View.VISIBLE : View.GONE);
+        if (appsFirstHome && adapter.isDockPosition(position)) homeDockPosition = position;
+        if (refinedBottomMask != null && !appsFirstHome) refinedBottomMask.setVisibility(adapter.isDockPosition(position) ? View.VISIBLE : View.GONE);
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
@@ -2187,8 +2246,119 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     // ---- navigation ------------------------------------------------------------------------------
 
+    private void setUpAppsFirstHome() {
+        recommendations.separatePage();
+        refinedBottomMask.setVisibility(View.GONE);
+        // Protect the small header and app labels without darkening the whole wallpaper.
+        View headerShade = new View(this);
+        headerShade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        headerShade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xAA000000, 0x66000000, 0x00000000}));
+        root.addView(headerShade, 1, new FrameLayout.LayoutParams(-1, Math.round(140 * density), Gravity.TOP));
+        View footerShade = new View(this);
+        footerShade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        footerShade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x00000000, 0x88000000}));
+        root.addView(footerShade, 1, new FrameLayout.LayoutParams(-1, Math.round(90 * density), Gravity.BOTTOM));
+        FrameLayout shelf = findViewById(R.id.recommendationShelf);
+        shelf.setBackground(null);
+        recommendationShade = new RecommendationShade(this);
+        recommendationShade.setVisibility(View.GONE);
+        root.addView(recommendationShade, 1, new FrameLayout.LayoutParams(-1, -1));
+        FrameLayout.LayoutParams shelfParams = (FrameLayout.LayoutParams) shelf.getLayoutParams();
+        shelfParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+        shelfParams.bottomMargin = Math.round(76 * density);
+        shelf.setLayoutParams(shelfParams);
+        pageButton = new TextView(this);
+        pageButton.setText(R.string.home_recommendations_below);
+        pageButton.setTextSize(14);
+        pageButton.setTypeface(getResources().getFont(R.font.outfit));
+        pageButton.setGravity(Gravity.CENTER);
+        pageButton.setFocusable(true); pageButton.setClickable(true);
+        HomeAppearance.control(pageButton, false);
+        pageButton.setPadding(Math.round(24 * density), 0, Math.round(24 * density), 0);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, Math.round(42 * density), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        params.bottomMargin = Math.round(10 * density);
+        root.addView(pageButton, params);
+        pageButton.setOnFocusChangeListener((v, focused) -> { if (focused) hideGlass(); });
+        pageButton.setOnClickListener(v -> showNextHomePage());
+        pageButton.setOnKeyListener((v, key, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (key == KeyEvent.KEYCODE_DPAD_UP) {
+                if (homePage == AppsFirstNavigation.Page.HOME) focusTile(homeDockPosition);
+                else if (homePage == AppsFirstNavigation.Page.APPS) showHomePage(AppsFirstNavigation.Page.RECOMMENDATIONS);
+                else recommendations.focusPreviousCard();
+                return true;
+            }
+            if (key == KeyEvent.KEYCODE_DPAD_DOWN) { pageButton.performClick(); return true; }
+            return key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT;
+        });
+    }
+
+    private void showNextHomePage() {
+        if (homePage == AppsFirstNavigation.Page.APPS) onLibraryRequested();
+        else showHomePage(homePage == AppsFirstNavigation.Page.HOME
+                ? AppsFirstNavigation.Page.RECOMMENDATIONS : AppsFirstNavigation.Page.APPS);
+    }
+
+    private void updateHomeClip() {
+        if (!appsFirstHome) return;
+        grid.setClipBounds(homePage == AppsFirstNavigation.Page.HOME && !reordering
+                ? new Rect(0, 0, grid.getWidth(), Math.max(0, grid.getHeight() - grid.getPaddingBottom())) : null);
+    }
+
+    private void showHomePage(AppsFirstNavigation.Page page) {
+        if (!appsFirstHome) return;
+        cancelPendingFocusScroll();
+        grid.stopScroll();
+        homePage = page;
+        adapter.collapseDock(page == AppsFirstNavigation.Page.APPS && !reordering);
+        grid.invalidateItemDecorations();
+        updateHomeClip();
+        hideGlass(); hideHero();
+        boolean catalog = page == AppsFirstNavigation.Page.RECOMMENDATIONS;
+        recommendationShade.setVisibility(catalog ? View.VISIBLE : View.GONE);
+        grid.setVisibility(catalog ? View.INVISIBLE : View.VISIBLE);
+        recommendations.showPage(catalog);
+        pageButton.setVisibility(page == AppsFirstNavigation.Page.APPS ? View.GONE : View.VISIBLE);
+        pageButton.setText(page == AppsFirstNavigation.Page.HOME
+                ? R.string.home_recommendations_below : R.string.cinema_library_hint);
+        if (catalog) {
+            root.post(() -> {
+                if (homePage == AppsFirstNavigation.Page.RECOMMENDATIONS) recommendations.focusPreviousCard();
+            });
+        } else if (page == AppsFirstNavigation.Page.APPS) {
+            int first = AppsFirstNavigation.firstRemaining(COLUMNS, adapter.appCount());
+            grid.setPadding(grid.getPaddingLeft(), Math.round(16 * density), grid.getPaddingRight(), grid.getPaddingBottom());
+            if (first >= 0) {
+                ((GridLayoutManager) grid.getLayoutManager()).scrollToPositionWithOffset(first, 0);
+                grid.post(() -> { if (homePage == AppsFirstNavigation.Page.APPS) focusTile(first); });
+            } else {
+                pageButton.setVisibility(View.VISIBLE);
+                pageButton.setText(R.string.app_library);
+                pageButton.requestFocus();
+            }
+        } else {
+            grid.setPadding(grid.getPaddingLeft(), homeDockPadding, grid.getPaddingRight(), grid.getPaddingBottom());
+            ((GridLayoutManager) grid.getLayoutManager()).scrollToPositionWithOffset(0, 0);
+            grid.post(() -> { if (homePage == AppsFirstNavigation.Page.HOME) focusTile(homeDockPosition); });
+        }
+    }
+
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
+        if (appsFirstHome && !reordering) {
+            if (homePage == AppsFirstNavigation.Page.HOME && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                showHomePage(AppsFirstNavigation.Page.RECOMMENDATIONS); return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (homePage == AppsFirstNavigation.Page.HOME) { focusTopBar(); return true; }
+                if (homePage == AppsFirstNavigation.Page.APPS && position < 2 * COLUMNS) {
+                    showHomePage(AppsFirstNavigation.Page.RECOMMENDATIONS); return true;
+                }
+            }
+        }
         int count = adapter.appCount();
         int target;
         // Horizontal: swallow the key at a row's ends so focus never wraps to the next row or
@@ -2235,14 +2405,39 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void focusTopBar() {
-        (btnInputs.getVisibility() == View.VISIBLE ? btnInputs : firstTopButton()).requestFocus();
+        firstTopButton().requestFocus();
     }
 
-    /** The first top-bar button after Inputs that is shown: the network pill, Reorder, then Settings (always there). */
+    /** First visible control in reading order, including the optional wallpaper shortcut. */
     private View firstTopButton() {
+        if (btnWallpaper != null && btnWallpaper.getVisibility() == View.VISIBLE) return btnWallpaper;
+        if (btnInputs.getVisibility() == View.VISIBLE) return btnInputs;
         if (btnWifi.getVisibility() == View.VISIBLE) return btnWifi;
         if (btnReorder.getVisibility() == View.VISIBLE) return btnReorder;
+        if (btnLibraryTop.getVisibility() == View.VISIBLE) return btnLibraryTop;
         return findViewById(R.id.btnSettings);
+    }
+
+    private void showWallpaperControls() {
+        if (!wallpaperPlayer.available()) return;
+        boolean held = wallpaperPlayer.held();
+        List<String> labels = java.util.Arrays.asList(getString(R.string.home_wallpaper_next),
+                getString(held ? R.string.home_wallpaper_resume : R.string.home_wallpaper_keep));
+        String status = held ? getString(R.string.home_wallpaper_held)
+                : wallpaperPlayer.rotationMinutes() > 0
+                ? getString(R.string.home_wallpaper_rotating, wallpaperPlayer.rotationMinutes())
+                : getString(R.string.home_wallpaper_manual);
+        java.util.function.Consumer<Integer> action = which -> {
+            if (which == 0) wallpaperPlayer.next();
+            else if (held) wallpaperPlayer.resumeRotation();
+            else wallpaperPlayer.keep();
+            btnWallpaper.setSelected(wallpaperPlayer.held());
+        };
+        if (refinedHome) CinemaMenu.show(this, getString(R.string.home_wallpaper_controls), status, labels, action);
+        else new android.app.AlertDialog.Builder(this, R.style.Theme_TvHome_Dialog)
+                .setTitle(R.string.home_wallpaper_controls)
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> action.accept(which))
+                .setNegativeButton(R.string.done, null).show();
     }
 
     @Override public void onLibraryUp() {

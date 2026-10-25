@@ -1,11 +1,16 @@
 package com.gathin.tvhome;
-/** Largest power-of-two subsample that still covers the card, so posters are never decoded below their slot. */
+/** Preserve card detail for normal posters, with a hard pixel budget for extreme aspect ratios. */
 final class PosterSampling {
+    static final long MAX_PIXELS = 2_000_000;
     private PosterSampling() { }
     static int sampleSize(int width, int height, int targetWidth, int targetHeight) {
         int sample = 1;
-        if (width <= 0 || height <= 0 || targetWidth <= 0 || targetHeight <= 0) return sample;
-        while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) sample *= 2;
+        if (width <= 0 || height <= 0) return sample;
+        while (targetWidth > 0 && targetHeight > 0 && sample < (1 << 30) && width / (sample * 2L) >= targetWidth
+                && height / (sample * 2L) >= targetHeight) sample *= 2;
+        // Round up: decoders can retain a partial pixel at the image edges.
+        while (sample < (1 << 30) && ((width + sample - 1L) / sample)
+                * ((height + sample - 1L) / sample) > MAX_PIXELS) sample *= 2;
         return sample;
     }
     static int cacheBytes(long maxHeap) { return (int) Math.max(6L << 20, Math.min(24L << 20, maxHeap / 8)); }
