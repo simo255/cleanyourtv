@@ -1,0 +1,24 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'io.github.simo255.mediastandby'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'io.github.simo255.mediastandby'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            signingConfig signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }

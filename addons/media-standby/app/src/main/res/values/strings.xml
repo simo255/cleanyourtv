@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Media Standby</string>
+    <string name="title">Standby that respects your music</string>
+    <string name="explanation">Choose Media Standby as Android’s screensaver. While music plays, a moving clock stays on screen. When nothing is playing, the TV can sleep. The screen timeout also sets the delay after music stops. Your remote still wakes the screen.</string>
+    <string name="settings">Android screensaver settings</string>
+    <string name="playing">Music playing</string>
+    <string name="paused">Playback stopped · standby soon</string>
+</resources>

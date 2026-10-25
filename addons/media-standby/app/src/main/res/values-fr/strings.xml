@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Veille musicale</string>
+    <string name="title">La veille qui respecte ta musique</string>
+    <string name="explanation">Choisis Veille musicale comme économiseur Android. Pendant la musique, une horloge se déplace à l’écran. Quand rien ne joue, la box peut se mettre en veille. Le délai écran définit aussi le délai après l’arrêt de la musique. La télécommande réveille toujours l’écran.</string>
+    <string name="settings">Réglages de l’économiseur Android</string>
+    <string name="playing">Musique en cours</string>
+    <string name="paused">Lecture arrêtée · veille bientôt</string>
+</resources>
