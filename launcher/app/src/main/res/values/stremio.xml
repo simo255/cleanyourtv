@@ -7,7 +7,7 @@
     <string name="stremio_upcoming">Coming next</string>
     <string name="stremio_connect">Connect Stremio</string>
     <string name="stremio_disconnect">Disconnect Stremio</string>
-    <string name="stremio_disconnect_detail">Remove the Stremio session and saved resume list from this launcher? Your Stremio account and Trakt recommendations stay unchanged.</string>
+    <string name="stremio_disconnect_detail">Remove the Stremio session and saved resume list from this launcher? Your Stremio account and Watchly recommendations stay unchanged.</string>
     <string name="stremio_setup">Stremio · Connect your account to see your playback progress.</string>
     <string name="stremio_session_expired">Stremio · Session expired. Select Connect Stremio.</string>
     <string name="stremio_resume_empty">Stremio · Nothing to resume. Start a title in Stremio, then refresh here.</string>

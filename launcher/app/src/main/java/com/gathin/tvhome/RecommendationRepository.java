@@ -28,9 +28,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
-/** Independent read-only feeds. Private Trakt URLs never leave the official add-on origin. */
+/** Independent read-only feeds. Private Watchly URLs never leave the ElfHosted origin. */
 final class RecommendationRepository {
-    static final int FOR_YOU = CatalogSource.TRAKT, WATCHLIST = CatalogSource.WATCHLIST,
+    static final int FOR_YOU = CatalogSource.WATCHLY, WATCHLIST = CatalogSource.WATCHLIST,
             TRENDING = CatalogSource.TRENDING, RECENT = CatalogSource.RECENT;
     static final int EMPTY_PRIVATE = -2;
     static final long REFRESH_MS = CatalogRefresh.INTERVAL_MS;
@@ -88,11 +88,7 @@ final class RecommendationRepository {
         JSONObject options = new JSONObject();
         try {
             JSONObject config = readJson(new File(context.getFilesDir(), "recommendations-config.json"));
-            base = config.getString("addon_base");
-            URI uri = URI.create(base);
-            if (!"https".equals(uri.getScheme()) || !"www.strem.io".equals(uri.getHost())
-                    || uri.getPort() != -1 || uri.getRawQuery() != null || uri.getRawFragment() != null || uri.getUserInfo() != null
-                    || !uri.getPath().matches("/trakt/addon/[A-Za-z0-9_-]+/")) throw new Exception();
+            base = WatchlyCatalog.base(config.getString("addon_base"));
             fingerprint = hash(base);
             addIds(watchedMovies, config.optJSONArray("watched_movie_ids"));
             addIds(watchedShows, config.optJSONArray("watched_series_ids"));
@@ -118,7 +114,7 @@ final class RecommendationRepository {
                     addIds(watchedMovies, cache.optJSONArray("watched_movie_ids"));
                     addIds(watchedShows, cache.optJSONArray("watched_series_ids"));
                 }
-                feed.movies = CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU && !enhanced, watchedMovies);
+                feed.movies = CatalogItem.parse(cache.getJSONArray("movies"), "movie", source == FOR_YOU, watchedMovies);
                 feed.shows = CatalogItem.parse(cache.getJSONArray("shows"), "series", false, watchedShows);
                 feed.syncedAt = cache.optLong("synced_at");
             } catch (Exception ignored) { }
@@ -126,7 +122,7 @@ final class RecommendationRepository {
     }
     boolean configured() { return !base.isEmpty(); }
     boolean enhanced() { return enhanced; }
-    boolean recentOnly() { return !enhanced || preferences.getBoolean("recent_only", true); }
+    boolean recentOnly() { return !enhanced || preferences.getBoolean("recent_only", false); }
     void togglePeriod() { preferences.edit().putBoolean("recent_only", !recentOnly()).apply(); }
     void observe(JSONObject values) {
         if (!enhanced) return;
@@ -194,7 +190,7 @@ final class RecommendationRepository {
         for (CatalogItem item : feed.shows) if ("TMDb".equals(item.provider)) return true;
         return false;
     }
-    String account(int source) { return source == RECENT ? (enhanced ? "cinemeta-discovery-v1-" : "cinemeta-recent-v2-") + java.time.LocalDate.now().getYear() : source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
+    String account(int source) { return source == RECENT ? (enhanced ? "cinemeta-discovery-v2-" : "cinemeta-recent-v3-") + java.time.LocalDate.now().getYear() : source == TRENDING ? POPULAR_ACCOUNT : fingerprint; }
     void listen(Listener listener) { this.listener = listener; }
     private void publish(int source) { if (!closed && listener != null) listener.changed(source); }
 
@@ -205,23 +201,20 @@ final class RecommendationRepository {
         if (!feed.refresh.due(force, now, android.os.SystemClock.elapsedRealtime(), feed.syncedAt)) return;
         feed.loading = true; feed.lastAttempt = now; feed.error = 0; publish(source);
         Set<String> movieSeen = new HashSet<>(watchedMovies), showSeen = new HashSet<>(watchedShows);
-        boolean knownHistory = !movieSeen.isEmpty() || !showSeen.isEmpty();
+        List<CatalogItem> previousMovies = new ArrayList<>(feed.movies), previousShows = new ArrayList<>(feed.shows);
         // Only the selected source is fetched. Switching source queues another bounded operation.
         (CatalogSource.publicFeed(source) ? publicWorker : worker).execute(() -> {
             try {
-                int historyCount = 0;
-                if (!CatalogSource.publicFeed(source))
-                    historyCount = readHistory("movie", movieSeen) + readHistory("series", showSeen);
-                String endpoint = source == FOR_YOU ? "recommendations" : source == WATCHLIST ? "watchlist" : "top";
                 String origin = CatalogSource.publicFeed(source) ? POPULAR_BASE : base;
-                JSONArray rawMovies = source == RECENT ? new JSONArray() : catalog(origin, "movie", endpoint);
-                JSONArray rawShows = source == RECENT ? new JSONArray() : catalog(origin, "series", endpoint);
-                if (!CatalogSource.publicFeed(source) && PrivateFeedCheck.keepPreviousCache(
-                        historyCount, rawMovies.length() + rawShows.length(), knownHistory))
-                    throw new StatusException(EMPTY_PRIVATE);
-                List<CatalogItem> movies = source == RECENT ? recent("movie")
-                        : CatalogItem.parse(rawMovies, "movie", source == FOR_YOU && !enhanced, movieSeen);
-                List<CatalogItem> shows = source == RECENT ? recent("series")
+                JSONObject manifest = source == FOR_YOU ? new JSONObject(new String(download(base + "manifest.json",
+                        512_000, 0), StandardCharsets.UTF_8)) : null;
+                JSONArray rawMovies = source == RECENT ? new JSONArray() : catalog(origin, "movie",
+                        manifest == null ? "top" : WatchlyCatalog.topPicks(manifest, "movie"));
+                JSONArray rawShows = source == RECENT ? new JSONArray() : catalog(origin, "series",
+                        manifest == null ? "top" : WatchlyCatalog.topPicks(manifest, "series"));
+                List<CatalogItem> movies = source == RECENT ? recent("movie", previousMovies)
+                        : CatalogItem.parse(rawMovies, "movie", source == FOR_YOU, movieSeen);
+                List<CatalogItem> shows = source == RECENT ? recent("series", previousShows)
                         : CatalogItem.parse(rawShows, "series", false, showSeen);
                 long at = System.currentTimeMillis();
                 JSONObject cache = new JSONObject().put("account", account(source)).put("source", source).put("synced_at", at)
@@ -253,8 +246,8 @@ final class RecommendationRepository {
                 2_000_000, POPULAR_BASE.equals(origin) ? 1 : 0), StandardCharsets.UTF_8));
         return CatalogItem.metas(response);
     }
-    /** Four public, bounded requests; the year feed supplies titles missing from the popular top page. */
-    private List<CatalogItem> recent(String type) throws Exception {
+    /** Public, bounded requests; successful discovery refreshes retain some older candidates. */
+    private List<CatalogItem> recent(String type, List<CatalogItem> previous) throws Exception {
         if (enhanced) {
             List<List<CatalogItem>> pages = new ArrayList<>();
             long deadline = android.os.SystemClock.elapsedRealtime() + 60_000;
@@ -267,24 +260,16 @@ final class RecommendationRepository {
                 catch (Exception e) { failure = e; }
             }
             if (pages.isEmpty()) throw failure == null ? new Exception() : failure;
-            return CinemetaDiscovery.merge(pages);
+            return CinemetaDiscovery.retain(CinemetaDiscovery.merge(pages), previous);
         }
         List<CatalogItem> items = new ArrayList<>();
         int currentYear = java.time.LocalDate.now().getYear();
-        for (int year : new int[]{currentYear, currentYear - 1}) {
+        for (int year : new int[]{currentYear, currentYear - 1, currentYear - 2}) {
             JSONArray metas = catalog(POPULAR_BASE, type, "year/genre=" + year);
             items.addAll(CatalogItem.parse(metas, type, false, java.util.Collections.emptySet()));
         }
         items.addAll(tmdb.items(type, java.time.LocalDate.now()));
         return CatalogDiscovery.recent(items, java.time.LocalDate.now());
-    }
-    private int readHistory(String type, Set<String> seen) throws Exception {
-        JSONArray metas = catalog(base, type, "history");
-        for (int i = 0; i < metas.length(); i++) {
-            String id = metas.getJSONObject(i).optString("id");
-            if (id.matches("tt[0-9]+")) seen.add(id);
-        }
-        return metas.length();
     }
     private static void addIds(Set<String> ids, JSONArray values) {
         if (values == null) return;
@@ -338,14 +323,22 @@ final class RecommendationRepository {
         images.getQueue().clear(); downloads.getQueue().clear();
     }
     void poster(String address, ImageView view) {
-        view.setTag(address); view.setImageDrawable(null);
-        if (closed || address.isEmpty()) return;
+        if (closed) return;
+        PosterRequest previous = view.getTag() instanceof PosterRequest ? (PosterRequest) view.getTag() : null;
+        if (!address.isEmpty() && previous != null
+                && previous.reusable(address, posterGeneration, view.getDrawable() != null)) return;
+        PosterRequest request = new PosterRequest(address, posterGeneration);
+        view.setTag(request);
+        if (address.isEmpty()) { view.setImageDrawable(null); return; }
         Bitmap ready = bitmaps.get(address);
         if (ready != null) { view.setImageBitmap(ready); return; }
-        int generation = posterGeneration;
-        images.execute(() -> loadPoster(address, view, generation, false));
+        // Only a genuinely different poster needs the placeholder, never a metadata-only refresh.
+        view.setImageDrawable(null);
+        images.execute(() -> loadPoster(request, view, false));
     }
-    private void loadPoster(String address, ImageView view, int generation, boolean network) {
+    private void loadPoster(PosterRequest request, ImageView view, boolean network) {
+        String address = request.address;
+        int generation = request.generation;
         try {
             if (closed || generation != posterGeneration) return;
             File file = new File(posterDir, hash(address));
@@ -369,8 +362,8 @@ final class RecommendationRepository {
                 // One replacement attempt, on the network pool. Invalid responses never enter the cache.
                 if (!network) {
                     discardPoster(file);
-                    downloads.execute(() -> loadPoster(address, view, generation, true));
-                }
+                    downloads.execute(() -> loadPoster(request, view, true));
+                } else request.failed();
                 return;
             }
             if (closed || generation != posterGeneration) { bitmap.recycle(); return; }
@@ -379,8 +372,8 @@ final class RecommendationRepository {
                 try { savePoster(file, data); } catch (Exception ignored) { }
             } else file.setLastModified(System.currentTimeMillis());
             bitmaps.put(address, bitmap);
-            main.post(() -> { if (!closed && generation == posterGeneration && address.equals(view.getTag())) view.setImageBitmap(bitmap); });
-        } catch (Exception ignored) { }
+            main.post(() -> { if (!closed && generation == posterGeneration && view.getTag() == request) view.setImageBitmap(bitmap); });
+        } catch (Exception ignored) { request.failed(); }
     }
     private static Bitmap decodePoster(byte[] data, int width, int height) {
         try {

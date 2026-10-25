@@ -2,7 +2,7 @@ package com.gathin.tvhome;
 
 /** Wall time ages persisted catalogs; monotonic time schedules this process's requests. */
 final class CatalogRefresh {
-    static final long INTERVAL_MS = 4 * 60 * 60_000L;
+    static final long INTERVAL_MS = 12 * 60 * 60_000L;
     private final AccountRefresh retries = new AccountRefresh();
     private boolean failed;
     private long succeededAt = -1;

@@ -5,11 +5,11 @@ import static org.junit.Assert.*;
 
 public class CatalogSourceTest {
     @Test public void previousSelectionsKeepTheirStoredIdentity() {
-        assertEquals(0, CatalogSource.TRAKT);
+        assertEquals(0, CatalogSource.WATCHLY);
         assertEquals(1, CatalogSource.WATCHLIST);
         assertEquals(2, CatalogSource.TRENDING);
         assertEquals(3, CatalogSource.TV);
-        for (int saved : new int[]{CatalogSource.TRAKT, CatalogSource.RECENT, CatalogSource.TRENDING})
+        for (int saved : new int[]{CatalogSource.WATCHLY, CatalogSource.RECENT, CatalogSource.TRENDING})
             assertEquals(saved, CatalogSource.restore(saved));
     }
     @Test public void activeSourcesExcludeGoogleWithoutChangingStoredIds() {
@@ -18,22 +18,22 @@ public class CatalogSourceTest {
         assertEquals(7, CatalogSource.COUNT);
         assertEquals(CatalogSource.STREMIO, CatalogSource.restore(6));
     }
-    @Test public void removedSectionsFallBackToTraktWhenRestoringSavedPreferences() {
-        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(CatalogSource.WATCHLIST));
-        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(CatalogSource.TV));
-        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(CatalogSource.GOOGLE));
+    @Test public void removedSectionsFallBackToWatchlyWhenRestoringSavedPreferences() {
+        assertEquals(CatalogSource.WATCHLY, CatalogSource.restore(CatalogSource.WATCHLIST));
+        assertEquals(CatalogSource.WATCHLY, CatalogSource.restore(CatalogSource.TV));
+        assertEquals(CatalogSource.WATCHLY, CatalogSource.restore(CatalogSource.GOOGLE));
     }
-    @Test public void googleAndLocalAppsDoNotUseTheTraktOrPopularNetworkFeeds() {
-        assertTrue(CatalogSource.networkFeed(CatalogSource.TRAKT));
-        assertTrue(CatalogSource.networkFeed(CatalogSource.WATCHLIST));
+    @Test public void googleAndLocalAppsDoNotUseTheWatchlyOrPopularNetworkFeeds() {
+        assertTrue(CatalogSource.networkFeed(CatalogSource.WATCHLY));
+        assertFalse(CatalogSource.networkFeed(CatalogSource.WATCHLIST));
         assertTrue(CatalogSource.networkFeed(CatalogSource.TRENDING));
         assertTrue(CatalogSource.networkFeed(CatalogSource.RECENT));
         assertTrue(CatalogSource.publicFeed(CatalogSource.RECENT));
-        assertFalse(CatalogSource.publicFeed(CatalogSource.TRAKT));
+        assertFalse(CatalogSource.publicFeed(CatalogSource.WATCHLY));
         assertFalse(CatalogSource.networkFeed(CatalogSource.GOOGLE));
         assertFalse(CatalogSource.networkFeed(CatalogSource.TV));
         assertFalse(CatalogSource.networkFeed(CatalogSource.STREMIO));
-        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(-1));
-        assertEquals(CatalogSource.TRAKT, CatalogSource.restore(99));
+        assertEquals(CatalogSource.WATCHLY, CatalogSource.restore(-1));
+        assertEquals(CatalogSource.WATCHLY, CatalogSource.restore(99));
     }
 }

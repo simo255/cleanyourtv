@@ -90,7 +90,7 @@ final class RecommendationTaste {
     List<CatalogItem> apply(List<CatalogItem> items, int source) {
         if (discovery != null) return discovery.apply(items, source);
         if (source == CatalogSource.TV || source == CatalogSource.WATCHLIST) return new ArrayList<>(items);
-        boolean personalized = source == CatalogSource.TRAKT || source == CatalogSource.RECENT;
+        boolean personalized = source == CatalogSource.WATCHLY || source == CatalogSource.RECENT;
         List<CatalogItem> result = new ArrayList<>();
         for (CatalogItem item : items) {
             String key = key(item.type, item.id);

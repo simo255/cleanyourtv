@@ -44,6 +44,34 @@ final class HomeAppearance {
         view.setLetterSpacing(0);
     }
 
+    /** Compact circular header controls; a VPN country label keeps its readable pill. */
+    static void roundHeader(Activity activity) {
+        float d = activity.getResources().getDisplayMetrics().density;
+        for (int id : new int[]{R.id.btnWallpaper, R.id.btnInputs, R.id.btnSettings, R.id.btnReorder, R.id.btnLibraryTop}) {
+            TextView button = activity.findViewById(id);
+            if (button.getText().length() > 0) button.setContentDescription(button.getText());
+            button.setText("");
+            button.setGravity(Gravity.CENTER);
+            button.setMinWidth(0); button.setMinimumWidth(0);
+            button.setCompoundDrawablePadding(0);
+            android.graphics.drawable.Drawable icon = button.getCompoundDrawablesRelative()[0];
+            if (icon != null) {
+                icon.setBounds(0, 0, Math.round(20 * d), Math.round(20 * d));
+                button.setCompoundDrawablesRelative(icon, null, null, null);
+            }
+            button.setPaddingRelative(Math.round(8 * d), 0, Math.round(8 * d), 0);
+            android.view.ViewGroup.LayoutParams params = button.getLayoutParams();
+            params.width = params.height = Math.round(36 * d);
+            button.setLayoutParams(params);
+            StateListDrawable background = new StateListDrawable();
+            background.addState(new int[]{android.R.attr.state_focused}, surface(18 * d, TEXT, Math.round(d), TEXT));
+            background.addState(new int[]{android.R.attr.state_pressed}, surface(18 * d, 0xAA46515D, Math.round(d), MUTED));
+            background.addState(new int[]{android.R.attr.state_selected}, surface(18 * d, 0x6646515D, Math.round(d), 0x66FFFFFF));
+            background.addState(new int[]{}, surface(18 * d, 0x443D4853, Math.round(d), 0x38FFFFFF));
+            button.setBackground(background);
+        }
+    }
+
     static View apply(Activity activity, int backgroundColor) {
         float d = activity.getResources().getDisplayMetrics().density;
         TextView clock = activity.findViewById(R.id.clock);

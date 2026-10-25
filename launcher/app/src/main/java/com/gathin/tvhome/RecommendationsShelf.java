@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Trakt, public discovery and app-published TV channels share one remote-friendly shelf. */
+/** Watchly, public discovery and app-published TV channels share one remote-friendly shelf. */
 final class RecommendationsShelf {
     private static final long TAB_FOCUS_REFRESH_MS = 700;
     private final Runnable focusRefresh = () -> refresh(AccountRefresh.Trigger.FOREGROUND, false);
@@ -53,7 +53,7 @@ final class RecommendationsShelf {
     private final RecyclerView list;
     private final Posters adapter = new Posters();
     private final Typeface font;
-    private final boolean refined;
+    private final boolean refined, animations, reducedMotion;
     private final int dialogTheme;
     private final LinearLayout emptyPanel;
     private final TextView emptyMessage;
@@ -70,9 +70,10 @@ final class RecommendationsShelf {
     private List<CatalogItem> movies = new ArrayList<>(), shows = new ArrayList<>();
     private final int[] sourceNames = {R.string.reco_for_you, R.string.reco_watchlist, R.string.reco_trending, R.string.reco_tv, 0, R.string.reco_recent, R.string.stremio_resume};
 
-    RecommendationsShelf(Activity activity, FrameLayout host, Runnable focusDock, Runnable focusTop, boolean refined) {
+    RecommendationsShelf(Activity activity, FrameLayout host, Runnable focusDock, Runnable focusTop, boolean refined, boolean animations, boolean reducedMotion) {
         this.activity = activity; this.host = host; this.focusDock = focusDock; this.focusTop = focusTop;
         this.refined = refined;
+        this.animations = animations; this.reducedMotion = reducedMotion;
         dialogTheme = refined ? R.style.Theme_TvHome_Dialog_Nocturne : R.style.Theme_TvHome_Dialog;
         if (refined) host.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (lastDockTop > 0 && (t != ot || b != ob)) fitAboveDock(lastDockTop);
@@ -101,7 +102,7 @@ final class RecommendationsShelf {
             sources[i] = button(sourceNames[i]); sources[i].setId(sourceIds[i]);
             if (refined) {
                 HomeAppearance.control(sources[i], true); sources[i].setTextSize(15);
-                if (i == CatalogSource.TRAKT) sources[i].setText(R.string.cinema_for_you);
+                if (i == CatalogSource.WATCHLY) sources[i].setText(R.string.cinema_for_you);
             }
             sources[i].setOnClickListener(v -> source(index, true));
             header.addView(sources[i]);
@@ -147,6 +148,7 @@ final class RecommendationsShelf {
         });
         FrameLayout content = new FrameLayout(activity);
         preview = refined ? new CinemaPreview(activity) : null;
+        if (preview != null) preview.motion(animations, reducedMotion);
         if (refined) {
             LinearLayout cinema = new LinearLayout(activity); cinema.setOrientation(LinearLayout.VERTICAL);
             cinema.addView(preview, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -312,7 +314,7 @@ final class RecommendationsShelf {
         shows = feed.shows;
         String provider = activity.getString(source == CatalogSource.RECENT ? (RecommendationRepository.hasTmdb(feed) ? R.string.reco_provider_recent_tmdb : R.string.reco_provider_recent) : source == 0 ? R.string.reco_provider_for_you
                 : source == 1 ? R.string.reco_provider_watchlist : R.string.reco_provider_trending);
-        if (repository.learned() && (source == CatalogSource.TRAKT || source == CatalogSource.RECENT)) provider += " · " + activity.getString(R.string.reco_taste_label);
+        if (repository.learned() && (source == CatalogSource.WATCHLY || source == CatalogSource.RECENT)) provider += " · " + activity.getString(R.string.reco_taste_label);
         if (!CatalogSource.publicFeed(source) && !repository.configured()) syncStatus = activity.getString(R.string.reco_setup);
         else if (feed.loading) syncStatus = activity.getString(R.string.reco_feed_loading, provider);
         else if (feed.error != 0) syncStatus = activity.getString(feed.syncedAt > 0 ? R.string.reco_feed_cached : R.string.reco_feed_error, provider);
@@ -385,6 +387,7 @@ final class RecommendationsShelf {
         updateVisibility();
     }
     void showPage(boolean shown) {
+        if (!shown) pendingFocus = -1;
         pageVisible = shown;
         updateVisibility();
         if (shown) refresh(AccountRefresh.Trigger.FOREGROUND, false);
@@ -405,7 +408,9 @@ final class RecommendationsShelf {
         return new ColorStateList(new int[][]{new int[]{android.R.attr.state_focused}, new int[]{}}, new int[]{0xFF111111, idle});
     }
     void dockVisible(boolean visible) { dockVisible = visible; updateVisibility(); }
-    private void updateVisibility() { host.setVisibility(visible() ? View.VISIBLE : View.GONE); }
+    private void updateVisibility() {
+        host.setVisibility(visible() ? View.VISIBLE : separatePage ? View.INVISIBLE : View.GONE);
+    }
     void resume() { if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, false); }
     void trimMemory() { repository.trimMemory(); }
     void tick() { if (enabled) refresh(AccountRefresh.Trigger.TICK, false); }
@@ -440,7 +445,7 @@ final class RecommendationsShelf {
             options.add(activity.getString(enabled ? R.string.reco_hide : R.string.reco_show));
             options.add(activity.getString(R.string.reco_reset_feedback));
             options.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
-            if (repository.enhanced()) options.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
+            if (repository.enhanced() && source == CatalogSource.RECENT) options.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
             CinemaMenu.show(activity, activity.getString(R.string.reco_menu), syncStatus, options, choice -> {
                 if (choice == 0) refresh(AccountRefresh.Trigger.FORCE, true);
                 else if (choice == 1) {
@@ -465,7 +470,7 @@ final class RecommendationsShelf {
         labels.add(refreshTab.getText().toString()); labels.add(activity.getString(enabled ? R.string.reco_hide : R.string.reco_show));
         labels.add(activity.getString(R.string.reco_reset_feedback));
         labels.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
-        if (repository.enhanced()) labels.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
+        if (repository.enhanced() && source == CatalogSource.RECENT) labels.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
         new AlertDialog.Builder(activity, dialogTheme).setTitle(R.string.reco_menu)
                 .setItems(labels.toArray(new String[0]), (dialog, choice) -> {
                     if (choice == order.length + 6) {
@@ -532,25 +537,55 @@ final class RecommendationsShelf {
         private final List<CatalogItem> values = new ArrayList<>();
         private int renderedSource = -1;
         private String resumeSignature = "";
+        private boolean renderedSecondary;
         Posters() { setHasStableIds(true); }
         void replace(List<CatalogItem> next) {
             List<CatalogItem> limited = next.subList(0, Math.min(100, next.size()));
             StringBuilder signature = new StringBuilder();
             if (source == CatalogSource.STREMIO) for (StremioProgress.Item item : stremio.items(stremioUpcoming))
                 signature.append(item.key()).append('/').append(item.video).append('/').append(item.position).append('/').append(item.duration).append(';');
-            boolean same = renderedSource == source && values.size() == limited.size() && resumeSignature.equals(signature.toString());
+            boolean same = renderedSource == source && renderedSecondary == secondary()
+                    && values.size() == limited.size() && resumeSignature.equals(signature.toString());
             if (same) for (int i = 0; i < values.size(); i++) {
                 CatalogItem a = values.get(i), b = limited.get(i);
                 if (!a.id.equals(b.id) || !a.type.equals(b.type) || !a.name.equals(b.name)
                         || !a.year.equals(b.year) || !a.poster.equals(b.poster)
                         || !a.description.equals(b.description)
-                        || !a.rating.equals(b.rating) || !a.genres.equals(b.genres)) { same = false; break; }
+                        || !a.rating.equals(b.rating) || !a.genres.equals(b.genres)
+                        || !a.provider.equals(b.provider)) { same = false; break; }
             }
             if (same) return;
+            boolean contextChanged = renderedSource != source || renderedSecondary != secondary();
+            boolean resumeChanged = !resumeSignature.equals(signature.toString());
+            List<CatalogItem> previous = new ArrayList<>(values), replacement = new ArrayList<>(limited);
+            String focusedKey = !contextChanged && lastFocusedCard < previous.size()
+                    ? previous.get(lastFocusedCard).type + ":" + previous.get(lastFocusedCard).id : "";
+            androidx.recyclerview.widget.DiffUtil.DiffResult diff = androidx.recyclerview.widget.DiffUtil.calculateDiff(
+                    new androidx.recyclerview.widget.DiffUtil.Callback() {
+                        @Override public int getOldListSize() { return previous.size(); }
+                        @Override public int getNewListSize() { return replacement.size(); }
+                        @Override public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                            CatalogItem a = previous.get(oldPosition), b = replacement.get(newPosition);
+                            return a.id.equals(b.id) && a.type.equals(b.type);
+                        }
+                        @Override public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                            CatalogItem a = previous.get(oldPosition), b = replacement.get(newPosition);
+                            return !contextChanged && !resumeChanged && a.name.equals(b.name)
+                                    && a.year.equals(b.year) && a.poster.equals(b.poster)
+                                    && a.description.equals(b.description) && a.rating.equals(b.rating)
+                                    && a.genres.equals(b.genres) && a.provider.equals(b.provider);
+                        }
+                    });
             resumeSignature = signature.toString();
-            renderedSource = source;
-            repository.beginPosterBatch();
-            values.clear(); values.addAll(limited); notifyDataSetChanged();
+            renderedSource = source; renderedSecondary = secondary();
+            // Keep in-flight images on ordinary refreshes. A different catalog cancels obsolete work.
+            if (contextChanged) repository.beginPosterBatch();
+            values.clear(); values.addAll(replacement);
+            for (int i = 0; i < values.size(); i++) if (focusedKey.equals(values.get(i).type + ":" + values.get(i).id)) {
+                lastFocusedCard = i; break;
+            }
+            lastFocusedCard = Math.max(0, Math.min(lastFocusedCard, values.size() - 1));
+            diff.dispatchUpdatesTo(this);
             if (preview != null) {
                 if (values.isEmpty()) preview.clear();
                 else showPreview(Math.min(lastFocusedCard, values.size() - 1));
@@ -561,6 +596,13 @@ final class RecommendationsShelf {
         @NonNull @Override public Poster onCreateViewHolder(@NonNull ViewGroup parent, int viewType) { return new Poster(); }
         @Override public void onBindViewHolder(@NonNull Poster holder, int position) {
             CatalogItem title = values.get(position);
+            String boundKey = title.type + ":" + title.id;
+            if (!boundKey.equals(holder.boundKey)) {
+                holder.itemView.animate().cancel();
+                holder.itemView.setScaleX(1f); holder.itemView.setScaleY(1f);
+                holder.itemView.setTranslationY(0f);
+                holder.boundKey = boundKey;
+            }
             holder.title.setText(title.name); holder.year.setText(caption(title));
             if (refined) holder.itemView.setSelected(position == lastFocusedCard);
             StremioProgress.Item resume = source == CatalogSource.STREMIO ? resumeItems.get(title.type + ":" + title.id) : null;
@@ -587,6 +629,7 @@ final class RecommendationsShelf {
         }
     }
     private final class Poster extends RecyclerView.ViewHolder {
+        String boundKey = "";
         final ImageView image;
         final TextView title, year;
         final ProgressBar progress;
@@ -616,6 +659,13 @@ final class RecommendationsShelf {
             card.addView(year, new LinearLayout.LayoutParams(-1, dp(refined ? 28 : 16)));
             if (refined) { title.setVisibility(View.GONE); year.setVisibility(View.GONE); }
             card.setOnFocusChangeListener((v, focused) -> {
+                v.animate().cancel();
+                float scale = focused && animations ? 1.045f : 1f;
+                if (animations) v.animate().scaleX(scale).scaleY(scale)
+                        .translationY(focused && !reducedMotion ? -dp(2) : 0f)
+                        .setDuration(reducedMotion ? Motion.REDUCED_MS : Motion.FOCUS_MS)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
+                else { v.setScaleX(1f); v.setScaleY(1f); v.setTranslationY(0f); }
                 GradientDrawable background = new GradientDrawable(); background.setCornerRadius(dp(7));
                 background.setColor(focused ? 0xFF202C43 : 0x00141416);
                 if (focused) background.setStroke(dp(2), 0xFFB1C6FF);
@@ -642,7 +692,7 @@ final class RecommendationsShelf {
         preview.show(item, caption(item));
     }
     private String caption(CatalogItem item) {
-        if (source == CatalogSource.TRAKT) return "Trakt · " + item.year;
+        if (source == CatalogSource.WATCHLY) return "Watchly · " + item.year;
         if ("TMDb".equals(item.provider)) return "TMDb · " + item.year;
         return item.year;
     }

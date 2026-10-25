@@ -10,7 +10,7 @@ spec = importlib.util.spec_from_file_location("setup_recommendations", Path(__fi
 setup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setup)
 
-BASE = "https://www.strem.io/trakt/addon/example_private_id/"
+BASE = "https://watchly.elfhosted.com/example_private_id/"
 
 
 class SetupTests(unittest.TestCase):
@@ -75,10 +75,10 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(config, {"addon_base": BASE, "watched_movie_ids": ["tt123"], "watched_series_ids": []})
 
     def test_rejects_lookalike_hosts_credentials_query_and_path_traversal(self):
-        for url in [BASE.replace("https:", "http:"), BASE.replace("www.strem.io", "www.strem.io.evil.example"),
-                    BASE.replace("www.strem.io", "user@www.strem.io"), BASE + "?token=x", BASE + "#fragment",
-                    BASE.replace("www.strem.io", "www.strem.io:443"), BASE.replace("example_private_id", "../other"),
-                    BASE.replace("example_private_id", "%2Fother"), BASE.replace("strem.io", "strem.\nio")]:
+        for url in [BASE.replace("https:", "http:"), BASE.replace("watchly.elfhosted.com", "watchly.elfhosted.com.evil.example"),
+                    BASE.replace("watchly.elfhosted.com", "user@watchly.elfhosted.com"), BASE + "?token=x", BASE + "#fragment",
+                    BASE.replace("watchly.elfhosted.com", "watchly.elfhosted.com:443"), BASE.replace("example_private_id", "../other"),
+                    BASE.replace("example_private_id", "%2Fother"), BASE.replace("elfhosted.com", "elfhosted.\ncom")]:
             with self.subTest(url=url), self.assertRaises(ValueError):
                 setup.normalize_config({"addon_base": url})
 
@@ -88,14 +88,14 @@ class SetupTests(unittest.TestCase):
                 setup.normalize_config({"addon_base": BASE, "watched_series_ids": ids})
 
     def test_export_discards_account_tokens_and_library(self):
-        value = {"addons": {"addons": [{"manifest": {"id": "org.trakt.example"}, "transportUrl": BASE + "manifest.json"}]},
+        value = {"addons": {"addons": [{"manifest": {"id": "org.watchly.personal"}, "transportUrl": BASE + "manifest.json"}]},
                  "user": {"access_token": "secret"}, "library": [{"name": "private history"}]}
         result = setup.config_from_export(value)
         self.assertEqual(result, {"addon_base": BASE, "watched_movie_ids": [], "watched_series_ids": []})
 
     def test_ambiguous_or_nonofficial_export_is_rejected(self):
-        addon = {"manifest": {"id": "org.trakt.example"}, "transportUrl": BASE}
-        for addons in [[], [addon, addon], [{"manifest": {"id": "community.trakt"}, "transportUrl": BASE}]]:
+        addon = {"manifest": {"id": "org.watchly.personal"}, "transportUrl": BASE}
+        for addons in [[], [addon, addon], [{"manifest": {"id": "community.other"}, "transportUrl": BASE}]]:
             with self.subTest(addons=addons), self.assertRaises(ValueError):
                 setup.config_from_export({"addons": addons})
 

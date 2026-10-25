@@ -5,7 +5,7 @@
     <string name="stremio_upcoming">À venir</string>
     <string name="stremio_connect">Connecter Stremio</string>
     <string name="stremio_disconnect">Déconnecter Stremio</string>
-    <string name="stremio_disconnect_detail">Supprimer la connexion Stremio et la reprise enregistrée de cet accueil ? Votre compte Stremio et les recommandations Trakt restent inchangés.</string>
+    <string name="stremio_disconnect_detail">Supprimer la connexion Stremio et la reprise enregistrée de cet accueil ? Votre compte Stremio et les recommandations Watchly restent inchangés.</string>
     <string name="stremio_setup">Stremio · Connectez votre compte pour retrouver votre progression.</string>
     <string name="stremio_session_expired">Stremio · Connexion expirée. Sélectionnez Connecter Stremio.</string>
     <string name="stremio_resume_empty">Stremio · Rien à reprendre. Commencez un titre dans Stremio, puis actualisez ici.</string>

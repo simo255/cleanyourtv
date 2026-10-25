@@ -53,7 +53,7 @@ public class StremioViewingTest {
                 snapshot.getJSONArray("movies"), StremioViewing.movieIds(snapshot));
         List<CatalogItem> cached = Arrays.asList(new CatalogItem(new JSONObject().put("id", "tt1").put("type", "movie")),
                 new CatalogItem(new JSONObject().put("id", "tt2").put("type", "movie")));
-        for (int source : new int[]{CatalogSource.TRAKT, CatalogSource.RECENT, CatalogSource.TRENDING}) {
+        for (int source : new int[]{CatalogSource.WATCHLY, CatalogSource.RECENT, CatalogSource.TRENDING}) {
             List<CatalogItem> result = taste.apply(cached, source); assertEquals(1, result.size()); assertEquals("tt2", result.get(0).id);
         }
         assertEquals(2, taste.apply(cached, CatalogSource.WATCHLIST).size());

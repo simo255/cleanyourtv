@@ -18,12 +18,12 @@ public class RecommendationTasteTest {
         RecommendationTaste taste = new RecommendationTaste(complete, new JSONArray());
         CatalogItem comedy = item("tt3", "Comedy"), crime = item("tt4", "Crime");
         assertTrue(taste.score(crime) > 0); assertEquals(0, taste.score(comedy), 0);
-        assertEquals("tt4", taste.apply(Arrays.asList(comedy, crime), CatalogSource.TRAKT).get(0).id);
+        assertEquals("tt4", taste.apply(Arrays.asList(comedy, crime), CatalogSource.WATCHLY).get(0).id);
     }
     @Test public void incompleteViewingDoesNotInferADislikeOrChangeOrdering() throws Exception {
         RecommendationTaste taste = new RecommendationTaste(new JSONArray().put(entry("tt1", "Crime").put("completed", false)), new JSONArray());
         List<CatalogItem> input = Arrays.asList(item("tt3", "Comedy"), item("tt4", "Crime"));
-        assertFalse(taste.learned()); assertEquals(input, taste.apply(input, CatalogSource.TRAKT));
+        assertFalse(taste.learned()); assertEquals(input, taste.apply(input, CatalogSource.WATCHLY));
     }
     @Test public void manualRejectionHidesOnlyTheChosenTitleWithoutPenalizingItsGenre() throws Exception {
         RecommendationTaste taste = new RecommendationTaste(new JSONArray(), new JSONArray().put(entry("tt1", "Crime").put("decision", "hide")));
@@ -51,7 +51,7 @@ public class RecommendationTasteTest {
     @Test public void importedCompletedTitlesAreExcludedFromPersonalDiscoveryButNotGoogle() throws Exception {
         RecommendationTaste taste = new RecommendationTaste(new JSONArray().put(entry("tt1", "Crime").put("completed", true)), new JSONArray());
         List<CatalogItem> input = Arrays.asList(item("tt1", "Crime"));
-        assertTrue(taste.apply(input, CatalogSource.TRAKT).isEmpty()); assertEquals(input, taste.apply(input, CatalogSource.GOOGLE));
+        assertTrue(taste.apply(input, CatalogSource.WATCHLY).isEmpty()); assertEquals(input, taste.apply(input, CatalogSource.GOOGLE));
     }
     @Test public void frenchAndEnglishGenresMatchAndRepeatedGenreRunsGetAnotherRelevantOption() throws Exception {
         RecommendationTaste taste = new RecommendationTaste(new JSONArray().put(entry("tt1", "Drama").put("completed", true))

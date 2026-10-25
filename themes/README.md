@@ -207,3 +207,7 @@ Open a PR with a new folder here containing:
 Then add a row to the table above with the screenshot, the same way as the others. Keep the dock list
 generic (the big streaming apps) unless the theme is for a specific TV, and say which TV you tried it on
 in the PR description.
+
+Nocturne uses the app's full banner by default (`uniform_tiles: false`), rounded corners and a subtle
+border, plus circular top-bar controls. `uniform_tiles: true` remains available for an icon-based look.
+The existing Animations and reduced-motion options also govern Nocturne's page, title and poster focus motion.

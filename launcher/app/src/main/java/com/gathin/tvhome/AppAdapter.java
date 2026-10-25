@@ -203,13 +203,15 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     void collapseDock(boolean collapse) {
         if (dockCollapsed == collapse) return;
         dockCollapsed = collapse;
-        notifyDataSetChanged();
+        // Only these holders change height. Keep the remaining apps bound and cached.
+        notifyItemRangeChanged(0, Math.min(dockSize, items.size()));
     }
     /** Never shown as tiles (res/values/config.xml, hidden_apps). */
     private final Set<String> hidden;
     /** Apps pre-seeded into the App library's "added" set (config.xml library_apps); empty by default. */
     private final Set<String> libraryPreload;
     private final boolean animations;
+    private final boolean refinedTiles;
     private final boolean advancedEffects;
     private final boolean showLibrary;
     /** Packages with a leanback entry at the last reload(): their tiles launch with the leanback category. */
@@ -240,6 +242,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.libraryPreload = new HashSet<>(cfg.libraryApps);
         this.animations = cfg.animations;
+        this.refinedTiles = cfg.refinedHome;
         this.advancedEffects = cfg.animations && cfg.advancedEffects;
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
         this.showLibrary = cfg.appLibrary;
@@ -448,7 +451,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             iconLp.bottomMargin = 0;
             icon.setLayoutParams(iconLp);
         }
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot, refinedTiles);
     }
 
     @Override
@@ -676,7 +679,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     float focusScale() {
-        return !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+        return !animations ? 1f : refinedTiles ? 1.065f : advancedEffects ? 1.12f : 1.10f;
     }
 
     /** A vivid colour sampled from the app's banner (or icon), cached per entry; a card's accent when it set one. */
@@ -901,7 +904,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final boolean overshoot;
 
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, boolean refined) {
             super(v);
             card = v.findViewById(R.id.card);
             cardBackground = card.getBackground();
@@ -931,6 +934,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             });
             card.setClipToOutline(true);
+            if (refined) card.setForeground(HomeAppearance.surface(
+                    cornerRadius(card.getLayoutParams().width, density), 0, Math.max(1, Math.round(density)), 0x38FFFFFF));
 
             card.setOnKeyListener((view, keyCode, event) -> {
                 // TextView's long press alone does not consistently consume remote OK repeats.
@@ -967,7 +972,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 view.animate().cancel();
                 banner.animate().cancel();
                 name.animate().cancel();
-                float scale = !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+                float scale = !animations ? 1f : refined ? 1.065f : advancedEffects ? 1.12f : 1.10f;
                 float s = focused ? scale : 1f;
                 if (!animations) {
                     view.setScaleX(1f);
@@ -993,13 +998,16 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     // Only on focus: snapping it back to -6dp while it fades out would jump it up over the tile.
                     if (focused) name.setTranslationY(density * 4f);
                 } else {
-                    view.animate().scaleX(s).scaleY(s)
+                    android.view.ViewPropertyAnimator focusMotion = view.animate().scaleX(s).scaleY(s)
                             .translationY(focused && advancedEffects ? -4f * density : 0f)
                             .translationZ(focused && advancedEffects ? 8f * density : 0f)
-                            .setDuration(advancedEffects ? (focused ? 220 : 170) : (focused ? 260 : 180))
-                            .setInterpolator(focused && !overshoot ? new DecelerateInterpolator(1.5f)
-                                    : new OvershootInterpolator(focused ? (advancedEffects ? 0.7f : 1.6f) : 0f))
-                            .withLayer().start();
+                            .setDuration(refined ? (focused ? Motion.FOCUS_MS : 120) : advancedEffects ? (focused ? 220 : 170) : (focused ? 260 : 180))
+                            .setInterpolator(refined || (focused && !overshoot) ? new DecelerateInterpolator(1.5f)
+                                    : new OvershootInterpolator(focused ? (advancedEffects ? 0.7f : 1.6f) : 0f));
+                    // Bitmap banners already have cached display lists. A temporary texture layer can retain
+                    // an empty tile when rapid page changes hide the grid while the zoom is being prepared.
+                    if (!refined) focusMotion.withLayer();
+                    focusMotion.start();
                     if (advancedEffects) {
                         banner.animate().scaleX(focused ? 1.035f : 1f).scaleY(focused ? 1.035f : 1f)
                                 .setDuration(280).start();

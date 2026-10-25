@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provision the optional official Stremio/Trakt catalog using authorized ADB.
+"""Provision the optional Watchly ElfHosted catalog using authorized ADB.
 
 The private URL is read with getpass, or from a local JSON file. It is never
 passed as a process argument, copied to shared TV storage, or printed.
@@ -112,7 +112,7 @@ def normalize_config(value):
         raise ValueError("Configuration must be a JSON object.")
     address = value.get("addon_base", "")
     if not isinstance(address, str):
-        raise ValueError("A private official Stremio Trakt manifest URL is required.")
+        raise ValueError("A private Watchly ElfHosted manifest URL is required.")
     address = address.strip()
     # Do not allow control characters that urlsplit would otherwise strip.
     if any(ord(c) < 33 or ord(c) > 126 for c in address):
@@ -121,11 +121,11 @@ def normalize_config(value):
     path = url.path
     if path.endswith("/manifest.json"):
         path = path[:-len("manifest.json")]
-    if (url.scheme != "https" or url.netloc != "www.strem.io"
+    if (url.scheme != "https" or url.netloc != "watchly.elfhosted.com"
             or url.query or url.fragment
-            or not re.fullmatch(r"/trakt/addon/[A-Za-z0-9_-]+/", path)):
-        raise ValueError("Use the HTTPS manifest URL of the official www.strem.io Trakt add-on.")
-    result = {"addon_base": "https://www.strem.io" + path}
+            or not re.fullmatch(r"/[A-Za-z0-9_-]{1,64}/", path)):
+        raise ValueError("Use the HTTPS manifest URL of Watchly on watchly.elfhosted.com.")
+    result = {"addon_base": "https://watchly.elfhosted.com" + path}
     for key in ("watched_movie_ids", "watched_series_ids"):
         ids = value.get(key, [])
         if not isinstance(ids, list) or not all(isinstance(x, str) and re.fullmatch(r"tt[0-9]+", x) for x in ids):
@@ -205,7 +205,7 @@ class Device:
 
 
 def config_from_export(value):
-    """Extract only the official add-on connection, never user or OAuth fields."""
+    """Extract only the Watchly connection, never user or OAuth fields."""
     addons = value.get("addons", {}) if isinstance(value, dict) else {}
     if isinstance(addons, dict):
         addons = addons.get("addons", [])
@@ -216,10 +216,10 @@ def config_from_export(value):
         if not isinstance(addon, dict):
             continue
         manifest = addon.get("manifest", {})
-        if isinstance(manifest, dict) and str(manifest.get("id", "")).startswith("org.trakt."):
+        if isinstance(manifest, dict) and "watchly" in str(manifest.get("id", "")).lower():
             matches.append(normalize_config({"addon_base": addon.get("transportUrl")}))
     if len(matches) != 1:
-        raise ValueError("Expected exactly one official Trakt Integration add-on.")
+        raise ValueError("Expected exactly one Watchly ElfHosted add-on.")
     return matches[0]
 
 
@@ -241,7 +241,7 @@ def main():
     try:
         if args.clear:
             device.clear()
-            print("Local Trakt connection and cache removed. Dock preferences kept.")
+            print("Local Watchly connection and cache removed. Dock preferences kept.")
             return 0
         source = args.config or args.stremio_export
         if source:
@@ -251,7 +251,7 @@ def main():
             if args.stremio_export:
                 value = config_from_export(value)
         else:
-            value = {"addon_base": getpass.getpass("Private official Stremio Trakt manifest URL (hidden): ")}
+            value = {"addon_base": getpass.getpass("Private Watchly ElfHosted manifest URL (hidden): ")}
         if args.taste_profile:
             if args.taste_profile.stat().st_size > 256_000:
                 raise ValueError("Taste profile is too large.")
@@ -265,7 +265,7 @@ def main():
         elif args.prompt_tmdb_token:
             value["tmdb_read_token"] = getpass.getpass("Personal TMDB API read token (hidden): ").strip()
         device.provision(normalize_config(value))
-        print("Private connection configured and verified. Press Home, then Menu > Trakt recommendations.")
+        print("Private connection configured and verified. Press Home, then Menu > Watchly.")
         return 0
     except (ValueError, RuntimeError, OSError, EOFError):
         # Do not expose parser exception text: it can include the private URL.

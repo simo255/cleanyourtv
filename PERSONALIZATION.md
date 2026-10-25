@@ -1,4 +1,4 @@
-# Android TV Home · Stremio + Trakt
+# Android TV Home · Stremio + Watchly
 
 A customizable fork of [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv), previously
 **tv-vibehack**, with personalized recommendations on a clean Android TV home screen.
@@ -8,6 +8,10 @@ Other firmware needs its own compatibility check.
 Cette version ajoute les recommandations Stremio/Trakt, un dock de sept applications modifiable
 avec la télécommande, un menu rapide et un indicateur VPN. Chaque utilisateur connecte son
 propre catalogue : aucun compte, historique personnel ou lien privé n'est inclus dans le code.
+
+Current recommendations use **Watchly ElfHosted**, configured with Stremio history. See
+[the current connection guide](docs/watchly.md). Earlier numbered feature notes below may refer to
+Trakt, which was the previous provider; those connection instructions are superseded.
 
 ## What this fork adds
 
@@ -22,12 +26,12 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   positive-viewing profile can refine ordering. OK opens the title in Stremio.
 - **Trending / Tendances**: public **Popular** movie/show catalogs from official Cinemeta,
   identified on screen and independent of your account history.
-- **New releases / Nouveautés**: official Cinemeta catalogs for the current and previous year,
+- **New releases / Nouveautés**: official Cinemeta catalogs for the current year and two previous years,
   deduplicated and ordered by known release date. Upcoming and undated entries are excluded.
   For shows this means their premiere, not a new season of an older show.
 - **Simple recommendation shelf**: one control row and a full-width poster row, without a side
   summary or year selector. Trakt and Popular automatically retain only the current
-  and previous release year. This applies to fetched and saved catalogs, before display.
+  release year and two previous years (2024–2026 in 2026), even with a saved all-years setting. This applies to fetched and saved catalogs, before display.
   The header and catalog menu show Trakt, Continue, New releases and Trending; older
   saved Google TV/Watchlist/My apps selections return to Trakt without renumbering stored source IDs.
 - **Positive-only viewing preferences**: a confirmed completed series is a positive example;
@@ -36,7 +40,10 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   Manual hidden/seen choices are explicit. No feedback is uploaded to accounts.
 - **Optional season-aware discovery (2.32)**: separate film/series taste, reviewed season rules,
   shared watched exclusions and a recent/all-years menu switch. Discover broadens Cinemeta to bounded
-  year, genre and Featured pages. Available cast/director metadata enriches the local ranking without
+  year, genre and Featured pages, retaining some previous discoveries within the 300-title cap.
+  Enhanced mode starts with all years unless a period was explicitly saved. Ranking adapts to usable
+  positive history and diversifies the first 20 results using genres, cast and directors.
+  Available cast/director metadata enriches the local ranking without
   sending private history IDs for extra metadata lookups. Enable `recommendation_options.enhanced`
   in private configuration; see [the schema and limits](docs/recommendations.md#optional-season-aware-discovery-232).
   No AI model is used. This version requires its own on-TV validation before deployment.
@@ -60,7 +67,7 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   a frameless app dock, restored poster focus and side menus. Available short synopses appear below the
   title; hold OK retains the classification menu. Enable `themes/nocturne/config.json`.
 - **Optional apps-first Home (2.37)**: enable `apps_first_home` with Nocturne and the dock row.
-  Favorite app icons are enlarged on the main Home; the remaining-app grid keeps its normal icon size.
+  With uniform icon tiles enabled, favorite icons are enlarged on the main Home; the remaining-app grid keeps its normal icon size.
   Home shows favorite apps and the wallpaper; Down from favorites or a click on its bottom button
   opens recommendations directly with a poster selected. Up from the posters reaches the tabs.
   Down through the posters reaches All apps, which shows the remaining apps.
@@ -71,7 +78,8 @@ propre catalogue : aucun compte, historique personnel ou lien privé n'est inclu
   comes from the configured VPN application's ongoing connection notification, with explicit Android notification
   access via **Quick menu > VPN location**. Recognized English/French titles are supported; unknown formats or
   missing permission show VPN status alone. This is the app-advertised country, without an IP lookup, disk cache
-  or account access. Nocturne also enables uniform icon tiles on backgrounds sampled from each icon.
+  or account access. Nocturne uses rounded app banners with a subtle border and round header buttons.
+  Apps without a usable banner keep an icon fallback. Uniform icon tiles remain an optional theme choice.
 - **French and English**, cached catalogs/posters, finite network limits and no background catalog service.
 
 The shelf is optional: without private configuration it stays hidden unless you explicitly select
@@ -125,48 +133,16 @@ debloat/install scripts and model examples are inherited from upstream and need 
 Updating an existing install requires the same signing key. Build from your original development
 environment if you want to preserve its app data; an APK signed by a different key will not update it.
 
-## Connect Stremio + Trakt
+## Connect Stremio + Watchly
 
-1. Link your Trakt account in Stremio and enable the official **Trakt Integration** add-on.
-2. Download a fresh Stremio account export and keep it private, outside this repository.
-3. From the repository root, run:
+Follow the [Watchly ElfHosted setup guide](docs/watchly.md). Connect Stremio as Watchly's history
+source, validate your TMDB key, enable Top Picks for movies and series, save and install the add-on,
+then privately provision its manifest URL on Home. Reprendre retains its separate Stremio QR session.
 
-```sh
-python tools/configure-recommendations.py --serial YOUR_TV_IP:5555 --stremio-export /path/to/stremioExport.json
-```
-
-Only the official add-on's private catalog URL is copied into the launcher's private storage.
-The account export itself is not sent to the TV. You can instead omit `--stremio-export` and paste
-your manifest URL at a hidden prompt. Use `--adb /path/to/adb` when needed.
-
-Press Home, then **Menu → Home catalogs**. Select **Continue**, **For you**, **New releases** or **Trending** on the
-home header; Movies and TV shows work within each view. Only the selected source refreshes.
-Catalog refresh happens on returning to Home or while Home is visible once the 4-hour cache interval
-expires. Continue keeps its one-minute refresh interval; manual Refresh is also available.
-Up from the dock enters posters, Left/Right navigates, Up reaches category buttons, and Down
-returns to the dock. Down from the dock opens the app grid. OK opens details without starting playback.
-
-Google TV integration was removed in 2.20. Its old saved selection returns to Trakt and its
-snapshot is never loaded. [Legacy capture documentation](docs/google-tv-personalization.md)
-is retained for older versions; capture tools are not part of the current Home flow.
-
-To remove the local connection and recommendation cache while keeping dock preferences:
-
-```sh
-python tools/configure-recommendations.py --serial YOUR_TV_IP:5555 --clear
-```
-
-Trakt recommendations use your existing official Stremio/Trakt add-on connection. No GitHub
-association or additional Trakt connection is needed. The add-on supplies the personalized
-candidates; local saved preferences can refine them without an additional account request.
-
-**Limits:** initial watched filtering covers the latest 100 history events per category, plus
-optional locally seeded IMDb IDs. Previously learned watched IDs are retained. A watched episode
-alone does not establish that its show was completed or disliked. Completion preferences use the
-imported profile or an explicit local Finished choice. Removing movie history in Trakt does not
-automatically remove an accumulated local movie exclusion.
-Historical imports and future playback scrobbling must be handled by Stremio/Trakt separately.
-See [configuration, privacy and cache details](docs/recommendations.md).
+The launcher no longer accepts the former Trakt Integration catalog URL. When replacing that
+integration, preserve local choices with an explicit account-fingerprint migration and clear only
+old private catalog caches. The Watchly guide explains the migration and privacy boundaries.
+Local choices remain local; the launcher does not report playback or update tracker accounts.
 
 ## Customize
 
@@ -210,3 +186,16 @@ MIT, see [LICENSE](LICENSE). Based on the launcher and tooling by
 [Gathin23 and contributors](https://github.com/Gathin23/cleanyourtv).
 The Outfit typeface uses the [SIL Open Font License](launcher/FONT-LICENSE-OFL.txt).
 Stremio and Trakt remain independent services; this fork is not an official client of either.
+
+### Motion and image refresh
+
+With Animations enabled, Nocturne uses restrained focus zooms and short page/title slides. Repeated
+navigation cancels the previous transition; reduced motion keeps short focus feedback without page slides.
+Poster metadata refreshes retain decoded artwork and update only changed cards. Cancelled image requests
+without artwork can retry; recycled cards reject old image completions. Film/series selection remains click-only.
+
+Apps-first page changes retain the measured recommendations layout and restore the previously selected
+app without a temporary weather focus. Stale page-focus requests are cancelled when pages change.
+A bounded pool prepares empty app holders after an idle interval, pauses with the activity, and performs
+no artwork decoding. Collapsing the favorites row updates only the affected holders. These changes reduce
+synchronous layout work; they are not a guarantee of a constant frame rate on every TV.

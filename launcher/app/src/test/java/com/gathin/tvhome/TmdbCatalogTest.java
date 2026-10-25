@@ -17,7 +17,7 @@ public class TmdbCatalogTest {
     }
     @Test public void discoveryQueriesApplyDatesAndVoteFloorWithoutSendingWatchHistoryOrCredentialsInTheUrl() {
         String url = TmdbCatalog.discover("tv", LocalDate.of(2027, 1, 2), "fr-CA").toString();
-        assertTrue(url.contains("first_air_date.gte=2026-01-01")); assertTrue(url.contains("first_air_date.lte=2027-01-02"));
+        assertTrue(url.contains("first_air_date.gte=2025-01-01")); assertTrue(url.contains("first_air_date.lte=2027-01-02"));
         assertTrue(url.contains("vote_count.gte=10")); assertFalse(url.contains("api_key"));
         assertFalse(url.contains("watched")); assertFalse(url.contains("history"));
     }

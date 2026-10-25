@@ -59,7 +59,7 @@ final class TmdbCatalog {
     static URI discover(String media, LocalDate today, String language) {
         String date = "tv".equals(media) ? "first_air_date" : "primary_release_date";
         return URI.create("https://api.themoviedb.org/3/discover/" + media + "?include_adult=false&sort_by=popularity.desc"
-                + "&" + date + ".gte=" + (today.getYear() - 1) + "-01-01&" + date + ".lte=" + today
+                + "&" + date + ".gte=" + (today.getYear() - 2) + "-01-01&" + date + ".lte=" + today
                 + "&vote_count.gte=10&page=1&language=" + language);
     }
     static CatalogItem fromDetails(String type, JSONObject data) throws Exception {

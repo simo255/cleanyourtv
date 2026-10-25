@@ -1,4 +1,10 @@
-# Home catalogs: Trakt, Cinemeta and Android TV apps
+# Home catalogs: implementation history
+
+**Current setup:** For-you recommendations now use Watchly ElfHosted. Follow
+[the Watchly setup and migration guide](watchly.md) for configuration, privacy and provider behavior.
+The Trakt connection, history endpoint and provisioning instructions below describe the earlier
+implementation and must not be used with the current launcher. Public discovery and local UI sections
+remain useful background; Watchly's configured year range now applies to For you.
 
 The optional shelf consumes the user's **existing official Stremio Trakt Integration add-on**.
 It uses only the existing official add-on connection for Trakt recommendations: no GitHub link,
@@ -28,7 +34,8 @@ The preview and side menus are inactive when `refined_home` is off.
 
 Catalog ranking is reused until provider data, changed watched evidence, local feedback or the date changes.
 In 2.34, account snapshots are persisted on the worker without mutating shared JSON; unchanged evidence
-does not notify the ranking listener. Diversity uses precomputed content scores and primary genres. Cached poster
+does not notify the ranking listener. Diversity uses precomputed content scores; enhanced mode compares full genre,
+cast and director sets within a bounded candidate window. Cached poster
 decoding has its own queue, separate from network downloads; obsolete queued requests are dropped
 when the displayed list changes. The poster row retains enough reusable cards for a full strip. In 2.34, opaque posters decode at
 card size in RGB_565, with a heap-sized memory cache (6–24 MiB) and a 12 MB LRU disk cache
@@ -74,8 +81,8 @@ The [quicodomingo fork](https://github.com/quicodomingo/tv-vibehack) supplied th
 - **Trakt**: the official add-on supplies the candidates. Known watched movies and positively confirmed
   completed series are excluded. Local positive viewing and explicit choices can refine this view's order.
   An unfinished series is neutral; merely appearing in episode history never means it was disliked or finished.
-- **New releases / Nouveautés**: official Cinemeta `year` catalogs for the current and previous year. Each refresh
-  reads at most four bounded public responses (movies/shows × two years). Entries are deduplicated,
+- **New releases / Nouveautés**: official Cinemeta `year` catalogs for the current year and two previous years. Each refresh
+  reads at most six bounded public responses (movies/shows × three years). Entries are deduplicated,
   require a parseable release date no later than today, and initially sort newest first. A configured
   local taste profile can refine that order. Optional TMDB candidates broaden this public pool;
   this is not a guarantee of streaming availability in your country.
@@ -83,8 +90,9 @@ The [quicodomingo fork](https://github.com/quicodomingo/tv-vibehack) supplied th
 
 One control row sits above a full-width poster row. There is no side summary or inline year selector.
 Previously saved `period_*` choices are ignored. Instead, all recommendation feeds (Trakt,
-Popular and New releases) automatically retain the current and previous release year: 2025/2026 in
-2026, 2026/2027 in 2027, and so on. This default policy applies to movies and series before display;
+Popular and New releases) retain the current release year and two previous years: 2024/2025/2026 in
+2026, 2025/2026/2027 in 2027, and so on. For you and Trending always enforce this limit,
+even if an older saved setting requests all years. Only enhanced Discover can show all years. This default policy applies to movies and series before display;
 raw candidates remain cached so an enabled period switch can work offline. Google TV was removed in 2.20;
 its old source ID stays reserved, but its snapshot is no longer read. Unknown release
 years and known future release dates do not pass. Trakt keeps its personalized order and watched
@@ -97,7 +105,7 @@ returned by the existing official integration. It cannot invent recent personali
 that provider returns none; the empty state reports that outcome.
 
 The New releases cache is separate (`recent-cache.json`), public and account-independent. It uses
-the existing 4-hour refresh policy and Cinemeta redirect allowlist. It does not read Trakt history.
+the existing 12-hour refresh policy and Cinemeta redirect allowlist. It does not read Trakt history.
 
 ## Positive viewing and explicit feedback
 
@@ -148,15 +156,25 @@ update. It is off by default. No AI model, new permission, dependency or account
 
 - Films and series learn separate positive profiles. Available genres, cast and directors contribute;
   repeated completion imports/manual choices count once per title. Unfinished/unwatched records do not
-  infer dislikes. Ranking combines normalized content overlap (65%) with provider position (35%), then
-  applies a small diversity pass. These weights are heuristics, not a measured quality guarantee.
-- **Discover** replaces the New releases label. Per type, a refresh tries the current/previous year,
-  page two of the current year (`skip=100`), one Popular genre among those Cinemeta offers for that media type and Featured (`imdbRating`): at most ten
-  public catalog requests in total. The genre rotates by calendar day, independently of private tastes.
+  infer dislikes. Ranking blends normalized content overlap with provider position. Local weight is
+  `0.75 * evidence / (evidence + 4)`, independently for films and series. A unique positive contributes
+  0.5 evidence for available genres, 0.25 for cast and 0.25 for directors; explicit More like this doubles
+  that contribution. Metadata-free history contributes no confidence. Sparse profiles therefore rely
+  mainly on provider order. The first 20 results are diversified among nearby positive matches using
+  full genre/cast/director overlap, considering at most 40 remaining candidates per position and the
+  last five selections. Trending keeps provider order. These weights are heuristics, not a measured
+  quality guarantee; no display or click is interpreted as dislike.
+- **Discover** replaces the New releases label. Per type, a refresh tries the current year and two previous years,
+  page two of the current year (`skip=100`), two distinct Popular genres supported for that media type,
+  Featured (`imdbRating`), and one older year (rotating from two to twenty years ago): at most sixteen
+  public catalog requests in total. Genres and the older year rotate by calendar day, independently of private tastes.
   A 60-second start budget per type bounds slow providers (an in-flight request may finish afterwards).
-  Successful pages are interleaved and deduplicated to at most 300 candidates per type. Failed pages
-  are skipped; if every page fails, the previous feed remains available. The four-hour cache still applies.
-- The catalog menu offers **Show all years / Show recent years**, initially recent. This changes discovery
+  Successful pages are interleaved and deduplicated. Refreshes then mix three fresh candidates with one
+  previously cached candidate absent from the fresh result, up to 300 per type. Fresh metadata always wins
+  for duplicate titles; partial failures retain some previous discoveries. Failed pages are skipped;
+  if every page fails, the previous feed remains available. The twelve-hour cache still applies.
+- The Discover catalog menu offers **Show all years / Show recent years**, initially all years in enhanced mode.
+  An explicitly saved period choice is preserved. Basic New releases remains limited to recent years. This changes discovery
   filtering only; Watchlist and Continue retain their membership. Future dated releases remain excluded.
   Older raw caches that already lost titles need one refresh. Trakt candidates still come exclusively
   from the official Trakt add-on; public Cinemeta results are never inserted into that feed.
@@ -179,7 +197,7 @@ states of currently known aired seasons; a subsequently discovered season remain
 
 Starting with **2.33**, when the enhanced option and Stremio connection are both enabled, returning to
 Home or visiting a recommendation tab also refreshes watched evidence. This is independent of the
-four-hour catalog cache: returning Home or selecting a tab reads at most once a minute; the visible Home timer reads
+twelve-hour catalog cache: returning Home or selecting a tab reads at most once a minute; the visible Home timer reads
 at most every 15 minutes. Failures back off 2–30 minutes (at least 10 on 429/503); Refresh is immediate.
 No account read starts while Home is in the background. The selected recommendation list is
 re-filtered as soon as the read finishes, even when its catalog remains cached.
@@ -220,7 +238,7 @@ prompt with `--prompt-tmdb-token` on the configuration tool. It is never embedde
 printed. The normalizer accepts only this explicit field, not account/export tokens.
 
 TMDB is requested only for the selected New releases view: public Discover movie/TV results for
-the current/previous year, sorted by popularity, with at least ten votes. At most ten details per
+the current year and two previous years, sorted by popularity, with at least ten votes. At most ten details per
 type are mapped to IMDb for Stremio links, within a bounded fetch window. Public mappings are cached
 for a week with a 300-file cap. The resulting candidates join Cinemeta before deduplication/date
 checks and local ranking. The view identifies both sources when it contains TMDB entries.
@@ -360,11 +378,11 @@ views; automatic history-based movie exclusions apply only to For-you. Confirmed
 are excluded from local personal discovery, and explicit hidden/seen choices apply as described above.
 No write endpoint or playback reporting is used.
 
-Refresh is checked on resume and each visible minute; discovery catalog data is reused for 4 hours.
+Refresh is checked on resume and each visible minute; discovery catalog data is reused for 12 hours.
 Continue uses the foreground account cadence described above.
 Failed automatic catalog attempts retry after 2, 4, 8, 16, then at most every 30 minutes.
 HTTP 429 and 503 responses wait at least 10 minutes. Each source has its own retry state;
-success resets the delay and restores the four-hour interval. In-process timing uses the monotonic
+success resets the delay and restores the twelve-hour interval. In-process timing uses the monotonic
 clock, so correcting the TV's date does not trigger repeated requests or delay recovery.
 Stremio keeps its separate account cadence. Manual Refresh can retry immediately.
 Nothing runs as a background service when the launcher is paused.

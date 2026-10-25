@@ -143,6 +143,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView pageButton;
     private int homeDockPosition;
     private int homeDockPadding;
+    private IdleTilePool idleTilePool;
+    private Runnable pageFocusRequest;
+    private int pageFocusGeneration;
+    private boolean pageFocusParked, rootWasFocusable, rootWasTouchFocusable;
     private View recommendationShade;
     private RecyclerView grid;
     private FrameLayout root;
@@ -564,7 +568,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }, () -> {
                     if (appsFirstHome) showHomePage(AppsFirstNavigation.Page.HOME);
                     else focusTopBar();
-                }, cfg.refinedHome);
+                }, cfg.refinedHome, animations, reducedMotion);
         if (appsFirstHome) setUpAppsFirstHome();
         menus.setRecommendations(() -> {
             if (appsFirstHome) showHomePage(AppsFirstNavigation.Page.RECOMMENDATIONS);
@@ -576,6 +580,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Order savedOrder = Order.load(Order.file(this));
         adapter.setSavedOrder(Order.ranks(savedOrder, dockApps), Order.docked(savedOrder, dockApps));
         grid.setAdapter(adapter);
+        if (appsFirstHome) idleTilePool = new IdleTilePool(grid, adapter, COLUMNS * 2);
 
         // tvOS layout: push the dock row towards the bottom of the screen, leaving room for
         // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
@@ -713,6 +718,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             makeIconOnly((TextView) btnSettings);
         }
         if (cfg.iconOnlyInputs) makeIconOnly((TextView) btnInputs);
+        if (cfg.refinedHome) HomeAppearance.roundHeader(this);
         btnSettings.setOnLongClickListener(v -> {
             showSettingsMenu();
             return true;
@@ -756,11 +762,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
         findViewById(R.id.homeWeather).setOnKeyListener(pillKeys);
-        if (advancedEffects) {
+        if (animations && (advancedEffects || refinedHome)) {
             for (View button : new View[]{btnWallpaper, btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
-                        .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
+                        .setDuration(reducedMotion ? Motion.REDUCED_MS : Motion.FOCUS_MS)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start());
             }
         }
         if (festive) applyFestiveSkin((TextView) btnInputs, (TextView) btnSettings);
@@ -877,6 +884,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStart() {
         super.onStart();
+        if (idleTilePool != null) idleTilePool.start();
         stopped = false;
         started = true;
         if (vpnLocationEnabled) VpnNotifications.watch(vpnStatusChanged);
@@ -1003,7 +1011,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
         final boolean restoreFocus = appLibrary == null && (animate || grid.hasFocus());
-        if (restoreFocus) {
+        if (restoreFocus && rebuild) {
             glassShown = false;
             glass.setAlpha(0f);
             heroShown = false;
@@ -1105,6 +1113,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onUserInteraction() {
         super.onUserInteraction();
+        if (idleTilePool != null) idleTilePool.interacted();
         restartIdleClock();
     }
 
@@ -1115,11 +1124,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onPause() {
+        cancelPageFocus();
+        if (idleTilePool != null) idleTilePool.pause();
         if (recommendations != null) recommendations.pause();
         super.onPause();
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
+        if (appsFirstHome) { Motion.reset(grid); Motion.reset(findViewById(R.id.recommendationShelf)); }
         if (homeWeather != null) homeWeather.pause();
         stopAmbientAnimation();
         hero.animate().cancel();
@@ -1157,6 +1169,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // RUNNING_LOW and CRITICAL also arrive while Home is visible when an accessibility service keeps the
         // process in the foreground; never blank the screen the owner is looking at.
         if (!MemoryTrimPolicy.shouldRelease(level, started)) return;
+        if (idleTilePool != null) idleTilePool.pause();
         if (recommendations != null) recommendations.trimMemory();
         adapter.clear();
         // Detach the adapter too: with Home stopped no layout pass runs, so the tile views (and the bitmaps
@@ -1770,8 +1783,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 ambient.animate().alpha(1f).setDuration(600).start();
             }
             heroShown = true;
+        } else if (changed && refinedHome) {
+            // Replace immediately and move a few pixels: no blank interval or stale fade-out callback.
+            hero.animate().withEndAction(null).cancel();
+            fillHero(position, label);
+            hero.setY(y);
+            hero.setAlpha(1f);
+            hero.setTranslationX(6f * density);
+            hero.animate().translationX(0f).setDuration(Motion.FOCUS_MS)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
+            if (ambientGlow && color != ambientColor) transitionAmbient(color);
         } else if (changed) {
-            if (advancedEffects) hero.animate().cancel();
+            hero.animate().withEndAction(null).cancel();
             hero.animate().alpha(0f).translationX(-12 * density).setDuration(120).withEndAction(() -> {
                 fillHero(position, label);
                 hero.setY(y);
@@ -2308,15 +2331,84 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 ? new Rect(0, 0, grid.getWidth(), Math.max(0, grid.getHeight() - grid.getPaddingBottom())) : null);
     }
 
+    /** Own focus while a destination is being laid out, instead of letting Android pick the weather. */
+    private void parkPageFocus() {
+        pageFocusGeneration++;
+        if (pageFocusRequest != null) root.removeCallbacks(pageFocusRequest);
+        pageFocusRequest = null;
+        if (!pageFocusParked) {
+            rootWasFocusable = root.isFocusable();
+            rootWasTouchFocusable = root.isFocusableInTouchMode();
+            pageFocusParked = true;
+        }
+        int descendants = root.getDescendantFocusability();
+        root.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        root.setFocusableInTouchMode(true);
+        root.requestFocus();
+        root.setDescendantFocusability(descendants);
+    }
+
+    private void releasePageFocus() {
+        if (!pageFocusParked) return;
+        pageFocusParked = false;
+        root.setFocusableInTouchMode(rootWasTouchFocusable);
+        root.setFocusable(rootWasFocusable);
+    }
+
+    private void cancelPageFocus() {
+        pageFocusGeneration++;
+        if (pageFocusRequest != null && root != null) root.removeCallbacks(pageFocusRequest);
+        pageFocusRequest = null;
+        releasePageFocus();
+    }
+
+    private void focusPageWhenReady(AppsFirstNavigation.Page page, int position) {
+        final int generation = ++pageFocusGeneration;
+        if (pageFocusRequest != null) root.removeCallbacks(pageFocusRequest);
+        pageFocusRequest = new Runnable() {
+            int frames;
+            @Override public void run() {
+                if (generation != pageFocusGeneration || homePage != page || isFinishing()) return;
+                boolean focused = false;
+                if (page == AppsFirstNavigation.Page.RECOMMENDATIONS) {
+                    recommendations.focusPreviousCard();
+                    focused = recommendations.focused();
+                } else if (!grid.hasPendingAdapterUpdates() && !grid.isLayoutRequested()) {
+                    if (adapter.appCount() == 0) focused = firstTopButton().requestFocus();
+                    else {
+                        int target = adapter.focusablePosition(Math.max(0, Math.min(position, adapter.appCount() - 1)));
+                        RecyclerView.ViewHolder holder = grid.findViewHolderForAdapterPosition(target);
+                        if (holder != null) {
+                            View card = holder.itemView.findViewById(R.id.card);
+                            if (card.isFocused()) { onTileFocused(target, card); focused = true; }
+                            else focused = card.requestFocus();
+                        }
+                    }
+                }
+                if (!focused && ++frames < 20) { root.postOnAnimation(this); return; }
+                if (!focused) firstTopButton().requestFocus();
+                pageFocusRequest = null;
+                releasePageFocus();
+            }
+        };
+        pageFocusRequest.run();
+    }
+
     private void showHomePage(AppsFirstNavigation.Page page) {
         if (!appsFirstHome) return;
         cancelPendingFocusScroll();
         grid.stopScroll();
+        boolean pageChanged = homePage != page;
+        boolean forward = page.ordinal() > homePage.ordinal();
+        boolean gridChanged = (homePage == AppsFirstNavigation.Page.APPS) != (page == AppsFirstNavigation.Page.APPS);
+        if (pageChanged) parkPageFocus();
+        Motion.reset(grid);
+        Motion.reset(findViewById(R.id.recommendationShelf));
         homePage = page;
         adapter.collapseDock(page == AppsFirstNavigation.Page.APPS && !reordering);
-        grid.invalidateItemDecorations();
+        if (gridChanged) grid.invalidateItemDecorations();
         updateHomeClip();
-        hideGlass(); hideHero();
+        if (pageChanged) { hideGlass(); hideHero(); }
         boolean catalog = page == AppsFirstNavigation.Page.RECOMMENDATIONS;
         recommendationShade.setVisibility(catalog ? View.VISIBLE : View.GONE);
         grid.setVisibility(catalog ? View.INVISIBLE : View.VISIBLE);
@@ -2325,25 +2417,28 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         pageButton.setText(page == AppsFirstNavigation.Page.HOME
                 ? R.string.home_recommendations_below : R.string.cinema_library_hint);
         if (catalog) {
-            root.post(() -> {
-                if (homePage == AppsFirstNavigation.Page.RECOMMENDATIONS) recommendations.focusPreviousCard();
-            });
+            focusPageWhenReady(page, 0);
         } else if (page == AppsFirstNavigation.Page.APPS) {
             int first = AppsFirstNavigation.firstRemaining(COLUMNS, adapter.appCount());
             grid.setPadding(grid.getPaddingLeft(), Math.round(16 * density), grid.getPaddingRight(), grid.getPaddingBottom());
             if (first >= 0) {
                 ((GridLayoutManager) grid.getLayoutManager()).scrollToPositionWithOffset(first, 0);
-                grid.post(() -> { if (homePage == AppsFirstNavigation.Page.APPS) focusTile(first); });
+                focusPageWhenReady(page, first);
             } else {
                 pageButton.setVisibility(View.VISIBLE);
                 pageButton.setText(R.string.app_library);
                 pageButton.requestFocus();
+                releasePageFocus();
             }
         } else {
             grid.setPadding(grid.getPaddingLeft(), homeDockPadding, grid.getPaddingRight(), grid.getPaddingBottom());
-            ((GridLayoutManager) grid.getLayoutManager()).scrollToPositionWithOffset(0, 0);
-            grid.post(() -> { if (homePage == AppsFirstNavigation.Page.HOME) focusTile(homeDockPosition); });
+            // Recommendations leave the dock in place; returning to it needs focus, not another layout.
+            if (gridChanged) ((GridLayoutManager) grid.getLayoutManager()).scrollToPositionWithOffset(0, 0);
+            focusPageWhenReady(page, homeDockPosition);
         }
+        if (pageChanged) Motion.enter(catalog ? findViewById(R.id.recommendationShelf) : grid,
+                (forward ? 10 : -10) * density, animations && !reducedMotion);
+        if (idleTilePool != null) idleTilePool.start();
     }
 
     @Override

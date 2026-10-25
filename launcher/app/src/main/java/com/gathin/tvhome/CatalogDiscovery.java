@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Automatic current/previous-year recommendations; saved lists and resume entries stay complete. */
+/** Current year plus two previous years; saved lists and resume entries stay complete. */
 final class CatalogDiscovery {
     private CatalogDiscovery() { }
     static int year(CatalogItem item) {
@@ -24,13 +24,15 @@ final class CatalogDiscovery {
         return recommendations(items, source, today, true);
     }
     static List<CatalogItem> recommendations(List<CatalogItem> items, int source, LocalDate today, boolean recentOnly) {
-        if (source != CatalogSource.TRAKT && source != CatalogSource.GOOGLE
+        if (source != CatalogSource.WATCHLY && source != CatalogSource.GOOGLE
                 && source != CatalogSource.TRENDING && source != CatalogSource.RECENT) return new ArrayList<>(items);
         List<CatalogItem> result = new ArrayList<>();
         for (CatalogItem item : items) {
             int year = year(item);
             LocalDate date = released(item);
-            if ((!recentOnly || year >= today.getYear() - 1) && year <= today.getYear()
+            // Watchly owns its configured year range; local Discover can opt into all years.
+            boolean allYears = source == CatalogSource.WATCHLY || (source == CatalogSource.RECENT && !recentOnly);
+            if (year > 0 && (allYears || year >= today.getYear() - 2) && year <= today.getYear()
                     && (date == null || !date.isAfter(today))) result.add(item);
         }
         return result;

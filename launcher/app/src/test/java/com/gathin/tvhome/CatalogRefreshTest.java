@@ -13,10 +13,11 @@ public class CatalogRefreshTest {
         assertTrue(policy.due(false, NOW, 0, NOW + 60_000));
     }
 
-    @Test public void persistedCatalogIsFreshForFourHours() {
+    @Test public void persistedCatalogIsFreshForTwelveHours() {
         CatalogRefresh policy = new CatalogRefresh();
         assertFalse(policy.due(false, NOW, 0, NOW));
-        assertFalse(policy.due(false, NOW, 0, NOW - CatalogRefresh.INTERVAL_MS + 1));
+        assertFalse(policy.due(false, NOW, 0, NOW - 12 * 60 * 60_000L + 1));
+        assertTrue(policy.due(false, NOW, 0, NOW - 12 * 60 * 60_000L));
     }
 
     @Test public void successfulRefreshUsesElapsedTimeEvenWhenWallClockChanges() {
@@ -48,7 +49,7 @@ public class CatalogRefreshTest {
         }
     }
 
-    @Test public void successfulRecoveryResetsFailuresAndRestoresFourHourInterval() {
+    @Test public void successfulRecoveryResetsFailuresAndRestoresTwelveHourInterval() {
         CatalogRefresh policy = new CatalogRefresh();
         policy.failed(0, 429);
         policy.succeeded(100);

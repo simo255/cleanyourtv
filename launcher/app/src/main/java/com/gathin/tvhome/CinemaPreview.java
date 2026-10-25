@@ -11,6 +11,10 @@ import android.widget.TextView;
 /** Typography-only title details; all artwork stays in the poster strip below. */
 final class CinemaPreview extends LinearLayout {
     private final TextView title, meta, summary;
+    private boolean animate;
+    private String selected = "";
+
+    void motion(boolean enabled, boolean reduced) { animate = enabled && !reduced; }
 
     CinemaPreview(Context context) {
         super(context);
@@ -41,18 +45,23 @@ final class CinemaPreview extends LinearLayout {
     }
 
     void show(CatalogItem item, String detail) {
-        title.setText(item.name);
+        String key = item.type + ":" + item.id;
+        boolean changed = !selected.equals(key);
+        selected = key;
+        if (!item.name.contentEquals(title.getText())) title.setText(item.name);
         String facts = detail;
         if (!item.rating.isEmpty()) facts += (facts.isEmpty() ? "" : "   ·   ") + "★ " + item.rating;
         String genres = item.genreLabel();
         if (!genres.isEmpty()) facts += (facts.isEmpty() ? "" : "   ·   ") + genres;
-        meta.setText(facts); meta.setVisibility(facts.isEmpty() ? GONE : VISIBLE);
-        summary.setText(item.description);
+        if (!facts.contentEquals(meta.getText())) meta.setText(facts);
+        meta.setVisibility(facts.isEmpty() ? INVISIBLE : VISIBLE);
+        if (!item.description.contentEquals(summary.getText())) summary.setText(item.description);
         summary.setVisibility(item.description.isEmpty() ? INVISIBLE : VISIBLE);
-        setVisibility(VISIBLE); requestLayout();
+        setVisibility(VISIBLE);
+        if (changed) Motion.enter(this, dp(4), animate);
     }
 
-    void clear() { setVisibility(INVISIBLE); }
+    void clear() { Motion.reset(this); selected = ""; setVisibility(INVISIBLE); }
 
     /** A small text shadow complements the apps-first page's soft wallpaper gradient. */
     void wallpaperContrast() {
@@ -62,7 +71,8 @@ final class CinemaPreview extends LinearLayout {
 
     @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int height = MeasureSpec.getSize(heightMeasureSpec);
-        summary.setMaxLines(height >= dp(160) ? 3 : 2);
+        int lines = height >= dp(160) ? 3 : 2;
+        if (summary.getMaxLines() != lines) summary.setMaxLines(lines);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 

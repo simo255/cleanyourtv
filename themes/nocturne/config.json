@@ -11,7 +11,7 @@
   "dock_even_padding": true,
   "always_show_names": true,
   "rows_below_dock": 0,
-  "uniform_tiles": true,
+  "uniform_tiles": false,
   "vpn_active_only": true,
   "vpn_location": true
 }

@@ -27,7 +27,7 @@
     <item name="recommendation_status" type="id" />
     <item name="recommendation_list" type="id" />
     <item name="recommendation_card" type="id" />
-    <string name="reco_for_you">Trakt</string>
+    <string name="reco_for_you">Watchly</string>
     <string name="reco_google">Google TV</string>
     <string name="reco_google_status">Google TV · Captured %1$s · Reload reads the saved snapshot</string>
     <string name="reco_google_reload">Reload</string>
@@ -43,26 +43,26 @@
     <string name="reco_tv_status">%1$s · %2$d items · Updated by your apps</string>
     <string name="reco_tv_permission">TV content permission required · Select Refresh to allow access</string>
     <string name="reco_tv_empty">No shared content in this view. Try another channel or open your streaming apps to update their suggestions.</string>
-    <string name="reco_provider_for_you">Trakt · Based on your history</string>
-    <string name="reco_provider_watchlist">Trakt · Your watchlist</string>
+    <string name="reco_provider_for_you">Watchly · Based on your history</string>
+    <string name="reco_provider_watchlist">Watchly · Your watchlist</string>
     <string name="reco_provider_trending">Cinemeta · Popular</string>
     <string name="reco_feed_loading">%1$s · Updating…</string>
     <string name="reco_feed_synced">%1$s · Updated %2$s</string>
     <string name="reco_feed_cached">%1$s unavailable · Showing saved catalog</string>
     <string name="reco_feed_error">%1$s unavailable · Try Refresh</string>
-    <string name="reco_watchlist_empty">Trakt · Your watchlist is empty in this category. Add titles in Trakt, then refresh.</string>
+    <string name="reco_watchlist_empty">Watchly · Your watchlist is empty in this category. Add titles in Watchly, then refresh.</string>
     <string name="reco_movies">Movies</string>
     <string name="reco_shows">TV shows</string>
     <string name="reco_refresh">Refresh</string>
     <string name="reco_menu">Home catalogs</string>
     <string name="reco_hide">Hide from home</string>
     <string name="reco_show">Show on home</string>
-    <string name="reco_loading">Trakt · Updating your recommendations…</string>
-    <string name="reco_synced">Trakt · Based on your history · Updated %1$s</string>
-    <string name="reco_cached">Trakt unavailable · Showing saved recommendations</string>
-    <string name="reco_check_connection">Check the Trakt connection in Stremio · Showing saved recommendations</string>
+    <string name="reco_loading">Watchly · Updating your recommendations…</string>
+    <string name="reco_synced">Watchly · Based on your history · Updated %1$s</string>
+    <string name="reco_cached">Watchly unavailable · Showing saved recommendations</string>
+    <string name="reco_check_connection">Check the Watchly connection in Stremio · Showing saved recommendations</string>
     <string name="reco_empty">No recommendations from the current or previous year in this category yet.</string>
-    <string name="reco_error">Unable to sync Trakt. Try Refresh or reconnect Trakt in Stremio.</string>
-    <string name="reco_setup">Connect the official Stremio–Trakt catalog to this launcher.</string>
+    <string name="reco_error">Unable to sync Watchly. Try Refresh or check your Watchly configuration.</string>
+    <string name="reco_setup">Connect the official Watchly ElfHosted catalog to this launcher.</string>
     <string name="reco_open_error">Unable to open this title in Stremio.</string>
 </resources>

@@ -20,9 +20,14 @@ final class CinemetaDiscovery {
         selected.add(GENRES[Math.floorMod(rotation, count)]);
         paths.add("year/genre=" + year);
         paths.add("year/genre=" + (year - 1));
+        paths.add("year/genre=" + (year - 2));
         paths.add("year/genre=" + year + "&skip=100");
         paths.add("top/genre=" + selected.get(0));
         paths.add("imdbRating");
+        // Broaden older discoveries without disclosing tastes in outgoing requests.
+        String olderYear = "year/genre=" + (year - 2 - Math.floorMod(rotation, 19));
+        if (!paths.contains(olderYear)) paths.add(olderYear);
+        paths.add("top/genre=" + GENRES[Math.floorMod(rotation + count / 2, count)]);
         return paths;
     }
     static List<CatalogItem> merge(List<List<CatalogItem>> pages) {
@@ -34,5 +39,23 @@ final class CinemetaDiscovery {
             if (added.add(RecommendationTaste.key(item.type, item.id))) result.add(item);
         }
         return result;
+    }
+
+    static List<CatalogItem> retain(List<CatalogItem> fresh, List<CatalogItem> previous) {
+        // Three fresh slots to one older slot; finite memory and deterministic refreshes.
+        List<CatalogItem> result = new ArrayList<>(); Set<String> added = new HashSet<>();
+        Set<String> freshIds = new HashSet<>();
+        for (CatalogItem item : fresh) freshIds.add(RecommendationTaste.key(item.type, item.id));
+        int current = 0, old = 0;
+        while (result.size() < MAX_ITEMS && (current < fresh.size() || old < previous.size())) {
+            for (int i = 0; i < 3 && current < fresh.size() && result.size() < MAX_ITEMS; i++)
+                add(result, added, fresh.get(current++));
+            while (old < previous.size() && freshIds.contains(RecommendationTaste.key(previous.get(old).type, previous.get(old).id))) old++;
+            if (old < previous.size() && result.size() < MAX_ITEMS) add(result, added, previous.get(old++));
+        }
+        return result;
+    }
+    private static void add(List<CatalogItem> result, Set<String> added, CatalogItem item) {
+        if (added.add(RecommendationTaste.key(item.type, item.id))) result.add(item);
     }
 }

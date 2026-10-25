@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Account-local watched evidence, independent of the four-hour recommendation catalog cache. */
+/** Account-local watched evidence, independent of the twelve-hour recommendation catalog cache. */
 final class StremioViewing {
     static final int MAX_MOVIES = 5000, MAX_SERIES = 1000;
     private StremioViewing() { }
