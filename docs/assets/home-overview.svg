@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="760" viewBox="0 0 1440 760" role="img" aria-labelledby="title desc">
+<title id="title">Android TV Home: apps first, cinema when you want it</title>
+<desc id="desc">Illustrated preview with fictional titles. No account, location or viewing history.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#142339"/><stop offset="1" stop-color="#090c10"/></linearGradient>
+<linearGradient id="sky" x2=".7" y2="1"><stop stop-color="#20476d"/><stop offset="1" stop-color="#111929"/></linearGradient></defs>
+<rect width="1440" height="760" rx="28" fill="url(#bg)"/>
+<g font-family="Segoe UI, Arial, sans-serif">
+<text x="52" y="65" fill="#92c5ff" font-size="14" font-weight="700">ANDROID TV HOME</text>
+<text x="52" y="133" fill="#f6f2ea" font-size="48" font-weight="650">Your apps. Your next episode.</text>
+<text x="54" y="172" fill="#acb9ca" font-size="21" font-weight="400">A native launcher with Stremio, Watchly and a remote-friendly cinema view.</text>
+<rect x="52" y="208" width="650" height="380" rx="20" fill="url(#sky)" stroke="#38485d" stroke-width="1"/>
+<path d="M53 476L185 365 294 454 409 323 573 467 701 390V587H53Z" fill="#101e30"/><path d="M53 522L228 430 381 496 553 402 701 480V587H53Z" fill="#0b1421"/>
+<circle cx="149" cy="305" r="1.5" fill="#b4c7e0"/>
+<circle cx="291" cy="258" r="1.5" fill="#b4c7e0"/>
+<circle cx="465" cy="292" r="1.5" fill="#b4c7e0"/>
+<circle cx="369" cy="337" r="1.5" fill="#b4c7e0"/>
+<text x="78" y="251" fill="#f6f2ea" font-size="24" font-weight="400">10:24</text>
+<text x="162" y="250" fill="#acb9ca" font-size="12" font-weight="400">Sunday</text>
+<circle cx="585" cy="241" r="15" fill="#293d56" stroke="#70849b"/>
+<circle cx="626" cy="241" r="15" fill="#293d56" stroke="#70849b"/>
+<circle cx="667" cy="241" r="15" fill="#293d56" stroke="#70849b"/>
+<g fill="none" stroke="#d6e2f1" stroke-width="1.6" stroke-linecap="round"><rect x="579" y="236" width="12" height="10" rx="1"/><path d="m580 245 4-4 3 3 3-4M620 237h12m-12 4h12m-12 4h12"/><circle cx="667" cy="241" r="5"/><path d="M667 232v3m0 12v3m-9-9h3m12 0h3"/></g>
+<text x="80" y="419" fill="#f6f2ea" font-size="34" font-weight="400">Stremio</text>
+<rect x="79" y="453" width="133" height="71" rx="12" fill="#211943" stroke="#f6f2ea" stroke-width="3"/>
+<text x="95" y="495" fill="#eee8ff" font-size="20" font-weight="600">stremio</text>
+<rect x="233" y="453" width="133" height="71" rx="12" fill="#f4f5f7" stroke="#465973" stroke-width="1"/>
+<text x="249" y="495" fill="#17191d" font-size="20" font-weight="600">YouTube</text>
+<rect x="387" y="453" width="133" height="71" rx="12" fill="#111b19" stroke="#465973" stroke-width="1"/>
+<text x="403" y="495" fill="#35d983" font-size="20" font-weight="600">Spotify</text>
+<rect x="541" y="453" width="133" height="71" rx="12" fill="#1764ad" stroke="#465973" stroke-width="1"/>
+<text x="557" y="495" fill="#ffffff" font-size="20" font-weight="600">Your apps</text>
+<text x="300" y="563" fill="#acb9ca" font-size="14" font-weight="400">↓ Recommendations</text>
+<rect x="738" y="208" width="650" height="380" rx="20" fill="#090c10" stroke="#38485d" stroke-width="1"/>
+<text x="764" y="248" fill="#acb9ca" font-size="12" font-weight="400">Continue</text>
+<text x="846" y="248" fill="#92c5ff" font-size="12" font-weight="400">For you</text>
+<text x="917" y="248" fill="#acb9ca" font-size="12" font-weight="400">Discover</text>
+<text x="997" y="248" fill="#acb9ca" font-size="12" font-weight="400">Trending</text>
+<text x="1267" y="248" fill="#acb9ca" font-size="12" font-weight="400">Movies</text>
+<text x="1330" y="248" fill="#acb9ca" font-size="12" font-weight="400">Series</text>
+<path d="M846 260h46" stroke="#76b7ff" stroke-width="2"/>
+<text x="766" y="309" fill="#f6f2ea" font-size="30" font-weight="650">Orbit</text>
+<text x="766" y="335" fill="#acb9ca" font-size="13" font-weight="400">Science fiction · A journey beyond the familiar.</text>
+<rect x="765" y="363" width="125" height="162" rx="8" fill="#244d79" stroke="#92c5ff" stroke-width="2"/>
+<circle cx="827" cy="419" r="34" fill="none" stroke="#aacff1"/><ellipse cx="827" cy="419" rx="49" ry="12" fill="none" stroke="#aacff1" transform="rotate(-25 827 419)"/>
+<text x="777" y="505" fill="#eef4ff" font-size="15" font-weight="600">ORBIT</text>
+<rect x="905" y="363" width="125" height="162" rx="8" fill="#69503f" stroke="#69503f" stroke-width="1"/>
+<circle cx="972" cy="408" r="23" fill="#e4e2e9" opacity=".3"/><path d="M905 475l31-38 31 25 34-42 29 50v55H905Z" fill="#101c2d" opacity=".65"/>
+<text x="917" y="505" fill="#eef4ff" font-size="15" font-weight="600">NORTH</text>
+<rect x="1045" y="363" width="125" height="162" rx="8" fill="#4b426f" stroke="#4b426f" stroke-width="1"/>
+<circle cx="1112" cy="408" r="23" fill="#e4e2e9" opacity=".3"/><path d="M1045 475l31-38 31 25 34-42 29 50v55H1045Z" fill="#101c2d" opacity=".65"/>
+<text x="1057" y="505" fill="#eef4ff" font-size="15" font-weight="600">AFTER DARK</text>
+<rect x="1185" y="363" width="125" height="162" rx="8" fill="#285e61" stroke="#285e61" stroke-width="1"/>
+<circle cx="1252" cy="408" r="23" fill="#e4e2e9" opacity=".3"/><path d="M1185 475l31-38 31 25 34-42 29 50v55H1185Z" fill="#101c2d" opacity=".65"/>
+<text x="1197" y="505" fill="#eef4ff" font-size="15" font-weight="600">WAVES</text>
+<rect x="1325" y="363" width="37" height="162" rx="8" fill="#293141" stroke="#293141" stroke-width="1"/>
+<text x="766" y="562" fill="#8998ac" font-size="13" font-weight="400">Watchly picks + local preferences</text>
+<text x="52" y="632" fill="#f6f2ea" font-size="23" font-weight="650">Apps first</text>
+<text x="52" y="662" fill="#acb9ca" font-size="17" font-weight="400">Full-logo tiles, circular controls, recommendations below.</text>
+<text x="738" y="632" fill="#f6f2ea" font-size="23" font-weight="650">Nocturne</text>
+<text x="738" y="662" fill="#acb9ca" font-size="17" font-weight="400">Posters, readable synopses and deliberate D-pad focus.</text>
+<path d="M52 695h1336" stroke="#293747"/>
+<text x="52" y="728" fill="#7e91a9" font-size="12" font-weight="400">ILLUSTRATED PREVIEW · DEMO CONTENT · NO PERSONAL DATA</text>
+<text x="1210" y="728" fill="#9cbbdf" font-size="13" font-weight="400">English + Français</text>
+</g></svg>

@@ -1,4 +1,10 @@
-# Android TV Home · Stremio + Trakt
+# Android TV Home · Stremio + Watchly
+
+<p align="center">
+  <img src="docs/assets/home-overview.svg" alt="Illustrated Apps-first and Nocturne layouts with full-logo app tiles, circular controls and fictional movie posters. No personal data." width="1200">
+</p>
+
+<p align="center"><strong>Native Java · Android TV 8+ · English &amp; French · Optional account connections · No telemetry</strong></p>
 
 A personal Android TV launcher that brings your favorite apps, Stremio viewing progress and
 personalized film and series recommendations onto Home. Built on
@@ -6,7 +12,7 @@ personalized film and series recommendations onto Home. Built on
 with the **Nocturne** cinema interface and optional **apps-first Home**.
 
 [Install and connect accounts](PERSONALIZATION.md#build-and-try-the-launcher) ·
-[Recommendation setup](docs/recommendations.md) ·
+[Watchly setup](docs/watchly.md) ·
 [Themes and options](themes/README.md) ·
 [Contributing](CONTRIBUTING.md)
 
@@ -16,7 +22,7 @@ I started with CleanYourTV's native launcher and reversible TV cleanup tools, th
 launcher for how I use my own TV: open my favorite apps, pick up a Stremio episode, or find
 something to watch without digging through several apps.
 
-My changes bring Stremio and Trakt into Home, add local viewing preferences, and give the interface
+My changes bring Stremio and Watchly into Home, add local viewing preferences, and give the interface
 a cinema layout that works with a remote. I also added an apps-first layout, so the main screen
 can stay focused on favorite apps and a wallpaper, with recommendations one Down press away.
 The original launcher, TV lists, themes and cleanup tools remain part of the project.
@@ -25,22 +31,34 @@ The original launcher, TV lists, themes and cleanup tools remain part of the pro
 
 | Apps first | Nocturne catalog layout |
 |---|---|
-| ![Apps-first Home on the onn TV, showing favorite apps over a wallpaper and a Recommendations shortcut](docs/switches/apps_first_home.jpg) | ![Nocturne on the onn TV, showing catalog tabs, title details, a poster strip and the app dock](themes/nocturne/screenshot.jpg) |
-| Favorite apps on the main screen; press Down to open recommendations. | Title details and recommendations above the app dock, on a solid background. |
+| Favorite apps on the main screen; press **Down** for recommendations, then Down again for the other apps. | Title details, synopses and recommendations above the app dock, on a solid background. |
+| Rounded full-logo app tiles, compact circular header buttons and an optional wallpaper. | Large posters, blue source indicators and side menus; hold OK for the full synopsis. |
 
-These are example configurations from the onn TV. Apps, recommendations and wallpaper depend on
-your own setup. The Home wallpaper is credited to NASA/JPL-Caltech in the
-[screenshot notes](docs/switches.md). Both layouts are optional; see
+The illustration above uses demo content, not an account's recommendations or location.
+Apps, recommendations and wallpaper depend on your own setup. Both layouts are optional; see
 [customization](PERSONALIZATION.md#customize) and the [Nocturne theme](themes/nocturne/config.json).
+
+<details>
+<summary>Real-device example: apps-first Home</summary>
+
+![Earlier apps-first configuration on an onn TV, without location or account details](docs/switches/apps_first_home.jpg)
+
+This earlier configuration uses icon tiles; Nocturne now also supports the full-logo presentation
+illustrated above. Wallpaper credit: NASA/JPL-Caltech, in the [screenshot notes](docs/switches.md).
+
+</details>
 
 ## What I added and customized
 
 - **Stremio Continue and Coming next.** Connect by QR code, see films and episodes in progress,
   check remaining time, and open the exact episode in Stremio. A separate view lists dated upcoming
   episodes when metadata is available.
-- **Personalized discovery.** Read your official Stremio Trakt Integration catalogs, filter known
+- **Recommendation years.** Watchly For you follows its configured year range. Trending and the recent-period
+  option in Discover show the current release year and two previous years (2024–2026 in 2026).
+  Series use their premiere year.
+- **Personalized discovery.** Read your Watchly ElfHosted Top Picks catalogs, filter known
   watched titles, and refine ordering with local positive viewing preferences. Public Cinemeta
-  catalogs provide discovery and trending views alongside the private Trakt feed.
+  catalogs provide discovery and trending views alongside the private Watchly feed.
 - **The Nocturne interface.** Large posters, readable title details and available synopses, clear
   focus, blue source indicators and side menus. Title artwork stays in the poster strip; the optional
   apps-first layout can use a wallpaper behind its content.
@@ -56,6 +74,10 @@ your own setup. The Home wallpaper is credited to NASA/JPL-Caltech in the
   refresh viewing information on return to Home, reuse rankings when inputs are unchanged, and
   bound catalog requests, poster decoding and caches. Selected upstream fixes are integrated
   alongside these changes.
+- **Motion and stable focus.** Short focus zooms and page transitions, with reduced-motion support.
+  Poster refreshes keep existing artwork. Returning from recommendations restores the selected app
+  without briefly highlighting weather. App holders are prepared while idle, and page changes avoid
+  unnecessary full-grid refreshes.
 
 The additions in this fork support **English and French**. Upstream translations, module cards
 and themes remain available; the upstream reference documentation is preserved below.
@@ -65,13 +87,32 @@ and themes remain available; the upstream reference documentation is preserved b
 | View | Where it comes from | What it is for |
 |---|---|---|
 | **Continue / Reprendre** | Your separate Stremio QR connection | Resume viewing or check upcoming episodes. |
-| **For you / Trakt** | Your official Stremio Trakt Integration add-on | Account recommendations, with local filtering and ranking. |
+| **For you / Watchly** | Your Watchly ElfHosted add-on | Account recommendations, with local filtering and ranking. |
 | **Discover / Découvrir** | Public Cinemeta catalogs, in enhanced mode | Explore recent and older titles across years and genres. Basic mode shows **New releases** instead. |
 | **Trending / Tendances** | Public Cinemeta Popular catalogs | Browse popular titles in provider order, with known watched exclusions in enhanced mode. |
 
-Stremio resume and the Trakt catalog are **separate connections**. Connecting one does not connect
+Stremio resume and the Watchly catalog are **separate connections**. Connecting one does not connect
 the other. The launcher opens titles in Stremio; playback and account scrobbling are handled there.
 The former Google TV snapshot integration has been removed from the current flow.
+
+## What updates automatically?
+
+```mermaid
+flowchart LR
+    S[Stremio viewing history] -->|Scheduled sync| W[Watchly profile and Top Picks]
+    W -->|Fetch current catalogs| H[Launcher recommendations]
+    L[Local choices: hide, seen, more like this] -->|Immediate filter and ranking| H
+```
+
+| Action | What happens | When |
+|---|---|---|
+| Watch in Stremio | Stremio saves progress; Watchly uses the synced account history in its next rebuild. | Watchly has its own server schedule; this is not instant after each episode. |
+| Open recommendations | The launcher fetches Watchly's current movie/series rows. | Twelve-hour cache, checked while the launcher is active; **Home content → Refresh** fetches sooner. |
+| Resume an episode | Continue reads the separate Stremio connection. | On return to Home, with a one-minute minimum gap; every 15 minutes while Home stays visible. |
+| Choose **Not interested** | The title disappears and stays hidden across catalog refreshes. | Immediately, on this box. No dislike is uploaded to Watchly or Stremio, and the title's entire genre is not penalized. |
+
+**Refresh fetches existing provider results; it does not force Watchly to rebuild its profile.**
+Local feedback remains local. See [Watchly behavior and privacy](docs/watchly.md#what-home-shows).
 
 ## How I improved recommendations
 
@@ -92,13 +133,13 @@ The optional enhanced mode adds:
   recent years. Basic New releases keeps its recent-year scope.
 - **More variety in the first 20 results.** Among nearby positive matches, full genre, cast and
   director overlap helps reduce repetition. Public discoveries are kept separate from the private
-  Trakt feed.
+  Watchly feed.
 - **Shared watched exclusions.** With enhanced mode and Stremio connected, films marked watched
-  and series with confirmed completion are filtered from Trakt, Discover and Trending. Season-aware
+  and series with confirmed completion are filtered from Watchly, Discover and Trending. Season-aware
   evidence keeps later unwatched seasons from being mistaken for whole-series completion.
 
 This is local, rule-based ranking, without an AI model. It depends on the history and metadata
-available; it is not a complete account-history sync. Discovery catalogs use a **four-hour cache**.
+available; it is not a complete account-history sync. Discovery catalogs use a **twelve-hour cache**.
 Stremio viewing refreshes independently on return to Home, with a one-minute minimum gap, and
 every 15 minutes while Home stays visible. Failed reads back off; manual Refresh is available.
 See the [configuration, completion rules and limits](docs/recommendations.md).
@@ -135,7 +176,7 @@ signing key to preserve access to existing app data.
 
 1. [Install the launcher and try it on your TV](PERSONALIZATION.md#build-and-try-the-launcher).
 2. Open Continue and approve the Stremio QR sign-in if you want resume and viewing information.
-3. [Connect your official Trakt add-on](PERSONALIZATION.md#connect-stremio--trakt) and optionally enable enhanced recommendations.
+3. [Connect Watchly ElfHosted](docs/watchly.md#connect) and optionally enable enhanced recommendations.
 4. [Choose a theme and edit the dock](PERSONALIZATION.md#customize). Apps-first Home and weather are separate opt-in options.
 
 Installing the launcher does not automatically debloat the TV. The inherited cleanup procedure is
@@ -144,11 +185,14 @@ a separate operation in [PROMPT.md](PROMPT.md), with backups and reversible pack
 ## Device checks and project credits
 
 Development and device checks use an **onn Streaming Device 4K Pro running Android TV 12**.
-The latest recommendation changes passed launcher unit tests, release lint with zero errors and
-a release build; the same changes were installed in the debug variant used for private configuration.
-On that TV, checks covered enhanced catalog refresh, poster rendering, D-pad navigation,
+The launcher passes **357 JVM tests**, release lint with zero errors and a release build.
+On that TV, debug-build checks covered enhanced catalog refresh, poster rendering, D-pad navigation,
 click-only film/series selection, and preservation of the account session, theme, dock and Home setup.
-Other devices, firmware and app playback paths need their own validation.
+The recommendations-to-apps focus fix was checked through repeated page changes and deliberate weather
+selection. Layout work is reduced, but occasional frame-time spikes remain measurable; a constant frame
+rate is not guaranteed. The subsequent twelve-hour cache adjustment has unit coverage; its full interval
+has not been verified by a twelve-hour device run. Other devices, firmware and playback paths need their
+own validation.
 
 This is a fork of **CleanYourTV**, formerly **tv-vibehack**, by **Gathin23 and contributors**.
 Their native launcher, reversible tools, community device lists, themes and add-on system form the
@@ -156,7 +200,7 @@ foundation. This fork deliberately adds optional network catalogs and a differen
 The original offline behavior, APK size and compatibility descriptions below belong to upstream.
 
 The project retains the [MIT license](LICENSE). The Outfit font uses the
-[SIL Open Font License](launcher/FONT-LICENSE-OFL.txt). Stremio and Trakt are independent services;
+[SIL Open Font License](launcher/FONT-LICENSE-OFL.txt). Stremio and Watchly are independent services;
 this is not an official client of either. See [PERSONALIZATION.md](PERSONALIZATION.md) for the full
 feature guide and [CONTRIBUTING.md](CONTRIBUTING.md) for the fork's contribution scope.
 
@@ -580,7 +624,7 @@ tools/theme.sh themes/aurora                                 # push a theme; --r
 | Tool | What it does |
 |---|---|
 | [`tools/tv.py`](tools/tv.py) | Pure-Python ADB client: shell, batch, push, pull, reboot, and screenshots, optionally pressing remote keys first. Works where the stock `adb` binary is blocked. |
-| [`tools/configure-recommendations.py`](tools/configure-recommendations.py) | This fork: privately configure the optional Stremio/Trakt catalogs. [Guide](docs/recommendations.md). |
+| [`tools/configure-recommendations.py`](tools/configure-recommendations.py) | This fork: privately configure Watchly ElfHosted catalogs. [Guide](docs/watchly.md). |
 | [`tools/build-taste-profile.py`](tools/build-taste-profile.py) | This fork: prepare a private positive-viewing profile from a saved Stremio library and local metadata. [Guide](docs/recommendations.md#positive-viewing-and-explicit-feedback). |
 | [`tools/sync-google-tv.py`](tools/sync-google-tv.py) | This fork: import a dated capture into the separate Google TV view. [Guide](docs/google-tv-personalization.md). |
 | [`tools/refresh-google-tv-termux.sh`](tools/refresh-google-tv-termux.sh) | Run the optional Google TV capture on the box itself using Termux. [Setup](docs/google-tv-personalization.md#run-locally-in-termux-without-a-computer). |
