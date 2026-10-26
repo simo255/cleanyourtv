@@ -1,4 +1,4 @@
-tools/venv
+tools/venv/
 tools/adbkey/
 __pycache__/
 launcher/.gradle/
@@ -33,6 +33,8 @@ tests/__pycache__/
 # session screenshots and working notes (may show the Wi-Fi name or account avatar) stay local
 shots/
 work/
+# Local task attachments may contain private screenshots or device state.
+.codex-remote-attachments/
 # Perfetto traces from tools/trace.py: large, and they hold the TV's process list
 traces/
 .DS_Store

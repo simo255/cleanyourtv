@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">בית</string>
+    <string name="app_name">Neovia</string>
     <string name="inputs">כניסות</string>
     <string name="wifi">Wi-Fi</string>
     <string name="settings">הגדרות</string>
@@ -42,7 +42,7 @@
     <string name="vpn">VPN</string>
     <string name="vpn_off">ה־VPN כבוי</string>
     <string name="home_settings">בחירת מסך הבית כברירת מחדל</string>
-    <string name="home_settings_help">כדי להפסיק להשתמש ב־CleanYourTV כמסך הבית, יש לבחור במסך הבית המקורי. כדי לחזור, יש לבחור ב־CleanYourTV. אפליקציית מסך הבית המקורית חייבת להיות פעילה, והטלוויזיה צריכה לתמוך בבחירת מסך בית. אם האפליקציה הושבתה, יש להפעיל תחילה את סקריפט השחזור.</string>
+    <string name="home_settings_help">כדי להפסיק להשתמש ב־Neovia כמסך הבית, יש לבחור במסך הבית המקורי. כדי לחזור, יש לבחור ב־Neovia. אפליקציית מסך הבית המקורית חייבת להיות פעילה, והטלוויזיה צריכה לתמוך בבחירת מסך בית. אם האפליקציה הושבתה, יש להפעיל תחילה את סקריפט השחזור.</string>
     <string name="launcher_settings">הגדרות מסך הבית</string>
     <string name="columns_label">אפליקציות בשורה</string>
     <string name="dock_opacity_label">עוצמת הרקע בשורת המועדפים</string>

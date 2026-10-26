@@ -1,6 +1,6 @@
-# Android TV Home · Stremio + Watchly
+# Neovia setup and personalization
 
-A customizable fork of [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv), previously
+Neovia is a customizable Android TV launcher built on [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv), previously
 **tv-vibehack**, with personalized recommendations on a clean Android TV home screen.
 The recommendation integration has been tested on an **onn Streaming Device 4K Pro, Android TV 12**.
 Other firmware needs its own compatibility check.
@@ -9,11 +9,15 @@ Cette version ajoute les recommandations Stremio/Trakt, un dock de sept applicat
 avec la télécommande, un menu rapide et un indicateur VPN. Chaque utilisateur connecte son
 propre catalogue : aucun compte, historique personnel ou lien privé n'est inclus dans le code.
 
+The app is named **Neovia**. Its Android package remains `com.gathin.tvhome` so updates with
+the same signing key keep the existing installation and private app data. The cinema theme remains
+in `themes/nocturne/` for compatibility with existing setups.
+
 Current recommendations use **Watchly ElfHosted**, configured with Stremio history. See
 [the current connection guide](docs/watchly.md). Earlier numbered feature notes below may refer to
 Trakt, which was the previous provider; those connection instructions are superseded.
 
-## What this fork adds
+## What Neovia adds
 
 - **Stremio Continue / Reprendre**: opt-in QR sign-in to your Stremio account, separate from the Trakt
   catalog connection. Resume films and series with progress, remaining minutes and the exact episode
@@ -104,8 +108,8 @@ Requires JDK 17, Android SDK platform 34/build-tools 34.0.0, Python 3.9+, and of
 platform-tools (`adb`). The launcher requires Android 8.0 or later; other devices are unverified.
 
 ```sh
-git clone --branch main https://github.com/simo255/cleanyourtv.git
-cd cleanyourtv/launcher
+git clone --branch main https://github.com/simo255/neovia.git
+cd neovia/launcher
 ./gradlew assembleDebug
 ```
 

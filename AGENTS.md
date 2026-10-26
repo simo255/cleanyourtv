@@ -1,10 +1,15 @@
 # AGENTS.md
 
-Fork scope: this repository adds opt-in Stremio/Trakt personalization and the Nocturne cinema UI. See
-[PERSONALIZATION.md](PERSONALIZATION.md). Network catalogs are intentional in this fork, account
-connections must stay private. This fork has no hard APK size limit; CI reports the release size.
-The upstream contribution policy
-below describes the offline reference launcher and submissions to the original project.
+Neovia is a personal Android TV launcher built on CleanYourTV. Prioritize its cinema interface,
+Stremio resume, Watchly catalogs and local personalization. See [PERSONALIZATION.md](PERSONALIZATION.md).
+The app label and Gradle project are Neovia; retain the Android package and existing theme paths
+for upgrade compatibility. Account connections stay private; catalog features remain opt-in.
+There is no hard APK size limit. CI reports the release size.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) defines Neovia's contribution scope. The inherited policies below
+apply to CleanYourTV tools and upstream submissions. Their offline-only, restyling and contribution
+routing restrictions do not prohibit Neovia's existing online features or cinema interface.
+Device safety rules still apply in full. Inherited reference tables live in [UPSTREAM.md](UPSTREAM.md).
 
 Instructions for coding agents (Claude Code, Codex, Gemini CLI, Cursor, Copilot and others) working in
 this repository. People should start with [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md);
@@ -68,7 +73,7 @@ share their TV's list afterwards, follow [`docs/workflows/tv-list.md`](docs/work
 | Path | What it is |
 |---|---|
 | `PROMPT.md` | The prompt people paste into their agent. Brand-neutral; safety rules live here. |
-| `README.md` | Front page, with the TV table and the Tools table. `README.zh-CN.md` and `README.vi.md` are translations. |
+| `README.md` | Neovia front page. `UPSTREAM.md` holds the inherited TV and Tools tables. `README.zh-CN.md` and `README.vi.md` are translations. |
 | `CONTRIBUTING.md` | The contributor guide for people. "Where does my idea go?" is the routing table. |
 | `SECURITY.md` | Private vulnerability reporting. |
 | `SHOWCASE.md` | Projects built on this repo that live in their own repositories. |
@@ -124,7 +129,7 @@ use it and ends with the check to run.
 | Tests, as CI runs them | `python3 -m unittest discover -s tests -v` after `python3 -m venv tools/venv` and `tools/venv/bin/pip install -r tools/requirements.txt`. On `main`, CI sets `CLEANYOURTV_STRICT=1`, which also checks the README's TV-model count. |
 | Launcher, if you touched `launcher/` | JDK 17, Android SDK platform 34, build-tools 34.0.0. In `launcher/`: `./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease`. Lint must stay at zero errors. |
 | APK size report | No hard APK size limit in this fork. Record the size of `launcher/app/build/outputs/apk/release/app-release.apk`; CI reports it without rejecting larger builds. |
-| README rows | A new list has its row in `README.md` and `examples/README.md`; a theme in `themes/README.md`; an add-on in `addons/README.md`. |
+| README rows | A new list has its row in `UPSTREAM.md` and `examples/README.md`; a theme in `themes/README.md`; an add-on in `addons/README.md`. |
 | One topic per PR | A TV list never rides inside a launcher feature PR. A device's list plus small fixes for that same device can be one PR. |
 | Tested on | Say which TV, Android version and firmware you tested on, in the PR template's "Tested on" line. |
 | Real TV | Launcher changes are verified on a real TV, not only the emulator: `tools/tv.py --screenshot shots/after.png DPAD_DOWN`. D-pad from every edge (Up, Down, Left, Right). A button handled by an accessibility helper needs a press on the real remote, and a force-stop of the launcher switches the helpers off (`docs/TROUBLESHOOTING.md`). |
