@@ -1,7 +1,6 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
@@ -11,6 +10,8 @@ import android.text.format.DateFormat;
 import android.view.View;
 import android.widget.TextView;
 import java.util.Date;
+import java.time.LocalDate;
+import org.json.JSONObject;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,14 +32,9 @@ final class HomeWeather {
 
     HomeWeather(Activity activity, TextView view) {
         this.activity = activity; this.view = view;
-        view.setText(R.string.home_weather_open);
-        view.setContentDescription(activity.getString(R.string.home_weather_open));
+        view.setText(R.string.home_weather_pending);
+        view.setContentDescription(activity.getString(R.string.home_weather_pending));
         view.setVisibility(View.VISIBLE);
-        view.setOnClickListener(v -> {
-            try { activity.startActivity(new Intent().setClassName("io.github.sumyabazar1.weather", "io.github.sumyabazar1.weather.WeatherActivity")); }
-            catch (Exception ignored) { android.widget.Toast.makeText(activity,
-                    R.string.home_weather_unavailable, android.widget.Toast.LENGTH_LONG).show(); }
-        });
     }
     void resume() {
         if (closed || active) return;
@@ -61,10 +57,18 @@ final class HomeWeather {
                     if (!city.isEmpty() && temp >= -100 && temp <= 70 && at > 0 && at <= System.currentTimeMillis() + 300_000) {
                         String time = DateFormat.getTimeFormat(activity).format(new Date(at));
                         boolean stale = System.currentTimeMillis() - at >= 30 * 60_000L;
-                        label = activity.getString(R.string.home_weather_reading, city, temp) + "  ·  "
+                        label = activity.getString(R.string.home_weather_current, temp) + "  ·  "
                                 + (stale ? activity.getString(R.string.home_weather_saved, time) : condition);
-                        detail = activity.getString(R.string.home_weather_detail, city, temp, condition, time);
-                        if (stale) detail += " · " + activity.getString(R.string.home_weather_saved, time);
+                        detail = label;
+                        int forecastColumn = cursor.getColumnIndex("forecast");
+                        if (forecastColumn >= 0) {
+                            String forecast = cursor.getString(forecastColumn);
+                            LocalDate today = LocalDate.now();
+                            label = forecastLine(R.string.home_weather_today, WeatherBand.day(forecast, today))
+                                    + "\n" + forecastLine(R.string.home_weather_tomorrow, WeatherBand.day(forecast, today.plusDays(1)));
+                            if (stale) label += "\n" + activity.getString(R.string.home_weather_saved, time);
+                            detail = label;
+                        }
                     }
                 }
             } catch (Exception ignored) { /* Optional add-on absent, not configured or signed with a different key. */ }
@@ -72,12 +76,22 @@ final class HomeWeather {
             final String text = label, description = detail;
             main.post(() -> {
                 if (!active || closed) return;
-                view.setText(text.isEmpty() ? activity.getString(R.string.home_weather_open) : text);
+                view.setText(text.isEmpty() ? activity.getString(R.string.home_weather_pending) : text);
                 view.setContentDescription(description.isEmpty()
-                        ? activity.getString(R.string.home_weather_open) : description);
+                        ? activity.getString(R.string.home_weather_pending) : description);
                 view.setVisibility(View.VISIBLE);
             });
         });
+    }
+    private String forecastLine(int label, JSONObject day) {
+        String name = activity.getString(label);
+        if (day == null) return name + "   ·   " + activity.getString(R.string.home_weather_forecast_missing);
+        String result = name + "   " + WeatherBand.icon(day.optInt("code", 3)) + "   "
+                + day.optInt("max") + "° / " + day.optInt("min") + "°   ·   " + clean(day.optString("condition"));
+        int precipitation = day.optInt("precipitation", -1);
+        if (precipitation >= 0 && precipitation <= 100)
+            result += " · " + activity.getString(R.string.home_weather_precipitation, precipitation);
+        return result;
     }
     private static String clean(String text) {
         if (text == null) return "";

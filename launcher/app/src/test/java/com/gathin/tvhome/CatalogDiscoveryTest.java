@@ -13,12 +13,12 @@ public class CatalogDiscoveryTest {
         return new CatalogItem(new JSONObject().put("id", id).put("type", "movie").put("name", id)
                 .put("releaseInfo", year).put("released", released));
     }
-    @Test public void watchlyKeepsOlderSuggestionsButRejectsFutureReleases() throws Exception {
+    @Test public void watchlyRejectsOlderSuggestionsAndFutureReleases() throws Exception {
         List<CatalogItem> input = Arrays.asList(item("tt1", "2008", "2008-01-01"), item("tt2", "2026", ""),
                 item("tt3", "2027", ""), item("tt4", "2026", "2026-12-01"));
         for (boolean recent : new boolean[]{true, false}) {
             List<CatalogItem> result = CatalogDiscovery.recommendations(input, CatalogSource.WATCHLY, TODAY, recent);
-            assertEquals(2, result.size()); assertEquals("tt1", result.get(0).id); assertEquals("tt2", result.get(1).id);
+            assertEquals(1, result.size()); assertEquals("tt2", result.get(0).id);
         }
     }
     @Test public void fixedRecommendationsKeep2024Through2026EvenWithAllYearsSaved() throws Exception {
@@ -31,7 +31,7 @@ public class CatalogDiscoveryTest {
                     new CatalogItem(item("tt5", "2027", "").json().put("type", type)),
                     new CatalogItem(item("tt6", "", "").json().put("type", type)),
                     new CatalogItem(item("tt7", "2026", "2026-12-01").json().put("type", type)));
-            for (int source : new int[]{CatalogSource.TRENDING}) {
+            for (int source : new int[]{CatalogSource.WATCHLY, CatalogSource.TRENDING}) {
                 for (boolean recent : new boolean[]{true, false}) {
                     List<CatalogItem> result = CatalogDiscovery.recommendations(input, source, TODAY, recent);
                     assertEquals(Arrays.asList(input.get(1), input.get(2), input.get(3)), result);

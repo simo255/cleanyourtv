@@ -1,9 +1,10 @@
 # Weather
 
-This fork also supports a compact weather summary directly on Home. Build this add-on (1.1+)
+This fork also supports a compact today/tomorrow weather band directly on Home. Build this add-on
 and the launcher with the same signing key, choose a city in Weather, then set `"home_weather": true`
-in the launcher's private theme configuration. The option is off by default. OK on the summary opens
-the full forecast. The launcher reads only city, temperature, feels-like, conditions and update time
+in the launcher's private theme configuration. The option is off by default. The band is informational,
+with no click action or remote focus. It shows dated daily highs/lows, conditions and precipitation
+probability when available. The launcher reads city, temperature, feels-like, conditions, dated daily forecasts and update time
 through a signature-protected, read-only local content provider; coordinates remain in the add-on.
 While Home is visible it checks the summary once a minute. The add-on refreshes data at most every
 30 minutes (5-minute retry after failure), keeps dated readings when offline, and schedules no work

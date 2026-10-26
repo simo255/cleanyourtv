@@ -152,7 +152,7 @@ final class RecommendationsShelf {
         if (refined) {
             LinearLayout cinema = new LinearLayout(activity); cinema.setOrientation(LinearLayout.VERTICAL);
             cinema.addView(preview, new LinearLayout.LayoutParams(-1, 0, 1));
-            cinema.addView(list, new LinearLayout.LayoutParams(-1, dp(140)));
+            cinema.addView(list, new LinearLayout.LayoutParams(-1, dp(182)));
             content.addView(cinema, new FrameLayout.LayoutParams(-1, -1));
         } else content.addView(list, new FrameLayout.LayoutParams(-1, -1));
         emptyPanel = new LinearLayout(activity); emptyPanel.setOrientation(LinearLayout.VERTICAL);
@@ -609,7 +609,7 @@ final class RecommendationsShelf {
             holder.progress.setVisibility(resume != null && resume.percent() >= 0 ? View.VISIBLE : View.GONE);
             if (resume != null) holder.progress.setProgress(Math.max(0, resume.percent()));
             ViewGroup.LayoutParams params = holder.itemView.getLayoutParams();
-            int width = dp("tv".equals(title.type) ? 156 : refined ? 92 : source == CatalogSource.STREMIO ? 136 : 100);
+            int width = dp("tv".equals(title.type) ? 156 : refined ? 120 : source == CatalogSource.STREMIO ? 156 : 120);
             if (params.width != width) { params.width = width; holder.itemView.setLayoutParams(params); }
             holder.itemView.setContentDescription(title.name + " \u00B7 " + caption(title));
             holder.itemView.setOnClickListener(v -> open(title)); repository.poster(title.poster, holder.image);

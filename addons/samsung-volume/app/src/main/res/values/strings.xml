@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Samsung Volume</string>
+    <string name="service_description">Transmet uniquement les touches Volume +, Volume − et Muet à votre téléviseur Samsung sur le réseau local. Ne lit pas le contenu de l’écran.</string>
+</resources>

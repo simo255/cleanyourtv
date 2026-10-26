@@ -91,7 +91,7 @@ A new key needs one there in the same pull request.
 | `sky_intensity` | 0 to 100 | Time-of-day backdrop: a dark gradient that follows the clock, 0 hides it (default) |
 | `wallpaper` | bool | Show the theme's picture, `wallpaper.jpg` or its `wallpapers/` collection (`true`), or draw neither (`false`) |
 | `wallpaper_rotation_minutes` | 0 to 1440 | Rotate images in the theme's `wallpapers/` folder at this interval; 0 keeps the single-image behaviour. A negative or non-numeric value is ignored, and 0 means "no rotation", not "every minute" |
-| `wallpaper_order` | `shuffle` or `sequential` | How a collection advances. `shuffle` (the default, and what launchers did before this key existed) avoids repeating the current picture; `sequential` walks the folder in filename order and wraps at the end. An unknown value falls back to `shuffle` |
+| `wallpaper_order` | `shuffle` or `sequential` | How a collection advances. `shuffle` visits every picture before repeating, remembers the cycle across restarts, and avoids an immediate repeat at cycle boundaries; `sequential` walks the folder in filename order and wraps at the end. An unknown value falls back to `shuffle` |
 | `home_weather` | boolean | Fork option, off by default: show the selected city, temperature and conditions below the date. Requires this fork’s `addons/weather` 1.1+ signed with the same key as the launcher; OK opens the forecast. Refresh is requested only while Home is visible; readings older than 30 minutes show their saved time |
 | `wallpaper_dim` | 0 to 90 | Black overlay over wallpaper images, in percent; 0 by default and no shade view at all |
 | `dock_opacity` | 30 to 100 | Opacity of the dock's band, in percent, so a wallpaper shows through it; 100 by default (the cinematic shelf keeps its own translucent band). Launcher settings on the TV offers 100, 70, 50 or 30, which wins until the next theme push or Follow theme |
@@ -152,8 +152,8 @@ up to 100 nonempty images, at most 10 MB each, skips unreadable files and keeps 
 An empty collection falls back to `wallpaper.jpg`, or the background colour if no image is available.
 `"wallpaper": false` disables both single-image and collection backgrounds.
 
-Selection is random without an immediate repeat when alternatives exist. The current image and its
-change time survive app/process restarts. Rotation runs only while Home is visible; on return from
+Selection is random over images not yet seen in the cycle, without an immediate repeat at the next cycle.
+The current image, cycle history and change time survive app/process restarts. Rotation runs only while Home is visible; on return from
 another app, an overdue background changes then. Images are decoded on a worker thread and bounded
 to the screen size. There is no download service, Internet permission or computer-side scheduler.
 The original system idle screensaver is left unchanged.

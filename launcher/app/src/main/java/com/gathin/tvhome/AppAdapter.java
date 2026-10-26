@@ -117,6 +117,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     static int tileHeightPx(int tileWidthPx) {
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
+    static int homeTileHeightPx(int normalHeightPx) { return Math.round(normalHeightPx * 1.22f); }
 
     /** Height of one grid item: the tile, the name label under it and the item's own padding. */
     static int itemHeightPx(int tileHeightPx, float density) {
@@ -464,11 +465,20 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         h.itemView.setLayoutParams(rowParams);
         h.itemView.setVisibility(collapsed ? View.INVISIBLE : View.VISIBLE);
         if (collapsed) { h.card.setFocusable(false); return; }
+        int height = largeHomeIcons && position < dockSize ? homeTileHeightPx(h.normalHeight) : h.normalHeight;
+        if (h.card.getLayoutParams().height != height) {
+            ViewGroup.LayoutParams cardParams = h.card.getLayoutParams();
+            cardParams.height = height;
+            h.card.setLayoutParams(cardParams);
+            ViewGroup.MarginLayoutParams nameParams = (ViewGroup.MarginLayoutParams) h.name.getLayoutParams();
+            nameParams.topMargin = height + Math.round((dockRow ? 7 : 4) * ctx.getResources().getDisplayMetrics().density);
+            h.name.setLayoutParams(nameParams);
+        }
         if (uniformTiles) {
             // Recycled grid holders must return to the normal icon size outside the Home favorites.
             ViewGroup.LayoutParams iconParams = h.icon.getLayoutParams();
             int size = Math.round(h.card.getLayoutParams().height
-                    * (largeHomeIcons && position < dockSize ? 0.86f : ICON_SHARE));
+                    * (largeHomeIcons && position < dockSize ? 0.90f : ICON_SHARE));
             if (iconParams.width != size || iconParams.height != size) {
                 iconParams.width = iconParams.height = size;
                 h.icon.setLayoutParams(iconParams);
@@ -507,6 +517,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             h.card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, e.backdrop));
         }
         if (e.banner != null) {
+            boolean fullLogo = largeHomeIcons && position < dockSize;
+            h.banner.setScaleType(fullLogo ? ImageView.ScaleType.FIT_CENTER : ImageView.ScaleType.CENTER_CROP);
+            if (fullLogo) {
+                if (e.backdrop == null) e.backdrop = backdrop(e.banner, ambientColorAt(position));
+                h.card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, e.backdrop));
+            }
             h.banner.setImageDrawable(e.banner);
             h.banner.setVisibility(View.VISIBLE);
             h.icon.setVisibility(View.GONE);
@@ -888,6 +904,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static final class Holder extends RecyclerView.ViewHolder {
         final View card;
+        final int normalHeight;
         /** item_app.xml's tile_bg: the dark card behind an icon tile, or behind a banner that has transparent parts. */
         final Drawable cardBackground;
         final ImageView banner;
@@ -907,6 +924,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                boolean reducedMotion, float restNameAlpha, boolean overshoot, boolean refined) {
             super(v);
             card = v.findViewById(R.id.card);
+            normalHeight = card.getLayoutParams().height;
             cardBackground = card.getBackground();
             banner = v.findViewById(R.id.banner);
             icon = v.findViewById(R.id.icon);

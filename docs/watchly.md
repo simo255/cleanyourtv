@@ -27,9 +27,15 @@ be supplied using `--stremio-export`; unrelated account fields are discarded.
 
 ## What Home shows
 
-- **For you** reads Watchly's `watchly.rec` movie and series catalogs. It honors Watchly's configured
-  year range instead of imposing the public discovery feeds' three-year window. Future and unknown
-  release years are still excluded locally.
+- **For you** starts with Watchly's `watchly.rec` movie and series catalogs. If fewer than 20 titles
+  survive local date and viewing exclusions, it also reads up to four enabled personalized rows
+  (Because you watched, genre/keyword affinities, creators, loved/liked titles). It stops once at least
+  20 eligible titles are available or the enabled rows are exhausted. Duplicate titles keep Top Picks
+  metadata; rewatch rows are never used. Secondary-row failures preserve successful results. Each media
+  type has a 60-second budget for starting supplemental requests; an in-flight request can finish later.
+  All candidates retain the current year and two previous years (2024–2026 in 2026); future releases,
+  unknown years, watched/completed exclusions and local hidden choices still apply. This can broaden
+  a short selection but cannot guarantee 20 results if Watchly's enabled catalogs lack eligible titles.
 - **Discover / New releases** and **Trending** keep their existing public Cinemeta behavior.
 - **Continue / Reprendre** keeps its separate encrypted Stremio session and one-minute refresh cadence.
 - Discovery catalogs keep their existing twelve-hour foreground refresh cadence. This fetches Watchly's

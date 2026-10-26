@@ -6,6 +6,19 @@ import org.junit.Test;
 
 /** The tables that turn Open-Meteo's numbers into words and colours. */
 public class ForecastTest {
+    @Test public void dailyForecastIncludesTodayAndKeepsUnknownPrecipitationUnknown() throws Exception {
+        org.json.JSONObject data = new org.json.JSONObject("{\"time\":[\"2026-10-25\",\"2026-10-26\",\"2026-10-27\"],"
+                + "\"weather_code\":[2,61,null],\"temperature_2m_max\":[16,12,null],"
+                + "\"temperature_2m_min\":[8,7,null],\"precipitation_probability_max\":[null,80,null]}");
+        java.util.List<Forecast.Day> days = Forecast.days(data);
+        assertEquals(2, days.size());
+        assertEquals(java.time.LocalDate.of(2026, 10, 25), days.get(0).date);
+        assertEquals(16, days.get(0).maxC);
+        assertEquals(-1, days.get(0).precipitation);
+        assertEquals(80, days.get(1).precipitation);
+        data.remove("precipitation_probability_max");
+        assertEquals(-1, Forecast.days(data).get(1).precipitation);
+    }
     @Test
     public void aqiBandsFollowTheUsScale() {
         assertEquals(0, Forecast.aqiBand(0));

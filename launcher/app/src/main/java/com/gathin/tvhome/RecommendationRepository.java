@@ -202,19 +202,20 @@ final class RecommendationRepository {
         feed.loading = true; feed.lastAttempt = now; feed.error = 0; publish(source);
         Set<String> movieSeen = new HashSet<>(watchedMovies), showSeen = new HashSet<>(watchedShows);
         List<CatalogItem> previousMovies = new ArrayList<>(feed.movies), previousShows = new ArrayList<>(feed.shows);
+        RecommendationTaste refreshTaste = source == FOR_YOU ? taste() : null;
         // Only the selected source is fetched. Switching source queues another bounded operation.
         (CatalogSource.publicFeed(source) ? publicWorker : worker).execute(() -> {
             try {
                 String origin = CatalogSource.publicFeed(source) ? POPULAR_BASE : base;
                 JSONObject manifest = source == FOR_YOU ? new JSONObject(new String(download(base + "manifest.json",
                         512_000, 0), StandardCharsets.UTF_8)) : null;
-                JSONArray rawMovies = source == RECENT ? new JSONArray() : catalog(origin, "movie",
-                        manifest == null ? "top" : WatchlyCatalog.topPicks(manifest, "movie"));
-                JSONArray rawShows = source == RECENT ? new JSONArray() : catalog(origin, "series",
-                        manifest == null ? "top" : WatchlyCatalog.topPicks(manifest, "series"));
-                List<CatalogItem> movies = source == RECENT ? recent("movie", previousMovies)
+                JSONArray rawMovies = source == RECENT || source == FOR_YOU ? new JSONArray() : catalog(origin, "movie", "top");
+                JSONArray rawShows = source == RECENT || source == FOR_YOU ? new JSONArray() : catalog(origin, "series", "top");
+                List<CatalogItem> movies = source == FOR_YOU ? watchly("movie", manifest, movieSeen, refreshTaste)
+                        : source == RECENT ? recent("movie", previousMovies)
                         : CatalogItem.parse(rawMovies, "movie", source == FOR_YOU, movieSeen);
-                List<CatalogItem> shows = source == RECENT ? recent("series", previousShows)
+                List<CatalogItem> shows = source == FOR_YOU ? watchly("series", manifest, showSeen, refreshTaste)
+                        : source == RECENT ? recent("series", previousShows)
                         : CatalogItem.parse(rawShows, "series", false, showSeen);
                 long at = System.currentTimeMillis();
                 JSONObject cache = new JSONObject().put("account", account(source)).put("source", source).put("synced_at", at)
@@ -245,6 +246,24 @@ final class RecommendationRepository {
         JSONObject response = new JSONObject(new String(download(origin + "catalog/" + type + "/" + name + ".json",
                 2_000_000, POPULAR_BASE.equals(origin) ? 1 : 0), StandardCharsets.UTF_8));
         return CatalogItem.metas(response);
+    }
+    private List<CatalogItem> watchly(String type, JSONObject manifest, Set<String> seen,
+            RecommendationTaste profile) throws Exception {
+        boolean excludeWatched = "movie".equals(type);
+        List<CatalogItem> items = CatalogItem.parse(catalog(base, type, WatchlyCatalog.topPicks(manifest, type)),
+                type, excludeWatched, seen);
+        java.time.LocalDate today = java.time.LocalDate.now();
+        long deadline = android.os.SystemClock.elapsedRealtime() + 60_000;
+        for (String id : WatchlyCatalog.supplements(manifest, type)) {
+            if (!WatchlyCatalog.needsMore(items, today, profile)) break;
+            if (closed || Thread.currentThread().isInterrupted()) throw new InterruptedException();
+            if (android.os.SystemClock.elapsedRealtime() >= deadline) break;
+            try {
+                items = WatchlyCatalog.append(items, CatalogItem.parse(catalog(base, type, id),
+                        type, excludeWatched, seen));
+            } catch (Exception ignored) { /* A secondary row must not discard successful Top Picks. */ }
+        }
+        return items;
     }
     /** Public, bounded requests; successful discovery refreshes retain some older candidates. */
     private List<CatalogItem> recent(String type, List<CatalogItem> previous) throws Exception {

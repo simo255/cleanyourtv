@@ -270,29 +270,26 @@
                             android:fontFamily="@string/font_regular"
                             android:letterSpacing="0.14"
                             android:textAllCaps="true" />
+                    </LinearLayout>
+                </LinearLayout>
                         <TextView
                             android:id="@+id/homeWeather"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:drawableStart="@drawable/ic_home_weather"
-                            android:drawablePadding="6dp"
                             android:paddingStart="6dp"
                             android:paddingEnd="6dp"
                             android:paddingTop="2dp"
                             android:paddingBottom="2dp"
-                            android:maxLines="1"
+                            android:maxLines="3"
+                            android:lineSpacingExtra="5dp"
                             android:ellipsize="end"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:textColor="@color/home_weather_text"
                             android:fontFamily="@string/font_regular"
-                            android:background="@drawable/pill_bg"
-                            android:focusable="true"
-                            android:clickable="true"
+                            android:focusable="false"
+                            android:clickable="false"
                             android:visibility="gone" />
-                    </LinearLayout>
-                </LinearLayout>
-
             </LinearLayout>
 
             <!-- Shown only when show_stats is on. Outside leftBlock, so the top buttons stay level with the clock

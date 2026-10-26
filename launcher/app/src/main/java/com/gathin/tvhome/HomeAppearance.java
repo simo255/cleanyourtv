@@ -75,15 +75,21 @@ final class HomeAppearance {
     static View apply(Activity activity, int backgroundColor) {
         float d = activity.getResources().getDisplayMetrics().density;
         TextView clock = activity.findViewById(R.id.clock);
-        clock.setTextSize(22); clock.setFontVariationSettings("'wght' 500");
+        clock.setTextSize(30); clock.setFontVariationSettings("'wght' 500");
+        clock.setTextColor(TEXT);
         TextView greeting = activity.findViewById(R.id.greeting);
         greeting.setVisibility(View.GONE);
         TextView date = activity.findViewById(R.id.date);
-        date.setTextSize(12); date.setLetterSpacing(0.01f); date.setTextColor(MUTED);
+        date.setTextSize(15); date.setLetterSpacing(0.02f); date.setTextColor(MUTED);
         date.setAllCaps(false);
         TextView weather = activity.findViewById(R.id.homeWeather);
-        control(weather, false);
-        weather.setTextSize(12);
+        weather.setTextSize(14);
+        weather.setTextColor(MUTED);
+        weather.setBackground(null);
+        weather.setSingleLine(false);
+        weather.setMaxLines(3);
+        weather.setFocusable(false); weather.setClickable(false);
+        weather.setPadding(0, Math.round(4 * d), 0, 0);
         for (int id : new int[]{R.id.btnWallpaper, R.id.btnInputs, R.id.btnWifi, R.id.btnSettings, R.id.btnReorder, R.id.btnLibraryTop}) {
             TextView button = activity.findViewById(id);
             control(button, false);

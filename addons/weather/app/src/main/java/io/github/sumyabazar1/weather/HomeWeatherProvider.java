@@ -6,6 +6,8 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /** Read-only, signature-protected local weather summary. Never exposes coordinates or preferences. */
 public final class HomeWeatherProvider extends ContentProvider {
@@ -14,14 +16,24 @@ public final class HomeWeatherProvider extends ContentProvider {
         if (!HomeWeatherStore.URI.equals(uri)) throw new IllegalArgumentException("Unknown weather path");
         HomeWeatherStore.refresh(getContext());
         SharedPreferences place = HomeWeatherStore.place(getContext()), cache = HomeWeatherStore.cache(getContext());
-        MatrixCursor result = new MatrixCursor(new String[]{"city", "temp", "feels", "condition", "updated_at"}, 1);
+        MatrixCursor result = new MatrixCursor(new String[]{"city", "temp", "feels", "condition", "updated_at", "forecast"}, 1);
         if (place.contains("name") && HomeWeatherStore.key(place).equals(cache.getString("place_key", ""))) {
             result.addRow(new Object[]{place.getString("name", ""), cache.getInt("temp", 0), cache.getInt("feels", 0),
                     getContext().getString(Forecast.sky(cache.getInt("code", 3), cache.getBoolean("day", true))),
-                    cache.getLong("updated_at", 0)});
+                    cache.getLong("updated_at", 0), forecast(cache.getString("forecast", "[]"))});
         }
         result.setNotificationUri(getContext().getContentResolver(), HomeWeatherStore.URI);
         return result;
+    }
+    private String forecast(String stored) {
+        try {
+            JSONArray days = new JSONArray(stored);
+            for (int i = 0; i < days.length(); i++) {
+                JSONObject day = days.getJSONObject(i);
+                day.put("condition", getContext().getString(Forecast.sky(day.getInt("code"), true)));
+            }
+            return days.toString();
+        } catch (org.json.JSONException ignored) { return "[]"; }
     }
     @Override public String getType(Uri uri) { return "vnd.android.cursor.item/vnd.tvhome.weather"; }
     @Override public Uri insert(Uri uri, ContentValues values) { throw new UnsupportedOperationException("Read only"); }

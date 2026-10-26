@@ -53,11 +53,12 @@ Trakt, which was the previous provider; those connection instructions are supers
   survive restarts; changed series share the existing eight metadata-lookup slots with Continue.
 - **Optional TMDB enrichment**: public recent candidates with IMDb mappings join New releases when
   the user's own private TMDB API read token is configured. Cinemeta remains usable without it.
-- **Optional weather on Home**: city, temperature and conditions from this fork’s separate weather
+- **Optional weather on Home**: a compact today/tomorrow band with daily highs/lows, conditions and
+  precipitation probability when available, from this fork’s separate weather
   add-on, with dated saved readings when offline. Enable the private theme’s `home_weather` option;
   both apps must be signed with the same key. No city or coordinates are included in the launcher.
-  The summary stays visible under the date, with an Open forecast prompt while no reading is available.
-  Press OK to open the forecast and city settings.
+  The summary stays visible under the date and shows unavailable forecasts explicitly.
+  It is informational, with no click action or remote focus; open Weather from the apps for settings.
 - **Wallpaper controls**: the picture button on apps-first Home and **Quick menu → Wallpaper** offer
   Next wallpaper, Keep this one and Resume rotation. Keep persists across restarts; Next also works
   while a wallpaper is kept. Resuming advances once and restores the theme’s rotation interval.

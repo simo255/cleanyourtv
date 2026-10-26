@@ -482,6 +482,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             date.setTextSize(11f);
             date.setPadding(0, (int) (4 * density), 0, 0);
         }
+        if (appsFirstHome && !refinedHome) {
+            TextView clock = findViewById(R.id.clock), date = findViewById(R.id.date);
+            clock.setTextSize(64);
+            clock.setTextColor(HomeAppearance.TEXT);
+            date.setTextSize(shamsi ? 14 : 16);
+            date.setAllCaps(false);
+            date.setLetterSpacing(.03f);
+            date.setTextColor(HomeAppearance.MUTED);
+            TextView weather = findViewById(R.id.homeWeather);
+            weather.setTextColor(HomeAppearance.MUTED);
+            weather.setPadding(0, Math.round(4 * density), 0, 0);
+        }
         vpnApp = cfg.vpnApp;
         vpnActiveOnly = cfg.vpnActiveOnly;
         vpnLocationEnabled = cfg.vpnLocation;
@@ -603,6 +615,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // No dock to push down: the grid starts at the top, with room for the first row's zoom and glass.
             if (!MainActivity.this.dockRow) want = (int) (AppAdapter.TOP_ROOM_DP * density);
             if (appsFirstHome) {
+                want -= AppAdapter.homeTileHeightPx(AppAdapter.tileHeightPx(tileW)) - AppAdapter.tileHeightPx(tileW);
                 homeDockPadding = want;
                 if (homePage == AppsFirstNavigation.Page.APPS) want = Math.round(16 * density);
             }
@@ -742,14 +755,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return true;
             }
             int firstButton = firstTopButton().getId();
-            View weather = findViewById(R.id.homeWeather);
-            if (weather.getVisibility() == View.VISIBLE) {
-                int towardWeather = rtlMenuBar ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT;
-                int towardButtons = rtlMenuBar ? KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT;
-                if (keyCode == towardWeather && v.getId() == firstButton) { weather.requestFocus(); return true; }
-                if (v == weather && keyCode == towardButtons) { firstTopButton().requestFocus(); return true; }
-                if (v == weather && keyCode == towardWeather) return true;
-            }
             int leftButton = rtlMenuBar ? R.id.btnSettings : firstButton;
             int rightButton = rtlMenuBar ? firstButton : R.id.btnSettings;
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
@@ -761,7 +766,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
-        findViewById(R.id.homeWeather).setOnKeyListener(pillKeys);
         if (animations && (advancedEffects || refinedHome)) {
             for (View button : new View[]{btnWallpaper, btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()

@@ -30,8 +30,8 @@ final class CatalogDiscovery {
         for (CatalogItem item : items) {
             int year = year(item);
             LocalDate date = released(item);
-            // Watchly owns its configured year range; local Discover can opt into all years.
-            boolean allYears = source == CatalogSource.WATCHLY || (source == CatalogSource.RECENT && !recentOnly);
+            // Only local Discover can opt into all years; personalized picks stay recent.
+            boolean allYears = source == CatalogSource.RECENT && !recentOnly;
             if (year > 0 && (allYears || year >= today.getYear() - 2) && year <= today.getYear()
                     && (date == null || !date.isAfter(today))) result.add(item);
         }

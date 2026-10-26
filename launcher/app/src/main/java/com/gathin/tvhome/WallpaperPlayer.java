@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -82,7 +83,7 @@ final class WallpaperPlayer {
         String collection = collectionKey(files);
         if (!collection.equals(preferences.getString("collection", ""))) {
             preferences.edit().putString("collection", collection)
-                    .remove("image").remove("changed").remove("held").apply();
+                    .remove("image").remove("changed").remove("held").remove("seen").apply();
         }
         DisplayMetrics metrics = context.getResources().getDisplayMetrics();
         width = metrics.widthPixels;
@@ -109,7 +110,7 @@ final class WallpaperPlayer {
         String previous = preferences.getString("image", "");
         List<File> playable = playable();
         File first = WallpaperRotation.find(playable, previous);
-        if (first == null) first = WallpaperRotation.pick(playable, previous, order, random);
+        if (first == null) first = pick(playable, previous);
         while (first != null) {
             Bitmap bitmap = decode(first);
             if (bitmap != null) {
@@ -117,6 +118,7 @@ final class WallpaperPlayer {
                 // The picture covers the whole screen: the root's plain colour under it is overdraw.
                 root.setBackground(null);
                 displayed = first.getName();
+                remember(playable, previous);
                 showCaption(false);
                 if (!displayed.equals(previous)) {
                     preferences.edit().putString("image", displayed)
@@ -126,7 +128,7 @@ final class WallpaperPlayer {
             }
             files.remove(first);   // unreadable or over 4K: try another, or keep the plain colour
             playable = playable();
-            first = WallpaperRotation.pick(playable, previous, order, random);
+            first = pick(playable, previous);
         }
     }
 
@@ -200,7 +202,7 @@ final class WallpaperPlayer {
         long changed = preferences.getLong("changed", 0);
         if (selected == null || WallpaperRotation.advance(held(), nextRequested,
                 changed, System.currentTimeMillis(), interval)) {
-            selected = WallpaperRotation.pick(playable, previous, order, random);
+            selected = pick(playable, previous);
         }
         nextRequested = false;
         if (selected == null || selected.getName().equals(displayed)) return;
@@ -228,6 +230,7 @@ final class WallpaperPlayer {
                 }
                 show(bitmap);
                 displayed = next.getName();
+                remember(playable, previous);
                 showCaption(true);
                 if (!displayed.equals(previous) || changed == 0) {
                     preferences.edit().putString("image", displayed)
@@ -236,6 +239,17 @@ final class WallpaperPlayer {
                 if (nextRequested) update();
             });
         });
+    }
+
+    private File pick(List<File> playable, String previous) {
+        return WallpaperRotation.pick(playable, previous, order,
+                preferences.getStringSet("seen", Collections.emptySet()), random);
+    }
+    private void remember(List<File> playable, String previous) {
+        Set<String> seen = new HashSet<>(preferences.getStringSet("seen", Collections.emptySet()));
+        if (!displayed.equals(previous) && playable.stream().allMatch(file -> seen.contains(file.getName()))) seen.clear();
+        seen.add(displayed);
+        preferences.edit().putStringSet("seen", seen).apply();
     }
 
     /**

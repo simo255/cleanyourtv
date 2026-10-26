@@ -18,6 +18,14 @@ import java.util.Random;
 import org.junit.Test;
 
 public class WallpaperRotationTest {
+    @Test public void shuffleExhaustsTheCollectionAcrossRestartsBeforeRepeating() {
+        List<File> images = Arrays.asList(new File("a.jpg"), new File("b.jpg"), new File("c.jpg"));
+        java.util.Set<String> seen = new java.util.HashSet<>(Arrays.asList("a.jpg", "b.jpg"));
+        assertEquals("c.jpg", WallpaperRotation.pick(images, "b.jpg", "shuffle", seen, new Random(7)).getName());
+        seen.add("c.jpg");
+        assertNotEquals("c.jpg", WallpaperRotation.pick(images, "c.jpg", "shuffle", seen, new Random(7)).getName());
+        assertEquals("b.jpg", WallpaperRotation.pick(images, "a.jpg", "sequential", seen, new Random(7)).getName());
+    }
 
     @Test public void keepingWallpaperStopsAutomaticChangesEvenAfterClockCorrection() {
         assertFalse(WallpaperRotation.advance(true, false, 1_000, 1_000_000, 300_000));

@@ -7,6 +7,12 @@
     <string name="home_wallpaper_rotating">Change toutes les %1$d minutes.</string>
     <string name="home_wallpaper_manual">Choisissez un fond avec Suivant.</string>
     <string name="home_weather_open">Météo · Ouvrir les prévisions</string>
+    <string name="home_weather_today">Aujourd’hui</string>
+    <string name="home_weather_pending">Météo · Prévisions indisponibles</string>
+    <string name="home_weather_current">Actuellement %1$d°</string>
+    <string name="home_weather_tomorrow">Demain</string>
+    <string name="home_weather_forecast_missing">Prévisions indisponibles</string>
+    <string name="home_weather_precipitation">Précip. %1$d%%</string>
     <string name="home_weather_unavailable">Météo indisponible. Ouvrez l’application Météo pour vérifier sa configuration.</string>
     <string name="home_recommendations_below">↓  Recommandations</string>
     <string name="cinema_for_you">Pour vous</string>

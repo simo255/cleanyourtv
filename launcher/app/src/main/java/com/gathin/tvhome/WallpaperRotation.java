@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Set;
 
 final class WallpaperRotation {
     /** Playback orders persisted in config.json (wallpaper_order). */
@@ -80,6 +81,13 @@ final class WallpaperRotation {
     /** Picks the next picture for {@code order}; an unknown order keeps the historical shuffle. */
     static File pick(List<File> images, String previous, String order, Random random) {
         return ORDER_SEQUENTIAL.equals(order) ? next(images, previous) : pick(images, previous, random);
+    }
+    /** Shuffle visits every available image before starting another cycle. */
+    static File pick(List<File> images, String previous, String order, Set<String> seen, Random random) {
+        if (ORDER_SEQUENTIAL.equals(order)) return next(images, previous);
+        List<File> unseen = new ArrayList<>();
+        for (File image : images) if (!seen.contains(image.getName()) && !image.getName().equals(previous)) unseen.add(image);
+        return pick(unseen.isEmpty() ? images : unseen, previous, random);
     }
 
     static boolean due(long previous, long now, long interval) {

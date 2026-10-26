@@ -4,7 +4,8 @@
 [the Watchly setup and migration guide](watchly.md) for configuration, privacy and provider behavior.
 The Trakt connection, history endpoint and provisioning instructions below describe the earlier
 implementation and must not be used with the current launcher. Public discovery and local UI sections
-remain useful background; Watchly's configured year range now applies to For you.
+remain useful background; For you retains only the current year and two previous years,
+within Watchly's configured year range.
 
 The optional shelf consumes the user's **existing official Stremio Trakt Integration add-on**.
 It uses only the existing official add-on connection for Trakt recommendations: no GitHub link,
