@@ -116,9 +116,10 @@ final class DiscoveryTaste {
         return values.isEmpty() ? 0 : score / Math.sqrt(values.size());
     }
     boolean learned() { for (Map<String, Double> profile : profiles.values()) if (!profile.isEmpty()) return true; return false; }
-    private double localWeight(String type) {
+    private double localWeight(String type, int source) {
         double usable = evidence.getOrDefault(type, 0.0);
-        return .75 * usable / (usable + 4);
+        double maximum = source == CatalogSource.WATCHLY ? RecommendationTaste.WATCHLY_LOCAL_WEIGHT : .75;
+        return maximum * usable / (usable + 4);
     }
     List<CatalogItem> apply(List<CatalogItem> items, int source) {
         if (source == CatalogSource.TV || source == CatalogSource.WATCHLIST || source == CatalogSource.GOOGLE) return new ArrayList<>(items);
@@ -136,12 +137,12 @@ final class DiscoveryTaste {
         // Retain provider order as a substantial prior; no candidate is added to a private feed.
         for (int i = 0; i < result.size(); i++) {
             CatalogItem item = result.get(i);
-            double local = localWeight(item.type);
+            double local = localWeight(item.type, source);
             double maximum = maxima.get(item.type);
-            scores.put(item, (maximum == 0 ? 0 : local * scores.get(item) / maximum) + (1 - local) / (1 + i / 20.0));
+            scores.put(item, RecommendationTaste.blendRank(i, maximum == 0 ? 0 : scores.get(item) / maximum, local));
         }
         result.sort((a, b) -> Double.compare(scores.get(b), scores.get(a)));
-        return diversify(result, scores, raw);
+        return diversify(result, scores, raw, source == CatalogSource.WATCHLY ? .04 : .18);
     }
     private static Set<String> features(List<String> values) {
         Set<String> result = new HashSet<>();
@@ -155,7 +156,7 @@ final class DiscoveryTaste {
         return (double) common / (a.size() + b.size() - common);
     }
     private static List<CatalogItem> diversify(List<CatalogItem> ranked, Map<CatalogItem, Double> scores,
-                                              Map<CatalogItem, Double> raw) {
+                                              Map<CatalogItem, Double> raw, double diversityWeight) {
         // Only reorder close matches in the first 20, considering at most the next 40.
         // No random shuffle, exposure-based dislike, or extra metadata requests.
         Map<CatalogItem, Set<String>> genres = new HashMap<>(), cast = new HashMap<>(), directors = new HashMap<>();
@@ -178,7 +179,7 @@ final class DiscoveryTaste {
                             + .2 * overlap(cast.get(candidate), cast.get(previous))
                             + .1 * overlap(directors.get(candidate), directors.get(previous)));
                 }
-                double value = scores.get(candidate) - .18 * similarity;
+                double value = scores.get(candidate) - diversityWeight * similarity;
                 if (value > bestScore) { bestScore = value; best = i; }
             }
             selected.add(remaining.remove(best));

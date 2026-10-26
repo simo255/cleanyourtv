@@ -136,7 +136,7 @@ public class DiscoveryTasteTest {
         assertEquals(0, profile.score(neutral), 0);
         assertEquals(Arrays.asList(a, b, c, neutral), profile.apply(Arrays.asList(a, b, c, neutral), CatalogSource.WATCHLY));
     }
-    @Test public void sparseEvidenceRespectsProviderButEstablishedTasteCanPromoteADistantMatch() throws Exception {
+    @Test public void establishedTastePromotesDistantMatchesInDiscoverButPreservesWatchlyTopPick() throws Exception {
         JSONArray sparse = new JSONArray().put(record("tt90", "movie", "Crime").put("completed", true));
         JSONArray established = new JSONArray();
         for (int i = 90; i < 120; i++) established.put(record("tt" + i, "movie", "Crime").put("completed", true));
@@ -144,7 +144,10 @@ public class DiscoveryTasteTest {
         for (int i = 1; i < 20; i++) candidates.add(new CatalogItem(record("tt" + i, "movie", "Comedy")));
         CatalogItem match = new CatalogItem(record("tt20", "movie", "Crime")); candidates.add(match);
         assertSame(candidates.get(0), taste(sparse, new JSONArray(), new JSONArray()).apply(candidates, CatalogSource.WATCHLY).get(0));
-        assertSame(match, taste(established, new JSONArray(), new JSONArray()).apply(candidates, CatalogSource.WATCHLY).get(0));
+        RecommendationTaste profile = taste(established, new JSONArray(), new JSONArray());
+        assertSame(candidates.get(0), profile.apply(candidates, CatalogSource.WATCHLY).get(0));
+        assertSame(match, profile.apply(candidates, CatalogSource.RECENT).get(0));
+        assertTrue(profile.apply(candidates, CatalogSource.WATCHLY).indexOf(match) < 19);
     }
     @Test public void metadataFreeHistoryAndOtherMediaDoNotInflateConfidence() throws Exception {
         JSONArray sparse = new JSONArray().put(record("tt90", "movie", "Crime").put("completed", true));
@@ -166,7 +169,8 @@ public class DiscoveryTasteTest {
         CatalogItem b = new CatalogItem(record("tt2", "movie", "Drama").put("genres", new JSONArray().put("Drama").put("Crime")));
         CatalogItem c = new CatalogItem(record("tt3", "movie", "Drama").put("genres", new JSONArray().put("Drama").put("Comedy")));
         List<CatalogItem> input = Arrays.asList(a, b, c);
-        assertEquals(Arrays.asList(a, c, b), profile.apply(input, CatalogSource.WATCHLY));
+        assertEquals(Arrays.asList(a, c, b), profile.apply(input, CatalogSource.RECENT));
+        assertEquals(input, profile.apply(input, CatalogSource.WATCHLY));
         assertEquals(Arrays.asList(a, b, c), input);
         assertEquals(input, profile.apply(input, CatalogSource.TRENDING));
     }
@@ -176,7 +180,8 @@ public class DiscoveryTasteTest {
         CatalogItem a = new CatalogItem(record("tt1", "movie", "Crime").put("cast", new JSONArray().put("Actor A")).put("director", "Director A"));
         CatalogItem b = new CatalogItem(record("tt2", "movie", "Crime").put("cast", new JSONArray().put("Actor A")).put("director", "Director A"));
         CatalogItem c = new CatalogItem(record("tt3", "movie", "Crime").put("cast", new JSONArray().put("Actor B")).put("director", "Director B"));
-        assertEquals(Arrays.asList(a, c, b), profile.apply(Arrays.asList(a, b, c), CatalogSource.WATCHLY));
+        assertEquals(Arrays.asList(a, c, b), profile.apply(Arrays.asList(a, b, c), CatalogSource.RECENT));
+        assertEquals(Arrays.asList(a, b, c), profile.apply(Arrays.asList(a, b, c), CatalogSource.WATCHLY));
     }
     @Test public void largeCatalogIsDeterministicAndDoesNotLoseOrDuplicateTitles() throws Exception {
         RecommendationTaste profile = taste(new JSONArray(), new JSONArray()

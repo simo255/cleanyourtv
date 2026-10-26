@@ -42,7 +42,11 @@ be supplied using `--stremio-export`; unrelated account fields are discarded.
   current rows; it does not force the hosted service to rebuild its recommendation model.
 
 Local hidden/seen choices and completed-viewing exclusions continue to apply. Local positive
-preferences may refine ordering. Choices stay local by default. The optional account sync below
+preferences may refine ordering. For you preserves Watchly's order as the main signal:
+the local ranking blend is capped at 25%, with a smaller diversity adjustment in enhanced mode.
+Discover keeps its stronger local personalization (up to 75% in enhanced mode). These are ranking
+weights, not percentages of titles replaced; completion and explicit-like signal weights are unchanged.
+Choices stay local by default. The optional account sync below
 sends explicit positive and watched choices to Stremio, which Watchly reads.
 The hosted Watchly service has its own history interpretation; the launcher's rule that unfinished
 viewing is neutral does not change Watchly's server-side scoring.

@@ -14,6 +14,10 @@ import java.util.Set;
 
 /** Completed viewing is positive. Incomplete/unknown viewing contributes no negative signal. */
 final class RecommendationTaste {
+    static final double WATCHLY_LOCAL_WEIGHT = .25;
+    static double blendRank(int position, double normalizedTaste, double localWeight) {
+        return localWeight * normalizedTaste + (1 - localWeight) / (1 + position / 20.0);
+    }
     static final String MORE = "more", HIDE = "hide", SEEN = "seen", COMPLETED = "completed", SEEN_LIKED = "seen_liked";
     static boolean liked(String decision) { return MORE.equals(decision) || SEEN_LIKED.equals(decision); }
     static boolean completion(String decision) { return COMPLETED.equals(decision) || SEEN_LIKED.equals(decision); }
@@ -111,6 +115,18 @@ final class RecommendationTaste {
         for (CatalogItem item : result) {
             scores.put(item, score(item));
             primaryGenres.put(item, primary(item));
+        }
+        if (source == CatalogSource.WATCHLY) {
+            double maximum = 0;
+            for (double value : scores.values()) maximum = Math.max(maximum, value);
+            if (maximum <= 0) return result;
+            for (int i = 0; i < result.size(); i++) {
+                CatalogItem item = result.get(i);
+                scores.put(item, blendRank(i, scores.get(item) / maximum, WATCHLY_LOCAL_WEIGHT));
+            }
+            result.sort(Comparator.comparingDouble((CatalogItem item) -> scores.get(item)).reversed());
+            // Watchly already personalizes its feed; avoid a second genre-diversity reorder.
+            return result;
         }
         // Java's stable sort keeps provider order when the learned scores tie.
         result.sort(Comparator.comparingDouble((CatalogItem item) -> scores.get(item)).reversed());

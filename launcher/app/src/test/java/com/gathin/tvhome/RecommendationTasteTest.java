@@ -24,6 +24,20 @@ public class RecommendationTasteTest {
         return new JSONObject().put("id", id).put("type", "series").put("name", id).put("genre", genre);
     }
     private CatalogItem item(String id, String genre) throws Exception { return new CatalogItem(entry(id, genre)); }
+    @Test public void watchlyAllowsNearbyRefinementButDoesNotReplaceItsTopPickWithADistantMatch() throws Exception {
+        RecommendationTaste taste = new RecommendationTaste(new JSONArray(), new JSONArray()
+                .put(entry("tt90", "Crime").put("decision", "more")));
+        List<CatalogItem> input = new java.util.ArrayList<>();
+        for (int i = 1; i < 20; i++) input.add(item("tt" + i, "Comedy"));
+        CatalogItem match = item("tt20", "Crime"); input.add(match);
+        List<CatalogItem> watchly = taste.apply(input, CatalogSource.WATCHLY);
+        assertSame(input.get(0), watchly.get(0));
+        assertTrue(watchly.indexOf(match) < 19);
+        assertSame(match, taste.apply(input, CatalogSource.RECENT).get(0));
+        assertSame(match, taste.apply(Arrays.asList(input.get(0), match), CatalogSource.WATCHLY).get(0));
+        assertEquals(new java.util.HashSet<>(input), new java.util.HashSet<>(watchly));
+        assertSame(match, input.get(19));
+    }
     @Test public void completedViewingIsPositiveAndAnIncompleteRecordIsEntirelyNeutral() throws Exception {
         JSONArray complete = new JSONArray().put(entry("tt1", "Crime").put("completed", true))
                 .put(entry("tt2", "Comedy").put("completed", false));
