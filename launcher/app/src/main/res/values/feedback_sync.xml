@@ -2,14 +2,18 @@
 <resources>
     <string name="reco_seen_liked">Watched and liked (local)</string>
     <string name="reco_finished_liked">Finished and liked the series (local)</string>
-    <string name="reco_seen_liked_sync">Watched and liked · Sync to Stremio</string>
-    <string name="reco_finished_liked_sync">Finished and liked the series · Sync to Stremio</string>
+    <string name="reco_seen_liked_sync">Watched and liked</string>
+    <string name="reco_finished_liked_sync">Finished and liked the series</string>
     <string name="reco_sync_enable">Sync choices to Stremio</string>
     <string name="reco_sync_disable">Stop syncing choices to Stremio</string>
     <string name="reco_sync_explain">Send existing and future “More like this” choices as Liked, and watched/finished choices as watched history, to the connected Stremio account. Existing Loved ratings stay Loved. Watchly will be asked to refresh; its update may take time. Not interested stays local. Clearing a local choice does not undo changes already sent.</string>
-    <string name="reco_sync_done">Choices synced to Stremio · Watchly refresh requested</string>
-    <string name="reco_sync_pending">Choices waiting to sync · Check your Stremio connection and retry from Home</string>
+    <string name="reco_sync_done">Choices synced</string>
+    <string name="reco_sync_background">Syncing in the background</string>
+    <string name="reco_sync_pending">Choices saved · Sync will retry automatically</string>
+    <string name="reco_sync_watchly_pending">Stremio up to date · Watchly refresh pending</string>
+    <string name="reco_sync_no_session">Connect Stremio to send your saved choices</string>
+    <string name="reco_sync_connection_changed">Connection changed · Enable choice sync again for this account</string>
     <string name="reco_sync_off">Account syncing off · Local choices kept</string>
-    <string name="reco_seen_sync">Already watched · Sync to Stremio</string>
-    <string name="reco_finished_series_sync">Finished the series · Sync to Stremio</string>
+    <string name="reco_seen_sync">Already watched</string>
+    <string name="reco_finished_series_sync">Finished the series</string>
 </resources>

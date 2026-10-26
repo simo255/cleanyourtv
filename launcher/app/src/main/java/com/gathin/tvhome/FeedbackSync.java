@@ -19,6 +19,8 @@ import java.util.concurrent.Executors;
 
 /** Opt-in foreground outbox, bound to both connections. No credentials or account writes on the UI thread. */
 final class FeedbackSync {
+    private static final class NoSession extends Exception { }
+    private static final class ConnectionChanged extends Exception { }
     interface Listener { void status(int message); }
     private final Context context;
     private final String base;
@@ -27,6 +29,7 @@ final class FeedbackSync {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Listener listener;
     private volatile boolean enabled, closed, running;
+    private volatile int lastMessage;
     private JSONObject state;
     private long attempted;
     private volatile int revision;
@@ -42,8 +45,12 @@ final class FeedbackSync {
             }
             enabled = state.optBoolean("enabled");
         } catch (Exception ignored) { state = new JSONObject(); }
+        lastMessage = !enabled ? R.string.reco_sync_off
+                : state.optJSONObject("pending") != null && state.optJSONObject("pending").length() > 0 ? R.string.reco_sync_pending
+                : state.optBoolean("refresh_pending") ? R.string.reco_sync_watchly_pending : R.string.reco_sync_done;
     }
     boolean enabled() { return enabled; }
+    int statusMessage() { return running ? R.string.reco_sync_background : lastMessage; }
     void enable(JSONArray choices) {
         int version = ++revision;
         execute(() -> {
@@ -64,7 +71,18 @@ final class FeedbackSync {
         if (!enabled) return;
         revision++;
         execute(() -> {
-            String key = session(); checkOwner(key); enqueue(choice); save(); drain(key);
+            // A local hide/clear only cancels unsent work; it must not ask for an account connection.
+            if (FeedbackSyncPolicy.actions(choice.optString("decision")).length == 0) {
+                enqueue(choice);
+                if (pending().length() == 0 && !state.optBoolean("refresh_pending")) {
+                    state.remove("last_failure"); lastMessage = R.string.reco_sync_done;
+                }
+                save(); return;
+            }
+            // Persist under the consented account before opening the encrypted session: a temporary
+            // Keystore/session failure must not lose a choice. checkOwner still gates every account write.
+            enqueue(choice); save();
+            String key = session(); checkOwner(key); drain(key);
         });
     }
     void cancelPending() {
@@ -75,11 +93,14 @@ final class FeedbackSync {
         long now = android.os.SystemClock.elapsedRealtime();
         if (!enabled || running || now - attempted < 60_000) return;
         attempted = now;
-        execute(() -> { String key = session(); checkOwner(key); drain(key); });
+        execute(() -> {
+            if (pending().length() == 0 && !state.optBoolean("refresh_pending")) return;
+            String key = session(); checkOwner(key); drain(key);
+        });
     }
     private String session() throws Exception {
         String key = new StremioSession(context).load();
-        if (!StremioApi.validKey(key)) throw new Exception("Connect Stremio first");
+        if (!StremioApi.validKey(key)) throw new NoSession();
         WatchlyCatalog.base(base); return key;
     }
     private String owner(String key) throws Exception {
@@ -88,7 +109,7 @@ final class FeedbackSync {
     }
     private void checkOwner(String key) throws Exception {
         if (!owner(key).equals(state.optString("account"))) {
-            enabled = false; state.put("enabled", false); save(); throw new Exception("Connection changed");
+            enabled = false; state.put("enabled", false); save(); throw new ConnectionChanged();
         }
     }
     private JSONObject pending() throws Exception {
@@ -109,7 +130,9 @@ final class FeedbackSync {
         for (String id : keys) {
             if (closed || !enabled || version != revision || Thread.currentThread().isInterrupted()) return;
             // A sign-out/account switch must not replay work using the former account.
-            if (!key.equals(new StremioSession(context).load())) throw new Exception("Session changed");
+            if (!key.equals(new StremioSession(context).load())) {
+                enabled = false; state.put("enabled", false); save(); throw new ConnectionChanged();
+            }
             JSONObject choice = pending().getJSONObject(id);
             try {
                 if (choice.getString("action").equals("liked")) StremioApi.like(key, choice.getString("type"), choice.getString("id"));
@@ -117,13 +140,21 @@ final class FeedbackSync {
                 pending().remove(id); state.put("refresh_pending", true); save(); dirty = true;
             } catch (Exception failure) {
                 if (Thread.currentThread().isInterrupted()) throw failure;
+                recordFailure(choice.optString("action"), failure);
                 failures++;
             }
         }
         if (dirty && !closed && enabled) {
-            StremioApi.refreshWatchly(base); state.put("refresh_pending", false); save();
+            try { StremioApi.refreshWatchly(base); }
+            catch (Exception failure) {
+                recordFailure("watchly_refresh", failure);
+                report(pending().length() == 0 ? R.string.reco_sync_watchly_pending : R.string.reco_sync_pending);
+                return;
+            }
+            state.put("refresh_pending", false); save();
             StremioApi.warmWatchly(base);
         }
+        if (pending().length() == 0) { state.remove("last_failure"); save(); }
         report(failures == 0 && pending().length() == 0 ? R.string.reco_sync_done : R.string.reco_sync_pending);
     }
     static void complete(String key, JSONObject choice) throws Exception {
@@ -160,14 +191,30 @@ final class FeedbackSync {
         catch (Exception failure) { if (out != null) file.failWrite(out); throw failure; }
     }
     private interface Work { void run() throws Exception; }
+    private void recordFailure(String phase, Exception failure) {
+        // Exception messages/URLs can contain credentials. Keep only bounded diagnostic codes privately.
+        try {
+            state.put("last_failure", new JSONObject().put("phase", phase)
+                    .put("kind", failure.getClass().getSimpleName())
+                    .put("code", failure instanceof StremioApi.Failure ? ((StremioApi.Failure) failure).code : 0)
+                    .put("at", System.currentTimeMillis()));
+            save();
+        } catch (Exception ignored) { }
+    }
     private void execute(Work work) {
         if (closed) return;
         worker.execute(() -> {
             running = true;
-            try { work.run(); } catch (Exception ignored) { report(R.string.reco_sync_pending); }
+            try { work.run(); } catch (Exception failure) {
+                if (!closed && !Thread.currentThread().isInterrupted()) {
+                    recordFailure("connection_or_storage", failure);
+                    report(failure instanceof NoSession ? R.string.reco_sync_no_session
+                            : failure instanceof ConnectionChanged ? R.string.reco_sync_connection_changed : R.string.reco_sync_pending);
+                }
+            }
             finally { running = false; }
         });
     }
-    private void report(int message) { main.post(() -> { if (!closed) listener.status(message); }); }
+    private void report(int message) { lastMessage = message; main.post(() -> { if (!closed) listener.status(message); }); }
     void close() { closed = true; worker.shutdownNow(); }
 }

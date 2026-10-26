@@ -105,7 +105,6 @@ final class RecommendationRepository {
         preferences = context.getSharedPreferences("discovery", 0);
         feedback = new RecommendationFeedback(new File(context.getFilesDir(), "recommendation-feedback.json"), fingerprint);
         feedbackSync = new FeedbackSync(context, base, message -> {
-            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show();
             if (message == R.string.reco_sync_done && !closed) refresh(FOR_YOU, true);
         });
         tmdb = new TmdbCatalog(options.optString("tmdb_read_token"), new File(context.getCacheDir(), "tmdb"));
@@ -190,6 +189,7 @@ final class RecommendationRepository {
         return saved;
     }
     boolean feedbackSyncEnabled() { return feedbackSync.enabled(); }
+    int feedbackSyncMessage() { return feedbackSync.statusMessage(); }
     void toggleFeedbackSync() {
         if (feedbackSync.enabled()) feedbackSync.disable(); else feedbackSync.enable(feedback.entries());
     }

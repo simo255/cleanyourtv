@@ -138,6 +138,9 @@ choices to the connected Stremio account, which Watchly reads.
 
 Pending account changes survive restarts and retry while Home is active. The combined choice's two
 writes retry independently, so a successful watched mark is kept if the rating must be retried.
+Choices apply locally right away; account sync runs quietly without a popup after each rating.
+The poster focus stays with the current title or the next available one when a title disappears.
+Open **Home content** for a discreet sync status if needed.
 Existing watched titles are not automatically treated as liked. See
 [choice sync, privacy and limits](docs/watchly.md#sync-explicit-choices-to-stremio).
 

@@ -2,14 +2,18 @@
 <resources>
     <string name="reco_seen_liked">Vu et aimé (local)</string>
     <string name="reco_finished_liked">Série terminée et aimée (local)</string>
-    <string name="reco_seen_liked_sync">Vu et aimé · Synchroniser vers Stremio</string>
-    <string name="reco_finished_liked_sync">Série terminée et aimée · Synchroniser vers Stremio</string>
+    <string name="reco_seen_liked_sync">Vu et aimé</string>
+    <string name="reco_finished_liked_sync">Série terminée et aimée</string>
     <string name="reco_sync_enable">Synchroniser mes choix vers Stremio</string>
     <string name="reco_sync_disable">Arrêter la synchronisation des choix</string>
     <string name="reco_sync_explain">Les choix « Plus comme ça » existants et futurs seront envoyés comme J’aime, et les choix Déjà vu / Série terminée comme historique vu, au compte Stremio connecté. Les coups de cœur existants sont conservés. Une actualisation sera demandée à Watchly ; elle peut prendre du temps. Pas intéressé reste local. Effacer un choix local n’annule pas les changements déjà envoyés.</string>
-    <string name="reco_sync_done">Choix synchronisés vers Stremio · Actualisation Watchly demandée</string>
-    <string name="reco_sync_pending">Choix en attente · Vérifiez la connexion Stremio et réessayez depuis l’accueil</string>
+    <string name="reco_sync_done">Choix synchronisés</string>
+    <string name="reco_sync_background">Synchronisation en arrière-plan</string>
+    <string name="reco_sync_pending">Choix enregistrés · Synchronisation à réessayer automatiquement</string>
+    <string name="reco_sync_watchly_pending">Stremio à jour · Actualisation Watchly en attente</string>
+    <string name="reco_sync_no_session">Connectez Stremio pour envoyer vos choix enregistrés</string>
+    <string name="reco_sync_connection_changed">Connexion modifiée · Réactivez la synchronisation des choix pour ce compte</string>
     <string name="reco_sync_off">Synchronisation désactivée · Choix locaux conservés</string>
-    <string name="reco_seen_sync">Déjà vu · Synchroniser vers Stremio</string>
-    <string name="reco_finished_series_sync">Série terminée · Synchroniser vers Stremio</string>
+    <string name="reco_seen_sync">Déjà vu</string>
+    <string name="reco_finished_series_sync">Série terminée</string>
 </resources>

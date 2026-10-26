@@ -440,6 +440,8 @@ final class RecommendationsShelf {
         if (holder != null) { holder.itemView.requestFocus(); pendingFocus = -1; }
     }
     void menu() {
+        String choiceStatus = repository.feedbackSyncEnabled() || repository.feedbackSyncMessage() == R.string.reco_sync_connection_changed
+                ? activity.getString(repository.feedbackSyncMessage()) : "";
         if (refined) {
             List<String> options = new ArrayList<>();
             options.add(activity.getString(R.string.reco_refresh));
@@ -449,7 +451,8 @@ final class RecommendationsShelf {
             if (repository.enhanced() && source == CatalogSource.RECENT) options.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
             final int syncChoice = options.size();
             options.add(activity.getString(repository.feedbackSyncEnabled() ? R.string.reco_sync_disable : R.string.reco_sync_enable));
-            CinemaMenu.show(activity, activity.getString(R.string.reco_menu), syncStatus, options, choice -> {
+            CinemaMenu.show(activity, activity.getString(R.string.reco_menu),
+                    choiceStatus.isEmpty() ? syncStatus : syncStatus + "\n" + choiceStatus, options, choice -> {
                 if (choice == syncChoice) { feedbackSyncMenu(); }
                 else if (choice == 0) refresh(AccountRefresh.Trigger.FORCE, true);
                 else if (choice == 1) {
@@ -477,7 +480,8 @@ final class RecommendationsShelf {
         if (repository.enhanced() && source == CatalogSource.RECENT) labels.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
         final int syncChoice = labels.size();
         labels.add(activity.getString(repository.feedbackSyncEnabled() ? R.string.reco_sync_disable : R.string.reco_sync_enable));
-        new AlertDialog.Builder(activity, dialogTheme).setTitle(R.string.reco_menu)
+        new AlertDialog.Builder(activity, dialogTheme).setTitle(activity.getString(R.string.reco_menu)
+                + (choiceStatus.isEmpty() ? "" : "\n" + choiceStatus))
                 .setItems(labels.toArray(new String[0]), (dialog, choice) -> {
                     if (choice == syncChoice) { feedbackSyncMenu(); }
                     else if (choice == order.length + 6) {
@@ -520,7 +524,7 @@ final class RecommendationsShelf {
                     String[] decisions = {RecommendationTaste.MORE, RecommendationTaste.HIDE,
                             "series".equals(item.type) ? RecommendationTaste.COMPLETED : RecommendationTaste.SEEN, RecommendationTaste.SEEN_LIKED, ""};
                     if (!repository.choose(item, decisions[choice])) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
-                    pendingFocus = -1; render(); focusCard(0);
+                    pendingFocus = -1; render(); focusCard(lastFocusedCard);
                 }).setNegativeButton(R.string.done, null).show();
     }
     private void feedbackSyncMenu() {

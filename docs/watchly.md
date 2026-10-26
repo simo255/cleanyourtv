@@ -84,6 +84,11 @@ enabling sync again. It never exports the Stremio session key. Each history writ
 a fresh record and read back. Existing ratings already marked Liked or Loved are left alone.
 After successful writes the launcher requests a Watchly refresh. That request is not proof that
 Watchly has finished rebuilding; provider caches, including its likes cache, can delay changes.
+Sync runs quietly without a success or waiting popup after each choice. **Home content** shows a
+discreet status distinguishing choices still waiting to send from choices already sent to Stremio whose
+Watchly refresh is pending. A connection-needed status appears only when no usable local Stremio session
+is available; local hide/clear actions and an empty queue do not require that session. Choices are
+saved to the consented account's outbox before session loading, so a temporary session failure can retry.
 
 Stopping sync cancels pending changes and keeps local choices. Clearing/hiding a title cancels
 unsent changes; resetting all choices cancels the pending queue. An account request already in
