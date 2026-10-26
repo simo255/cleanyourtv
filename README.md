@@ -112,7 +112,9 @@ flowchart LR
 | Choose **Not interested** | The title disappears and stays hidden across catalog refreshes. | Immediately, on this box. No dislike is uploaded to Watchly or Stremio, and the title's entire genre is not penalized. |
 
 **Refresh fetches existing provider results; it does not force Watchly to rebuild its profile.**
-Local feedback remains local. See [Watchly behavior and privacy](docs/watchly.md#what-home-shows).
+Feedback stays local by default. Optional **Home content → Sync choices to Stremio** sends existing
+and future positive/watched choices to Stremio and requests a Watchly refresh. Not interested stays
+local. See [Watchly behavior and privacy](docs/watchly.md#sync-explicit-choices-to-stremio).
 
 ## How I improved recommendations
 
@@ -154,8 +156,9 @@ Stremio session keys are encrypted using **Android Keystore**. Account configura
 and viewing summaries stay in private app storage. No account, export, viewing history or private
 catalog URL is bundled in the repository.
 
-Enabled features make network requests to their providers. The launcher adds no telemetry, uploads
-no local feedback or history, and does not write to your Stremio or Trakt accounts. Public discovery
+Enabled features make network requests to their providers. The launcher adds no telemetry.
+Optional choice sync writes explicit positive/watched choices to Stremio; it never writes to Trakt.
+With choice sync off, feedback stays local. Public discovery
 requests rotate independently of private taste, and ranking uses metadata already available locally
 or in catalog responses. Optional weather and TMDB enrichment need their own setup.
 

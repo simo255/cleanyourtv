@@ -278,6 +278,7 @@ final class RecommendationsShelf {
         }
     }
     private void refresh(AccountRefresh.Trigger trigger, boolean interactive) {
+        repository.retryFeedbackSync();
         boolean force = trigger == AccountRefresh.Trigger.FORCE;
         if (source == CatalogSource.STREMIO) {
             if (interactive && !stremio.connected() && !stremio.sessionPending) stremio.connect(); else stremio.refresh(trigger);
@@ -446,8 +447,11 @@ final class RecommendationsShelf {
             options.add(activity.getString(R.string.reco_reset_feedback));
             options.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
             if (repository.enhanced() && source == CatalogSource.RECENT) options.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
+            final int syncChoice = options.size();
+            options.add(activity.getString(repository.feedbackSyncEnabled() ? R.string.reco_sync_disable : R.string.reco_sync_enable));
             CinemaMenu.show(activity, activity.getString(R.string.reco_menu), syncStatus, options, choice -> {
-                if (choice == 0) refresh(AccountRefresh.Trigger.FORCE, true);
+                if (choice == syncChoice) { feedbackSyncMenu(); }
+                else if (choice == 0) refresh(AccountRefresh.Trigger.FORCE, true);
                 else if (choice == 1) {
                     enabled = !enabled; activity.getSharedPreferences("recommendations", 0).edit().putBoolean("enabled", enabled).apply();
                     updateVisibility(); if (enabled) refresh(AccountRefresh.Trigger.FOREGROUND, true); focusDock.run();
@@ -471,9 +475,12 @@ final class RecommendationsShelf {
         labels.add(activity.getString(R.string.reco_reset_feedback));
         labels.add(activity.getString(stremio.connected() ? R.string.stremio_disconnect : R.string.stremio_connect));
         if (repository.enhanced() && source == CatalogSource.RECENT) labels.add(activity.getString(repository.recentOnly() ? R.string.reco_all_years : R.string.reco_recent_years));
+        final int syncChoice = labels.size();
+        labels.add(activity.getString(repository.feedbackSyncEnabled() ? R.string.reco_sync_disable : R.string.reco_sync_enable));
         new AlertDialog.Builder(activity, dialogTheme).setTitle(R.string.reco_menu)
                 .setItems(labels.toArray(new String[0]), (dialog, choice) -> {
-                    if (choice == order.length + 6) {
+                    if (choice == syncChoice) { feedbackSyncMenu(); }
+                    else if (choice == order.length + 6) {
                         repository.togglePeriod(); render();
                     }
                     else if (choice == order.length + 5) {
@@ -499,7 +506,8 @@ final class RecommendationsShelf {
     }
     private void feedbackMenu(CatalogItem item) {
         int[] names = {R.string.reco_more_like_this, R.string.reco_not_interested,
-                "series".equals(item.type) ? R.string.reco_finished_series : R.string.reco_seen, R.string.reco_clear_choice};
+                "series".equals(item.type) ? (repository.feedbackSyncEnabled() ? R.string.reco_finished_series_sync : R.string.reco_finished_series)
+                        : (repository.feedbackSyncEnabled() ? R.string.reco_seen_sync : R.string.reco_seen), R.string.reco_clear_choice};
         String[] labels = new String[names.length]; for (int i = 0; i < names.length; i++) labels[i] = activity.getString(names[i]);
         new AlertDialog.Builder(activity, dialogTheme).setTitle(item.name)
                 .setItems(labels, (dialog, choice) -> {
@@ -512,6 +520,13 @@ final class RecommendationsShelf {
                     if (!repository.choose(item, decisions[choice])) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
                     pendingFocus = -1; render(); focusCard(0);
                 }).setNegativeButton(R.string.done, null).show();
+    }
+    private void feedbackSyncMenu() {
+        if (repository.feedbackSyncEnabled()) { repository.toggleFeedbackSync(); return; }
+        new AlertDialog.Builder(activity, dialogTheme).setTitle(R.string.reco_sync_enable)
+                .setMessage(R.string.reco_sync_explain)
+                .setPositiveButton(R.string.reco_sync_enable, (dialog, which) -> repository.toggleFeedbackSync())
+                .setNegativeButton(android.R.string.cancel, null).show();
     }
     private void open(CatalogItem title) {
         if (source == CatalogSource.STREMIO) {

@@ -49,6 +49,7 @@ final class RecommendationRepository {
     interface Listener { void changed(int source); }
     private final File posterDir;
     private final RecommendationFeedback feedback;
+    private final FeedbackSync feedbackSync;
     private final JSONArray completed;
     private final JSONArray reviewed, positives;
     private JSONArray observed = new JSONArray();
@@ -103,6 +104,10 @@ final class RecommendationRepository {
         enhanced = tuning != null && tuning.optBoolean("enhanced", false);
         preferences = context.getSharedPreferences("discovery", 0);
         feedback = new RecommendationFeedback(new File(context.getFilesDir(), "recommendation-feedback.json"), fingerprint);
+        feedbackSync = new FeedbackSync(context, base, message -> {
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show();
+            if (message == R.string.reco_sync_done && !closed) refresh(FOR_YOU, true);
+        });
         tmdb = new TmdbCatalog(options.optString("tmdb_read_token"), new File(context.getCacheDir(), "tmdb"));
         for (int source = 0; source < feeds.length; source++) {
             if (feeds[source] == null || (!CatalogSource.publicFeed(source) && !configured())) continue;
@@ -177,12 +182,21 @@ final class RecommendationRepository {
             }
         } catch (Exception ignored) { seasons = null; }
         boolean saved = feedback.choose(item, decision, seasons);
-        if (saved) rankedTaste = null;
+        if (saved) {
+            rankedTaste = null;
+            try { feedbackSync.choice(new JSONObject().put("id", item.id).put("type", item.type)
+                    .put("name", item.name).put("decision", decision).put("seasons", seasons)); } catch (Exception ignored) { }
+        }
         return saved;
     }
+    boolean feedbackSyncEnabled() { return feedbackSync.enabled(); }
+    void toggleFeedbackSync() {
+        if (feedbackSync.enabled()) feedbackSync.disable(); else feedbackSync.enable(feedback.entries());
+    }
+    void retryFeedbackSync() { feedbackSync.retry(); }
     boolean resetFeedback() {
         boolean saved = feedback.reset();
-        if (saved) rankedTaste = null;
+        if (saved) { rankedTaste = null; feedbackSync.cancelPending(); }
         return saved;
     }
     static boolean hasTmdb(Feed feed) {
@@ -440,5 +454,5 @@ final class RecommendationRepository {
         byte[] bytes = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
         StringBuilder result = new StringBuilder(); for (byte b : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", b & 255)); return result.toString();
     }
-    void close() { closed = true; listener = null; worker.shutdownNow(); publicWorker.shutdownNow(); images.shutdownNow(); downloads.shutdownNow(); bitmaps.evictAll(); }
+    void close() { closed = true; listener = null; feedbackSync.close(); worker.shutdownNow(); publicWorker.shutdownNow(); images.shutdownNow(); downloads.shutdownNow(); bitmaps.evictAll(); }
 }

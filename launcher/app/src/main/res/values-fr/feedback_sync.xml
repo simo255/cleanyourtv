@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reco_sync_enable">Synchroniser mes choix vers Stremio</string>
+    <string name="reco_sync_disable">Arrêter la synchronisation des choix</string>
+    <string name="reco_sync_explain">Les choix « Plus comme ça » existants et futurs seront envoyés comme J’aime, et les choix Déjà vu / Série terminée comme historique vu, au compte Stremio connecté. Les coups de cœur existants sont conservés. Une actualisation sera demandée à Watchly ; elle peut prendre du temps. Pas intéressé reste local. Effacer un choix local n’annule pas les changements déjà envoyés.</string>
+    <string name="reco_sync_done">Choix synchronisés vers Stremio · Actualisation Watchly demandée</string>
+    <string name="reco_sync_pending">Choix en attente · Vérifiez la connexion Stremio et réessayez depuis l’accueil</string>
+    <string name="reco_sync_off">Synchronisation désactivée · Choix locaux conservés</string>
+    <string name="reco_seen_sync">Déjà vu · Synchroniser vers Stremio</string>
+    <string name="reco_finished_series_sync">Série terminée · Synchroniser vers Stremio</string>
+</resources>

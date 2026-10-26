@@ -157,7 +157,7 @@ final class SeasonViewing {
         } catch (Exception ignored) { return null; }
     }
 
-    private static Set<String> watchedIds(String field, List<String> ids) throws Exception {
+    static Set<String> watchedIds(String field, List<String> ids) throws Exception {
         if (field.isEmpty()) return new HashSet<>();
         int last = field.lastIndexOf(':'), middle = field.lastIndexOf(':', last - 1);
         if (middle < 0 || field.length() > 100000) throw new Exception("Invalid watched state");

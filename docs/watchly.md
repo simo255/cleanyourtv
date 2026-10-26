@@ -42,7 +42,8 @@ be supplied using `--stremio-export`; unrelated account fields are discarded.
   current rows; it does not force the hosted service to rebuild its recommendation model.
 
 Local hidden/seen choices and completed-viewing exclusions continue to apply. Local positive
-preferences may refine ordering. These choices are not uploaded to Watchly, Stremio or any tracker.
+preferences may refine ordering. Choices stay local by default. The optional account sync below
+sends explicit positive and watched choices to Stremio, which Watchly reads.
 The hosted Watchly service has its own history interpretation; the launcher's rule that unfinished
 viewing is neutral does not change Watchly's server-side scoring.
 
@@ -61,6 +62,29 @@ or Stremio, and it does not down-rank every title in the same genre. Use **Clear
 feedback menu when available, or the Home content menu's feedback reset to remove saved local choices.
 Resetting all feedback also removes positive choices and locally recorded completion decisions.
 
+### Sync explicit choices to Stremio
+
+In **Home content**, choose **Sync choices to Stremio**. This option is off by default;
+enabling it queues existing saved choices and sends future explicit choices:
+
+- **More like this** sends a Stremio **Liked** rating, preserving an existing **Loved** rating.
+- **Already watched / Finished the series** updates watched history. Series updates mark dated,
+  aired regular episodes; saved season decisions restrict backfilled completion. Future episodes,
+  specials and unknown release dates are not invented as watched. Resume positions and watch dates
+  are preserved. New history-only titles do not become saved library favorites.
+- **Not interested** stays local. There is no matching dislike field in this integration.
+
+The private outbox survives restarts and retries while Home is active, in batches of at most
+20 titles. It is bound to the connected Stremio session and Watchly URL; changing either requires
+enabling sync again. It never exports the Stremio session key. Each history write is checked against
+a fresh record and read back. Existing ratings already marked Liked or Loved are left alone.
+After successful writes the launcher requests a Watchly refresh. That request is not proof that
+Watchly has finished rebuilding; provider caches, including its likes cache, can delay changes.
+
+Stopping sync cancels pending changes and keeps local choices. Clearing/hiding a title cancels
+unsent changes; resetting all choices cancels the pending queue. An account request already in
+flight can finish. None of these actions undo watched history or ratings already sent to Stremio.
+
 ## Replacing an existing connection
 
 Back up private configuration, feedback, APK, session and layout before changing providers.
@@ -72,7 +96,8 @@ Watchly results.
 
 Remove **Trakt Integration** from Stremio's installed add-ons and disconnect **Trakt Scrobbling** in
 Stremio settings if replacing that service completely. This does not delete the external Trakt account.
-The launcher does not write to tracker accounts or report playback.
+The launcher does not write to Trakt or report playback. The optional sync writes only explicit
+positive and watched choices to Stremio.
 
 ## Privacy and limits
 

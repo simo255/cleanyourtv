@@ -84,8 +84,9 @@ Trakt, which was the previous provider; those connection instructions are supers
 - **French and English**, cached catalogs/posters, finite network limits and no background catalog service.
 
 The shelf is optional: without private configuration it stays hidden unless you explicitly select
-public Trending or New releases from the menu. Trakt supplies candidates and local positive preferences can refine their ranking. This launcher reads
-catalogs; it does not upload history, report playback, or write to your Stremio/Trakt account.
+public Trending or New releases from the menu. Watchly supplies private candidates and local positive
+preferences can refine their ranking. Optional explicit-choice sync can write positive/watched choices
+to Stremio; it does not report playback or write to Trakt.
 
 This branch integrates upstream through `cc4c7c59`, including themes, adaptive tile sizes, module
 cards, improved focus animation, remote navigation fixes and additional translations.
@@ -143,7 +144,9 @@ then privately provision its manifest URL on Home. Reprendre retains its separat
 The launcher no longer accepts the former Trakt Integration catalog URL. When replacing that
 integration, preserve local choices with an explicit account-fingerprint migration and clear only
 old private catalog caches. The Watchly guide explains the migration and privacy boundaries.
-Local choices remain local; the launcher does not report playback or update tracker accounts.
+Choices stay local by default. Optional **Home content → Sync choices to Stremio** sends saved and
+future explicit positive/watched choices to Stremio, then requests a Watchly refresh. Hidden choices
+stay local. The launcher does not report playback or update Trakt accounts.
 
 ## Customize
 
