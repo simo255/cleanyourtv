@@ -68,6 +68,10 @@ In **Home content**, choose **Sync choices to Stremio**. This option is off by d
 enabling it queues existing saved choices and sends future explicit choices:
 
 - **More like this** sends a Stremio **Liked** rating, preserving an existing **Loved** rating.
+- **Watched and liked / Finished and liked the series** combines watched history and the Liked rating
+  in one choice. The title is hidden locally with the same positive preference weight as More like this,
+  counted once even if completion was already imported. Its two account writes retry independently;
+  one succeeding does not discard the other. Existing saved choices are not converted automatically.
 - **Already watched / Finished the series** updates watched history. Series updates mark dated,
   aired regular episodes; saved season decisions restrict backfilled completion. Future episodes,
   specials and unknown release dates are not invented as watched. Resume positions and watch dates

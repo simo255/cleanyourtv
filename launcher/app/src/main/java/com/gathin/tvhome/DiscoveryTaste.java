@@ -27,11 +27,11 @@ final class DiscoveryTaste {
             if (item.optBoolean("completed")) { signals.putIfAbsent(key(item), item); excluded.add(key(item)); }
         }
         for (JSONObject item : records(choices).values())
-            if (RecommendationTaste.COMPLETED.equals(item.optString("decision"))) signals.putIfAbsent(key(item), item);
+            if (RecommendationTaste.completion(item.optString("decision"))) signals.putIfAbsent(key(item), item);
         for (String id : movies) excluded.add("movie:" + id);
         for (JSONObject choice : records(choices).values()) {
             JSONObject current = reviewed.get(key(choice));
-            if (current != null && RecommendationTaste.COMPLETED.equals(choice.optString("decision")) && choice.optJSONArray("seasons") != null) {
+            if (current != null && RecommendationTaste.completion(choice.optString("decision")) && choice.optJSONArray("seasons") != null) {
                 JSONObject merged = SeasonViewing.merge(choice, current);
                 try {
                     for (String field : new String[]{"genres", "cast", "directors"})
@@ -49,12 +49,13 @@ final class DiscoveryTaste {
         Set<String> stronger = new HashSet<>();
         for (JSONObject item : records(choices).values()) {
             String decision = item.optString("decision"), key = key(item);
-            if (RecommendationTaste.HIDE.equals(decision) || RecommendationTaste.SEEN.equals(decision)) excluded.add(key);
+            if (RecommendationTaste.HIDE.equals(decision) || RecommendationTaste.SEEN.equals(decision)
+                    || RecommendationTaste.SEEN_LIKED.equals(decision)) excluded.add(key);
             if (RecommendationTaste.SEEN.equals(decision) && "movie".equals(item.optString("type"))) signals.putIfAbsent(key, item);
-            if (RecommendationTaste.COMPLETED.equals(decision) && !reviewed.containsKey(key)) {
+            if (RecommendationTaste.completion(decision) && !reviewed.containsKey(key)) {
                 signals.putIfAbsent(key, item); excluded.add(key);
             }
-            if (RecommendationTaste.MORE.equals(decision)) { signals.putIfAbsent(key, item); stronger.add(key); }
+            if (RecommendationTaste.liked(decision)) { signals.putIfAbsent(key, item); stronger.add(key); }
         }
         for (JSONObject record : signals.values()) {
             CatalogItem item = new CatalogItem(record);

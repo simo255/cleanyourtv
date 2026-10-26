@@ -97,15 +97,7 @@ final class FeedbackSync {
         return pending;
     }
     private void enqueue(JSONObject choice) throws Exception {
-        String type = choice.getString("type"), id = choice.getString("id");
-        FeedbackSyncPolicy.validate(type, id);
-        String action = FeedbackSyncPolicy.action(choice.optString("decision")), prefix = type + ":" + id + ":";
-        if (action.isEmpty()) {
-            // Clearing/hiding cancels unsent work. It never erases history or ratings already sent.
-            pending().remove(prefix + "liked"); pending().remove(prefix + "watched"); return;
-        }
-        if (pending().length() >= 600 && !pending().has(prefix + action)) throw new Exception("Outbox full");
-        pending().put(prefix + action, new JSONObject(choice.toString()).put("action", action));
+        FeedbackSyncPolicy.enqueue(pending(), choice);
     }
     private void drain(String key) throws Exception {
         int version = revision;

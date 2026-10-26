@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="reco_seen_liked">Watched and liked (local)</string>
+    <string name="reco_finished_liked">Finished and liked the series (local)</string>
+    <string name="reco_seen_liked_sync">Watched and liked · Sync to Stremio</string>
+    <string name="reco_finished_liked_sync">Finished and liked the series · Sync to Stremio</string>
     <string name="reco_sync_enable">Sync choices to Stremio</string>
     <string name="reco_sync_disable">Stop syncing choices to Stremio</string>
     <string name="reco_sync_explain">Send existing and future “More like this” choices as Liked, and watched/finished choices as watched history, to the connected Stremio account. Existing Loved ratings stay Loved. Watchly will be asked to refresh; its update may take time. Not interested stays local. Clearing a local choice does not undo changes already sent.</string>

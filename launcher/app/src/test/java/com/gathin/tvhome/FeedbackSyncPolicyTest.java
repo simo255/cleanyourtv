@@ -9,6 +9,43 @@ import java.util.HashSet;
 import static org.junit.Assert.*;
 
 public class FeedbackSyncPolicyTest {
+    @Test public void combinedChoiceQueuesBothWritesAndSurvivesPartialSuccess() throws Exception {
+        JSONObject pending = new JSONObject();
+        JSONObject combined = choice("movie").put("decision", RecommendationTaste.SEEN_LIKED);
+        FeedbackSyncPolicy.enqueue(pending, combined);
+        assertEquals(2, pending.length());
+        assertEquals("watched", pending.getJSONObject("movie:tt12345:watched").getString("action"));
+        assertEquals("liked", pending.getJSONObject("movie:tt12345:liked").getString("action"));
+        pending.remove("movie:tt12345:watched");
+        JSONObject restored = new JSONObject(pending.toString());
+        assertEquals(1, restored.length());
+        assertEquals(RecommendationTaste.SEEN_LIKED, restored.getJSONObject("movie:tt12345:liked").getString("decision"));
+    }
+    @Test public void combinedSeriesRetainsSeasonDecisionsAndEnqueueIsIdempotent() throws Exception {
+        JSONObject pending = new JSONObject();
+        JSONObject combined = choice("series").put("decision", RecommendationTaste.SEEN_LIKED)
+                .put("seasons", new JSONArray().put(new JSONObject().put("season", 1).put("status", "watched")));
+        FeedbackSyncPolicy.enqueue(pending, combined); FeedbackSyncPolicy.enqueue(pending, combined);
+        assertEquals(2, pending.length());
+        assertEquals("watched", pending.getJSONObject("series:tt12345:watched").getJSONArray("seasons").getJSONObject(0).getString("status"));
+        assertFalse(combined.has("action"));
+    }
+    @Test public void clearingCombinedChoiceCancelsBothPendingActions() throws Exception {
+        JSONObject pending = new JSONObject();
+        FeedbackSyncPolicy.enqueue(pending, choice("movie").put("decision", RecommendationTaste.SEEN_LIKED));
+        FeedbackSyncPolicy.enqueue(pending, choice("movie").put("decision", ""));
+        assertEquals(0, pending.length());
+        assertArrayEquals(new String[]{"watched", "liked"}, FeedbackSyncPolicy.actions(RecommendationTaste.SEEN_LIKED));
+        assertArrayEquals(new String[]{"liked"}, FeedbackSyncPolicy.actions(RecommendationTaste.MORE));
+        assertArrayEquals(new String[]{"watched"}, FeedbackSyncPolicy.actions(RecommendationTaste.SEEN));
+    }
+    @Test public void fullOutboxRejectsCombinedChoiceWithoutSavingHalf() throws Exception {
+        JSONObject pending = new JSONObject();
+        for (int i = 0; i < 599; i++) pending.put("entry" + i, new JSONObject());
+        try { FeedbackSyncPolicy.enqueue(pending, choice("movie").put("decision", RecommendationTaste.SEEN_LIKED)); fail(); }
+        catch (Exception expected) { assertEquals(599, pending.length()); }
+        assertFalse(pending.has("movie:tt12345:watched")); assertFalse(pending.has("movie:tt12345:liked"));
+    }
     private static final Instant NOW = Instant.parse("2026-10-25T18:00:00Z");
     private JSONObject choice(String type) throws Exception {
         return new JSONObject().put("id", "tt12345").put("type", type).put("name", "Example");

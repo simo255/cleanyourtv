@@ -170,7 +170,7 @@ final class RecommendationRepository {
     }
     boolean choose(CatalogItem item, String decision) {
         JSONArray seasons = null;
-        if (enhanced && RecommendationTaste.COMPLETED.equals(decision)) try {
+        if (enhanced && "series".equals(item.type) && RecommendationTaste.completion(decision)) try {
             JSONObject state = currentViewing().get(RecommendationTaste.key(item.type, item.id));
             if (state != null && state.optJSONArray("seasons") != null) {
                 seasons = new JSONArray();

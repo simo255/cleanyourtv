@@ -507,7 +507,9 @@ final class RecommendationsShelf {
     private void feedbackMenu(CatalogItem item) {
         int[] names = {R.string.reco_more_like_this, R.string.reco_not_interested,
                 "series".equals(item.type) ? (repository.feedbackSyncEnabled() ? R.string.reco_finished_series_sync : R.string.reco_finished_series)
-                        : (repository.feedbackSyncEnabled() ? R.string.reco_seen_sync : R.string.reco_seen), R.string.reco_clear_choice};
+                        : (repository.feedbackSyncEnabled() ? R.string.reco_seen_sync : R.string.reco_seen),
+                "series".equals(item.type) ? (repository.feedbackSyncEnabled() ? R.string.reco_finished_liked_sync : R.string.reco_finished_liked)
+                        : (repository.feedbackSyncEnabled() ? R.string.reco_seen_liked_sync : R.string.reco_seen_liked), R.string.reco_clear_choice};
         String[] labels = new String[names.length]; for (int i = 0; i < names.length; i++) labels[i] = activity.getString(names[i]);
         new AlertDialog.Builder(activity, dialogTheme).setTitle(item.name)
                 .setItems(labels, (dialog, choice) -> {
@@ -516,7 +518,7 @@ final class RecommendationsShelf {
                         Toast.makeText(activity, R.string.reco_not_enough_info, Toast.LENGTH_LONG).show(); return;
                     }
                     String[] decisions = {RecommendationTaste.MORE, RecommendationTaste.HIDE,
-                            "series".equals(item.type) ? RecommendationTaste.COMPLETED : RecommendationTaste.SEEN, ""};
+                            "series".equals(item.type) ? RecommendationTaste.COMPLETED : RecommendationTaste.SEEN, RecommendationTaste.SEEN_LIKED, ""};
                     if (!repository.choose(item, decisions[choice])) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
                     pendingFocus = -1; render(); focusCard(0);
                 }).setNegativeButton(R.string.done, null).show();

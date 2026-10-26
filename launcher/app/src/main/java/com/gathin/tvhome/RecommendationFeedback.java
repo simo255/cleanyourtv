@@ -35,7 +35,7 @@ final class RecommendationFeedback {
     synchronized boolean choose(CatalogItem item, String decision, JSONArray seasons) {
         if (!decision.isEmpty() && !RecommendationTaste.MORE.equals(decision)
                 && !RecommendationTaste.HIDE.equals(decision) && !RecommendationTaste.SEEN.equals(decision)
-                && !RecommendationTaste.COMPLETED.equals(decision)) return false;
+                && !RecommendationTaste.COMPLETED.equals(decision) && !RecommendationTaste.SEEN_LIKED.equals(decision)) return false;
         try {
             JSONArray next = new JSONArray();
             for (int i = 0; i < entries.length(); i++) {

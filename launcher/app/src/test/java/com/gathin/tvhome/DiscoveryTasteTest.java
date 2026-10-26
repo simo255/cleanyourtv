@@ -9,6 +9,30 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class DiscoveryTasteTest {
+    @Test public void combinedChoiceHidesMoviesAndSeriesAndDoesNotDuplicateImportedEvidence() throws Exception {
+        for (String type : new String[]{"movie", "series"}) {
+            JSONObject record = record("tt1", type, "Crime");
+            JSONArray combined = new JSONArray().put(new JSONObject(record.toString()).put("decision", RecommendationTaste.SEEN_LIKED));
+            RecommendationTaste both = taste(new JSONArray(), combined, new JSONArray());
+            RecommendationTaste liked = taste(new JSONArray(), new JSONArray()
+                    .put(new JSONObject(record.toString()).put("decision", RecommendationTaste.MORE)), new JSONArray());
+            CatalogItem same = new CatalogItem(record), another = new CatalogItem(record("tt9", type, "Crime"));
+            assertTrue(both.apply(Arrays.asList(same), CatalogSource.WATCHLY).isEmpty());
+            assertTrue(both.apply(Arrays.asList(same), CatalogSource.RECENT).isEmpty());
+            assertEquals(liked.score(another), both.score(another), 0);
+            RecommendationTaste imported = taste(new JSONArray().put(new JSONObject(record.toString()).put("completed", true)), combined, new JSONArray());
+            assertEquals(both.score(another), imported.score(another), 0);
+        }
+    }
+    @Test public void combinedSeriesChoiceOverridesUnfinishedLocalExclusionButNotItsLikeWeight() throws Exception {
+        JSONObject unfinished = record("tt1", "series", "Crime").put("seasons", new JSONArray()
+                .put(SeasonViewingTest.season(1, 8, 3, "unfinished")));
+        JSONObject choice = record("tt1", "series", "Crime").put("decision", RecommendationTaste.SEEN_LIKED)
+                .put("seasons", new JSONArray().put(SeasonViewingTest.season(1, 8, 8, "watched")));
+        RecommendationTaste both = taste(new JSONArray(), new JSONArray().put(choice), new JSONArray().put(unfinished));
+        assertTrue(both.learned());
+        assertTrue(both.apply(Arrays.asList(new CatalogItem(record("tt1", "series", "Crime"))), CatalogSource.WATCHLY).isEmpty());
+    }
     private JSONObject record(String id, String type, String genre) throws Exception {
         return new JSONObject().put("id", id).put("type", type).put("name", id).put("genres", new JSONArray().put(genre));
     }

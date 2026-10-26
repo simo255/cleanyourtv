@@ -23,6 +23,24 @@ final class FeedbackSyncPolicy {
         if (RecommendationTaste.SEEN.equals(decision) || RecommendationTaste.COMPLETED.equals(decision)) return "watched";
         return "";
     }
+    static String[] actions(String decision) {
+        if (RecommendationTaste.SEEN_LIKED.equals(decision)) return new String[]{"watched", "liked"};
+        String action = action(decision);
+        return action.isEmpty() ? new String[0] : new String[]{action};
+    }
+    /** Two independent durable entries let a failed like retry without losing a successful watched mark. */
+    static void enqueue(JSONObject pending, JSONObject choice) throws Exception {
+        String type = choice.getString("type"), id = choice.getString("id"); validate(type, id);
+        String prefix = type + ":" + id + ":";
+        String[] actions = actions(choice.optString("decision"));
+        if (actions.length == 0) {
+            pending.remove(prefix + "liked"); pending.remove(prefix + "watched"); return;
+        }
+        int added = 0;
+        for (String action : actions) if (!pending.has(prefix + action)) added++;
+        if (pending.length() + added > 600) throw new Exception("Outbox full");
+        for (String action : actions) pending.put(prefix + action, new JSONObject(choice.toString()).put("action", action));
+    }
     static boolean alreadyWatched(JSONObject row) {
         JSONObject state = row == null ? null : row.optJSONObject("state");
         return state != null && state.optInt("flaggedWatched") > 0 && state.optInt("timesWatched") > 0;

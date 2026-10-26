@@ -14,7 +14,9 @@ import java.util.Set;
 
 /** Completed viewing is positive. Incomplete/unknown viewing contributes no negative signal. */
 final class RecommendationTaste {
-    static final String MORE = "more", HIDE = "hide", SEEN = "seen", COMPLETED = "completed";
+    static final String MORE = "more", HIDE = "hide", SEEN = "seen", COMPLETED = "completed", SEEN_LIKED = "seen_liked";
+    static boolean liked(String decision) { return MORE.equals(decision) || SEEN_LIKED.equals(decision); }
+    static boolean completion(String decision) { return COMPLETED.equals(decision) || SEEN_LIKED.equals(decision); }
     private final Map<String, Double> affinity = new HashMap<>();
     private final Set<String> completed = new HashSet<>(), hidden = new HashSet<>();
     private DiscoveryTaste discovery;
@@ -26,20 +28,26 @@ final class RecommendationTaste {
 
     RecommendationTaste(JSONArray finished, JSONArray choices) {
         Set<String> learned = new HashSet<>();
+        Set<String> explicitLikes = new HashSet<>();
+        if (choices != null) for (int i = 0; i < Math.min(300, choices.length()); i++) {
+            JSONObject record = choices.optJSONObject(i);
+            if (record != null && valid(record) && liked(record.optString("decision")))
+                explicitLikes.add(key(record.optString("type"), record.optString("id")));
+        }
         if (finished != null) for (int i = 0; i < Math.min(1000, finished.length()); i++) {
             JSONObject record = finished.optJSONObject(i);
             if (record == null || !record.optBoolean("completed", false) || !valid(record)) continue;
             String key = key(record.optString("type"), record.optString("id"));
             completed.add(key);
-            if (learned.add(key)) learn(tags(record), 1);
+            if (learned.add(key)) learn(tags(record), explicitLikes.contains(key) ? 2 : 1);
         }
         if (choices != null) for (int i = 0; i < Math.min(300, choices.length()); i++) {
             JSONObject record = choices.optJSONObject(i);
             if (record == null || !valid(record)) continue;
             String decision = record.optString("decision"), key = key(record.optString("type"), record.optString("id"));
-            if (MORE.equals(decision)) learn(tags(record), 2);
+            if (liked(decision) && learned.add(key)) learn(tags(record), 2);
             if (COMPLETED.equals(decision) && learned.add(key)) learn(tags(record), 1);
-            if (HIDE.equals(decision) || SEEN.equals(decision) || COMPLETED.equals(decision)) hidden.add(key);
+            if (HIDE.equals(decision) || SEEN.equals(decision) || completion(decision)) hidden.add(key);
         }
     }
     static String key(String type, String id) { return type + ":" + id; }

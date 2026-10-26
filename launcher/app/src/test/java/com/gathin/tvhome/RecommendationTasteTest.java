@@ -8,6 +8,18 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class RecommendationTasteTest {
+    @Test public void watchedAndLikedHidesTheTitleAndCountsItsPreferenceOnce() throws Exception {
+        JSONObject record = entry("tt1", "Crime");
+        JSONArray combined = new JSONArray().put(new JSONObject(record.toString()).put("decision", RecommendationTaste.SEEN_LIKED));
+        RecommendationTaste both = new RecommendationTaste(new JSONArray(), combined);
+        RecommendationTaste liked = new RecommendationTaste(new JSONArray(), new JSONArray()
+                .put(new JSONObject(record.toString()).put("decision", RecommendationTaste.MORE)));
+        assertTrue(both.apply(Arrays.asList(item("tt1", "Crime")), CatalogSource.WATCHLY).isEmpty());
+        assertEquals(liked.score(item("tt9", "Crime")), both.score(item("tt9", "Crime")), 0);
+        RecommendationTaste imported = new RecommendationTaste(new JSONArray()
+                .put(new JSONObject(record.toString()).put("completed", true)), combined);
+        assertEquals(both.score(item("tt9", "Crime")), imported.score(item("tt9", "Crime")), 0);
+    }
     private JSONObject entry(String id, String genre) throws Exception {
         return new JSONObject().put("id", id).put("type", "series").put("name", id).put("genre", genre);
     }
