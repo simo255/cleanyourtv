@@ -53,12 +53,16 @@ illustrated above. Wallpaper credit: NASA/JPL-Caltech, in the [screenshot notes]
 - **Stremio Continue and Coming next.** Connect by QR code, see films and episodes in progress,
   check remaining time, and open the exact episode in Stremio. A separate view lists dated upcoming
   episodes when metadata is available.
-- **Recommendation years.** Watchly For you follows its configured year range. Trending and the recent-period
-  option in Discover show the current release year and two previous years (2024–2026 in 2026).
+- **Recommendation years.** For you, Trending and the recent-period option in Discover show the current
+  release year and two previous years (2024–2026 in 2026). For you also respects Watchly's configured range.
   Series use their premiere year.
 - **Personalized discovery.** Read your Watchly ElfHosted Top Picks catalogs, filter known
   watched titles, and refine ordering with local positive viewing preferences. Public Cinemeta
   catalogs provide discovery and trending views alongside the private Watchly feed.
+- **Watched and liked in one choice.** Hold OK on a poster to mark a film watched and liked, or a series
+  finished and liked. The title disappears from suggestions and contributes one explicit positive
+  preference. Optional Stremio sync sends both the watched mark and a Liked rating, then requests a
+  Watchly refresh. Separate watched, More like this and Not interested choices remain available.
 - **The Nocturne interface.** Large posters, readable title details and available synopses, clear
   focus, blue source indicators and side menus. Title artwork stays in the poster strip; the optional
   apps-first layout can use a wallpaper behind its content.
@@ -99,9 +103,11 @@ The former Google TV snapshot integration has been removed from the current flow
 
 ```mermaid
 flowchart LR
-    S[Stremio viewing history] -->|Scheduled sync| W[Watchly profile and Top Picks]
+    S[Stremio history and ratings] -->|Watchly imports| W[Watchly profile and Top Picks]
     W -->|Fetch current catalogs| H[Launcher recommendations]
-    L[Local choices: hide, seen, more like this] -->|Immediate filter and ranking| H
+    L[Launcher feedback choices] -->|Immediate filter and ranking| H
+    L -->|Optional positive and watched sync| S
+    L -->|After successful sync: request refresh| W
 ```
 
 | Action | What happens | When |
@@ -111,16 +117,29 @@ flowchart LR
 | Resume an episode | Continue reads the separate Stremio connection. | On return to Home, with a one-minute minimum gap; every 15 minutes while Home stays visible. |
 | Choose **Not interested** | The title disappears and stays hidden across catalog refreshes. | Immediately, on this box. No dislike is uploaded to Watchly or Stremio, and the title's entire genre is not penalized. |
 
-**Refresh fetches existing provider results; it does not force Watchly to rebuild its profile.**
-Feedback stays local by default. Optional **Home content → Sync choices to Stremio** sends existing
-and future positive/watched choices to Stremio and requests a Watchly refresh. Not interested stays
-local. See [Watchly behavior and privacy](docs/watchly.md#sync-explicit-choices-to-stremio).
+**Home content → Refresh** fetches provider results sooner; it does not request a Watchly profile rebuild.
+Optional choice sync additionally requests a Watchly refresh after successful account writes and reloads
+its catalogs. Watchly's own caches can delay the result; a refresh request is not proof of a finished rebuild.
 
 ## How I improved recommendations
 
 The guiding rule is simple: **confirmed completion is positive; unfinished viewing is neutral**.
-An explicit **Not interested** choice hides that title. Holding OK on a catalog poster opens the
-local feedback menu, including More like this, Finished and clearing a choice.
+Holding OK on a catalog poster opens the feedback menu. Choices stay local by default. Enable
+**Home content → Sync choices to Stremio** to send existing saved positive/watched choices and future
+choices to the connected Stremio account, which Watchly reads.
+
+| Choice | Effect on Home | With choice sync enabled |
+|---|---|---|
+| **More like this / Plus comme ça** | Strengthens similar recommendations without marking the title watched. | Sends a Stremio **Liked** rating; an existing **Loved** rating is preserved. |
+| **Already watched / Déjà vu** or **Finished the series / Série terminée** | Hides the title; confirmed completion can contribute to local taste. | Updates Stremio watched history. Series completion covers dated, aired regular episodes and preserves resume positions and watch dates. |
+| **Watched and liked / Vu et aimé** or **Finished and liked the series / Série terminée et aimée** | Hides the title and gives it the same explicit positive preference weight as More like this, counted once even if completion was already imported. | Sends **both** watched history and a Liked rating to Stremio, preserving existing Loved ratings. |
+| **Not interested / Pas intéressé** | Hides that title without penalizing its entire genre. | Stays local; no dislike is sent to Stremio or Watchly. |
+| **Undo my choice** | Removes this saved local choice. Imported viewing history still applies. | Cancels unsent work for the title; it does not undo account changes already sent. |
+
+Pending account changes survive restarts and retry while Home is active. The combined choice's two
+writes retry independently, so a successful watched mark is kept if the rating must be retried.
+Existing watched titles are not automatically treated as liked. See
+[choice sync, privacy and limits](docs/watchly.md#sync-explicit-choices-to-stremio).
 
 The optional enhanced mode adds:
 
