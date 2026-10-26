@@ -49,8 +49,9 @@ final class DiscoveryTaste {
         Set<String> stronger = new HashSet<>();
         for (JSONObject item : records(choices).values()) {
             String decision = item.optString("decision"), key = key(item);
+            // Series completion follows current seasons, including for an explicitly liked series.
             if (RecommendationTaste.HIDE.equals(decision) || RecommendationTaste.SEEN.equals(decision)
-                    || RecommendationTaste.SEEN_LIKED.equals(decision)) excluded.add(key);
+                    || (RecommendationTaste.SEEN_LIKED.equals(decision) && "movie".equals(item.optString("type")))) excluded.add(key);
             if (RecommendationTaste.SEEN.equals(decision) && "movie".equals(item.optString("type"))) signals.putIfAbsent(key, item);
             if (RecommendationTaste.completion(decision) && !reviewed.containsKey(key)) {
                 signals.putIfAbsent(key, item); excluded.add(key);

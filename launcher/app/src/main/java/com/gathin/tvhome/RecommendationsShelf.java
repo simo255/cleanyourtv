@@ -59,6 +59,8 @@ final class RecommendationsShelf {
     private final TextView emptyMessage;
     private final CinemaPreview preview;
     private int lastFocusedCard;
+    private String lastFocusedKey = "";
+    private boolean returningFromItem;
     private boolean showSeries, dockVisible = true, enabled;
     private boolean fitsAboveDock = true;
     private float lastDockTop;
@@ -240,7 +242,7 @@ final class RecommendationsShelf {
     }
     private void source(int selected, boolean refresh) {
         if (source == CatalogSource.STREMIO && selected != source) stremio.pause();
-        source = selected; pendingFocus = -1; lastFocusedCard = 0;
+        source = selected; pendingFocus = -1; lastFocusedCard = 0; lastFocusedKey = "";
         activity.getSharedPreferences("recommendations", 0).edit().putInt("source", source).apply();
         for (int i : CatalogSource.displayOrder()) {
             if (refined) sources[i].setSelected(i == source);
@@ -250,7 +252,7 @@ final class RecommendationsShelf {
         if (refresh) { host.removeCallbacks(focusRefresh); refresh(AccountRefresh.Trigger.FOREGROUND, true); }
     }
     private void category(boolean series) {
-        pendingFocus = -1; lastFocusedCard = 0;
+        pendingFocus = -1; lastFocusedCard = 0; lastFocusedKey = "";
         if (source == TV) {
             tvResume = series;
             activity.getSharedPreferences("recommendations", 0).edit().putBoolean("tv_resume", series).apply();
@@ -384,6 +386,12 @@ final class RecommendationsShelf {
     private boolean separatePage, pageVisible;
     void separatePage() {
         separatePage = true;
+        if (refined) {
+            ViewGroup.LayoutParams params = list.getLayoutParams();
+            params.height = dp(220);
+            list.setLayoutParams(params);
+            repository.posterTarget(dp(160), dp(240));
+        }
         if (preview != null) preview.wallpaperContrast();
         updateVisibility();
     }
@@ -418,6 +426,19 @@ final class RecommendationsShelf {
     void pause() { host.removeCallbacks(focusRefresh); stremio.pause(); }
     void close() { host.removeCallbacks(focusRefresh); repository.close(); tv.close(); stremio.close(); }
     boolean focused() { return host.hasFocus(); }
+    boolean returningFromItem() { return returningFromItem; }
+    void returnedFromItem() { returningFromItem = false; }
+    void saveNavigation(android.os.Bundle state) {
+        state.putInt("recommendation_position", lastFocusedCard);
+        state.putString("recommendation_key", lastFocusedKey);
+        state.putBoolean("recommendation_return", returningFromItem);
+    }
+    void restoreNavigation(android.os.Bundle state) {
+        lastFocusedKey = state.getString("recommendation_key", "");
+        lastFocusedCard = Math.max(0, RecommendationFocus.position(adapter.values, lastFocusedKey,
+                state.getInt("recommendation_position", 0)));
+        returningFromItem = state.getBoolean("recommendation_return", false);
+    }
     boolean focusPreviousCard() { return focusCard(lastFocusedCard); }
     boolean focusCard(int preferred) {
         if (!visible()) return false;
@@ -436,8 +457,12 @@ final class RecommendationsShelf {
     }
     private void focusPending() {
         if (!visible() || pendingFocus < 0) return;
+        if (list.hasPendingAdapterUpdates() || list.isLayoutRequested()) {
+            list.postOnAnimation(this::focusPending);
+            return;
+        }
         RecyclerView.ViewHolder holder = list.findViewHolderForAdapterPosition(pendingFocus);
-        if (holder != null) { holder.itemView.requestFocus(); pendingFocus = -1; }
+        if (holder != null && holder.itemView.requestFocus()) pendingFocus = -1;
     }
     void menu() {
         String choiceStatus = repository.feedbackSyncEnabled() || repository.feedbackSyncMessage() == R.string.reco_sync_connection_changed
@@ -515,7 +540,8 @@ final class RecommendationsShelf {
                 "series".equals(item.type) ? (repository.feedbackSyncEnabled() ? R.string.reco_finished_liked_sync : R.string.reco_finished_liked)
                         : (repository.feedbackSyncEnabled() ? R.string.reco_seen_liked_sync : R.string.reco_seen_liked), R.string.reco_clear_choice};
         String[] labels = new String[names.length]; for (int i = 0; i < names.length; i++) labels[i] = activity.getString(names[i]);
-        new AlertDialog.Builder(activity, dialogTheme).setTitle(item.name)
+        Runnable[] afterDismiss = new Runnable[1];
+        AlertDialog feedbackDialog = new AlertDialog.Builder(activity, dialogTheme).setTitle(item.name)
                 .setItems(labels, (dialog, choice) -> {
                     if (choice == 0 && RecommendationTaste.tags(item.genres).isEmpty()
                             && (!repository.enhanced() || (item.allGenres.isEmpty() && item.cast.isEmpty() && item.directors.isEmpty()))) {
@@ -523,9 +549,25 @@ final class RecommendationsShelf {
                     }
                     String[] decisions = {RecommendationTaste.MORE, RecommendationTaste.HIDE,
                             "series".equals(item.type) ? RecommendationTaste.COMPLETED : RecommendationTaste.SEEN, RecommendationTaste.SEEN_LIKED, ""};
-                    if (!repository.choose(item, decisions[choice])) Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show();
-                    pendingFocus = -1; render(); focusCard(lastFocusedCard);
-                }).setNegativeButton(R.string.done, null).show();
+                    String nextKey = RecommendationFocus.after(adapter.values, RecommendationFocus.key(item));
+                    int nextPosition = lastFocusedCard;
+                    int feedbackSource = source; boolean feedbackSecondary = secondary();
+                    if (!repository.choose(item, decisions[choice])) {
+                        Toast.makeText(activity, R.string.reco_feedback_error, Toast.LENGTH_SHORT).show(); return;
+                    }
+                    pendingFocus = -1;
+                    render();
+                    // Restore after the dialog releases window focus, using the next title from
+                    // the original list, even when the evaluation has reordered the new list.
+                    afterDismiss[0] = () -> {
+                        if (visible() && source == feedbackSource && secondary() == feedbackSecondary)
+                            focusCard(RecommendationFocus.position(adapter.values, nextKey, nextPosition));
+                    };
+                }).setNegativeButton(R.string.done, null).create();
+        feedbackDialog.setOnDismissListener(dialog -> {
+            if (afterDismiss[0] != null) list.postOnAnimation(afterDismiss[0]);
+        });
+        feedbackDialog.show();
     }
     private void feedbackSyncMenu() {
         if (repository.feedbackSyncEnabled()) { repository.toggleFeedbackSync(); return; }
@@ -541,17 +583,17 @@ final class RecommendationsShelf {
             if (item.kind == StremioProgress.UPCOMING) { Toast.makeText(activity, R.string.stremio_not_released, Toast.LENGTH_SHORT).show(); return; }
             Uri.Builder link = new Uri.Builder().scheme("stremio").authority("").appendPath("detail").appendPath(item.type).appendPath(item.id);
             if (!item.video.isEmpty()) link.appendPath(item.video);
-            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, link.build()).setPackage("com.stremio.one")); }
+            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, link.build()).setPackage("com.stremio.one")); returningFromItem = true; }
             catch (Exception ignored) { Toast.makeText(activity, R.string.reco_open_error, Toast.LENGTH_LONG).show(); }
             return;
         }
         if ("tv".equals(title.type)) {
-            try { activity.startActivity(TvCatalog.intent(tvPrograms.get(title.id))); }
+            try { activity.startActivity(TvCatalog.intent(tvPrograms.get(title.id))); returningFromItem = true; }
             catch (Exception ignored) { Toast.makeText(activity, R.string.reco_open_error, Toast.LENGTH_LONG).show(); }
             return;
         }
         Uri uri = new Uri.Builder().scheme("stremio").authority("").appendPath("detail").appendPath(title.type).appendPath(title.id).build();
-        try { activity.startActivity(new Intent(Intent.ACTION_VIEW, uri).setPackage("com.stremio.one")); }
+        try { activity.startActivity(new Intent(Intent.ACTION_VIEW, uri).setPackage("com.stremio.one")); returningFromItem = true; }
         catch (Exception ignored) { Toast.makeText(activity, R.string.reco_open_error, Toast.LENGTH_LONG).show(); }
     }
     private final class Posters extends RecyclerView.Adapter<Poster> {
@@ -579,8 +621,8 @@ final class RecommendationsShelf {
             boolean contextChanged = renderedSource != source || renderedSecondary != secondary();
             boolean resumeChanged = !resumeSignature.equals(signature.toString());
             List<CatalogItem> previous = new ArrayList<>(values), replacement = new ArrayList<>(limited);
-            String focusedKey = !contextChanged && lastFocusedCard < previous.size()
-                    ? previous.get(lastFocusedCard).type + ":" + previous.get(lastFocusedCard).id : "";
+            String focusedKey = contextChanged ? "" : lastFocusedKey;
+            boolean restoreFocus = !contextChanged && list.hasFocus();
             androidx.recyclerview.widget.DiffUtil.DiffResult diff = androidx.recyclerview.widget.DiffUtil.calculateDiff(
                     new androidx.recyclerview.widget.DiffUtil.Callback() {
                         @Override public int getOldListSize() { return previous.size(); }
@@ -602,11 +644,12 @@ final class RecommendationsShelf {
             // Keep in-flight images on ordinary refreshes. A different catalog cancels obsolete work.
             if (contextChanged) repository.beginPosterBatch();
             values.clear(); values.addAll(replacement);
-            for (int i = 0; i < values.size(); i++) if (focusedKey.equals(values.get(i).type + ":" + values.get(i).id)) {
-                lastFocusedCard = i; break;
-            }
-            lastFocusedCard = Math.max(0, Math.min(lastFocusedCard, values.size() - 1));
+            lastFocusedCard = Math.max(0, RecommendationFocus.position(values, focusedKey, lastFocusedCard));
+            final int restoredPosition = lastFocusedCard;
             diff.dispatchUpdatesTo(this);
+            if (restoreFocus) list.postOnAnimation(() -> {
+                if (visible() && list.hasFocus()) focusCard(restoredPosition);
+            });
             if (preview != null) {
                 if (values.isEmpty()) preview.clear();
                 else showPreview(Math.min(lastFocusedCard, values.size() - 1));
@@ -630,7 +673,7 @@ final class RecommendationsShelf {
             holder.progress.setVisibility(resume != null && resume.percent() >= 0 ? View.VISIBLE : View.GONE);
             if (resume != null) holder.progress.setProgress(Math.max(0, resume.percent()));
             ViewGroup.LayoutParams params = holder.itemView.getLayoutParams();
-            int width = dp("tv".equals(title.type) ? 156 : refined ? 120 : source == CatalogSource.STREMIO ? 156 : 120);
+            int width = dp("tv".equals(title.type) ? 156 : refined ? (separatePage ? 144 : 120) : source == CatalogSource.STREMIO ? 156 : 120);
             if (params.width != width) { params.width = width; holder.itemView.setLayoutParams(params); }
             holder.itemView.setContentDescription(title.name + " \u00B7 " + caption(title));
             holder.itemView.setOnClickListener(v -> open(title)); repository.poster(title.poster, holder.image);
@@ -696,6 +739,7 @@ final class RecommendationsShelf {
                     if (position >= 0 && position < adapter.values.size()) {
                         CatalogItem selected = adapter.values.get(position);
                         lastFocusedCard = position;
+                        lastFocusedKey = RecommendationFocus.key(selected);
                         if (refined) showPreview(position);
                         else status.setText(selected.name + " \u00B7 " + caption(selected));
                     }

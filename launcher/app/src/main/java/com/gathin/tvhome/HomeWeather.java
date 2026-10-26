@@ -28,13 +28,17 @@ final class HomeWeather {
     private final ContentObserver observer = new ContentObserver(main) {
         @Override public void onChange(boolean selfChange) { read(); }
     };
-    private boolean active, observed, closed;
+    private boolean active, observed, closed, visible = true;
 
     HomeWeather(Activity activity, TextView view) {
         this.activity = activity; this.view = view;
         view.setText(R.string.home_weather_pending);
         view.setContentDescription(activity.getString(R.string.home_weather_pending));
         view.setVisibility(View.VISIBLE);
+    }
+    void visible(boolean shown) {
+        visible = shown;
+        view.setVisibility(shown ? View.VISIBLE : View.GONE);
     }
     void resume() {
         if (closed || active) return;
@@ -57,16 +61,22 @@ final class HomeWeather {
                     if (!city.isEmpty() && temp >= -100 && temp <= 70 && at > 0 && at <= System.currentTimeMillis() + 300_000) {
                         String time = DateFormat.getTimeFormat(activity).format(new Date(at));
                         boolean stale = System.currentTimeMillis() - at >= 30 * 60_000L;
-                        label = activity.getString(R.string.home_weather_current, temp) + "  ·  "
-                                + (stale ? activity.getString(R.string.home_weather_saved, time) : condition);
+                        label = activity.getString(R.string.home_weather_current, temp);
+                        int feelsColumn = cursor.getColumnIndex("feels");
+                        if (feelsColumn >= 0 && !cursor.isNull(feelsColumn)) {
+                            int feels = cursor.getInt(feelsColumn);
+                            if (feels >= -100 && feels <= 70)
+                                label += "   ·   " + activity.getString(R.string.home_weather_feels_like, feels);
+                        }
+                        if (!condition.isEmpty()) label += "   ·   " + condition;
+                        if (stale) label += "   ·   " + activity.getString(R.string.home_weather_saved, time);
                         detail = label;
                         int forecastColumn = cursor.getColumnIndex("forecast");
                         if (forecastColumn >= 0) {
                             String forecast = cursor.getString(forecastColumn);
                             LocalDate today = LocalDate.now();
-                            label = forecastLine(R.string.home_weather_today, WeatherBand.day(forecast, today))
+                            label += "\n" + forecastLine(R.string.home_weather_today, WeatherBand.day(forecast, today))
                                     + "\n" + forecastLine(R.string.home_weather_tomorrow, WeatherBand.day(forecast, today.plusDays(1)));
-                            if (stale) label += "\n" + activity.getString(R.string.home_weather_saved, time);
                             detail = label;
                         }
                     }
@@ -79,7 +89,7 @@ final class HomeWeather {
                 view.setText(text.isEmpty() ? activity.getString(R.string.home_weather_pending) : text);
                 view.setContentDescription(description.isEmpty()
                         ? activity.getString(R.string.home_weather_pending) : description);
-                view.setVisibility(View.VISIBLE);
+                view.setVisibility(visible ? View.VISIBLE : View.GONE);
             });
         });
     }

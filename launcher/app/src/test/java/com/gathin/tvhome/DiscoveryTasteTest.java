@@ -62,6 +62,30 @@ public class DiscoveryTasteTest {
         assertTrue(taste.learned());
         assertEquals(1, taste.apply(Arrays.asList(new CatalogItem(viewed)), CatalogSource.WATCHLY).size());
     }
+    @Test public void bothCompletionChoicesReturnForNewAiredSeasonAndRetainTheirTasteWeight() throws Exception {
+        CatalogItem candidate = new CatalogItem(record("tt2", "series", "Crime"));
+        for (String decision : new String[]{RecommendationTaste.COMPLETED, RecommendationTaste.SEEN_LIKED}) {
+            JSONObject choice = record("tt1", "series", "Crime").put("decision", decision)
+                    .put("seasons", new JSONArray().put(SeasonViewingTest.season(1, 8, 8, "watched")));
+            JSONObject current = record("tt1", "series", "Crime").put("seasons", new JSONArray()
+                    .put(SeasonViewingTest.season(1, 8, 8, "")));
+            JSONArray choices = new JSONArray().put(choice);
+            double score = taste(new JSONArray(), choices, new JSONArray().put(current)).score(candidate);
+            assertTrue(score > 0);
+            JSONObject next = SeasonViewingTest.season(2, 8, 0, "").put("aired", 0).put("future", 8);
+            current.getJSONArray("seasons").put(next);
+            RecommendationTaste upcoming = taste(new JSONArray(), choices, new JSONArray().put(current));
+            assertTrue(upcoming.apply(Arrays.asList(new CatalogItem(current)), CatalogSource.WATCHLY).isEmpty());
+            next.put("aired", 1).put("future", 7);
+            RecommendationTaste aired = taste(new JSONArray(), choices, new JSONArray().put(current));
+            for (int source : new int[]{CatalogSource.WATCHLY, CatalogSource.RECENT, CatalogSource.TRENDING})
+                assertEquals(decision, 1, aired.apply(Arrays.asList(new CatalogItem(current)), source).size());
+            assertEquals(score, aired.score(candidate), 0);
+            next.put("aired", 8).put("future", 0).put("watched", 8);
+            assertTrue(taste(new JSONArray(), choices, new JSONArray().put(current))
+                    .apply(Arrays.asList(new CatalogItem(current)), CatalogSource.WATCHLY).isEmpty());
+        }
+    }
     @Test public void newManualCompletionOverridesReviewedSeasonsButNotANewSeason() throws Exception {
         JSONObject reviewed = record("tt1", "series", "Crime").put("seasons", new JSONArray().put(SeasonViewingTest.season(1, 8, 0, "unfinished")));
         JSONObject choice = record("tt1", "series", "Crime").put("decision", "completed")

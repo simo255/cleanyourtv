@@ -10,6 +10,7 @@
     <string name="home_weather_today">Today</string>
     <string name="home_weather_pending">Weather · Forecast unavailable</string>
     <string name="home_weather_current">Now %1$d°</string>
+    <string name="home_weather_feels_like">Feels like %1$d°</string>
     <string name="home_weather_tomorrow">Tomorrow</string>
     <string name="home_weather_forecast_missing">Forecast unavailable</string>
     <string name="home_weather_precipitation">Precip. %1$d%%</string>

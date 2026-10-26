@@ -1,7 +1,7 @@
 # Android TV Home · Stremio + Watchly
 
 <p align="center">
-  <img src="docs/assets/home-overview.svg" alt="Illustrated Apps-first and Nocturne layouts with full-logo app tiles, circular controls and fictional movie posters. No personal data." width="1200">
+  <img src="docs/assets/onn-apps-first-home.png" alt="Apps-first Home on an onn Android TV: favorite apps, clock-aligned controls, current and feels-like temperatures, and a beach wallpaper. No location or account identifiers." width="1200">
 </p>
 
 <p align="center"><strong>Native Java · Android TV 8+ · English &amp; French · Optional account connections · No telemetry</strong></p>
@@ -31,20 +31,31 @@ The original launcher, TV lists, themes and cleanup tools remain part of the pro
 
 | Apps first | Nocturne catalog layout |
 |---|---|
-| Favorite apps on the main screen; press **Down** for recommendations, then Down again for the other apps. | Title details, synopses and recommendations above the app dock, on a solid background. |
+| Favorite apps on the main screen; press **Down** for recommendations, then use **All applications** for the other apps. | Title details, synopses and recommendations above the app dock, on a solid background. |
 | Rounded full-logo app tiles, compact circular header buttons and an optional wallpaper. | Large posters, blue source indicators and side menus; hold OK for the full synopsis. |
 
-The illustration above uses demo content, not an account's recommendations or location.
 Apps, recommendations and wallpaper depend on your own setup. Both layouts are optional; see
 [customization](PERSONALIZATION.md#customize) and the [Nocturne theme](themes/nocturne/config.json).
 
+## Screenshots from a real TV
+
+The Home screenshot above and the recommendations page below were captured on an **onn Streaming
+Device 4K Pro running Android TV 12**. The header controls line up with the clock and date. Home
+shows current and feels-like temperatures plus today's and tomorrow's forecasts; weather disappears
+on the recommendations page to leave more room for title details and larger posters.
+
+![Recommendations on the onn TV, with weather hidden, larger posters, readable title details and one focused poster](docs/assets/onn-recommendations.png)
+
+The captures contain app logos and film artwork, with no account identifiers, location labels or
+network details. The beach wallpaper comes from [Unsplash](https://images.unsplash.com/photo-1507525428034-b723cf961d3e).
+App logos and film artwork belong to their respective owners.
+
 <details>
-<summary>Real-device example: apps-first Home</summary>
+<summary>Illustration of both optional layouts</summary>
 
-![Earlier apps-first configuration on an onn TV, without location or account details](docs/switches/apps_first_home.jpg)
+![Illustrated Apps-first and Nocturne layouts with fictional movie posters](docs/assets/home-overview.svg)
 
-This earlier configuration uses icon tiles; Nocturne now also supports the full-logo presentation
-illustrated above. Wallpaper credit: NASA/JPL-Caltech, in the [screenshot notes](docs/switches.md).
+This illustration uses demo content. The screenshots above show the actual apps-first interface.
 
 </details>
 
@@ -53,9 +64,9 @@ illustrated above. Wallpaper credit: NASA/JPL-Caltech, in the [screenshot notes]
 - **Stremio Continue and Coming next.** Connect by QR code, see films and episodes in progress,
   check remaining time, and open the exact episode in Stremio. A separate view lists dated upcoming
   episodes when metadata is available.
-- **Recommendation years.** For you, Trending and the recent-period option in Discover show the current
-  release year and two previous years (2024–2026 in 2026). For you also respects Watchly's configured range.
-  Series use their premiere year.
+- **Recommendation years.** For you and Trending show the current release year and two previous
+  years (2024–2026 in 2026). Discover uses the same window by default; its menu can explicitly enable
+  all years. For you also respects Watchly's configured range. Series use their premiere year.
 - **Personalized discovery.** Read your Watchly ElfHosted Top Picks catalogs, filter known
   watched titles, and refine ordering with local positive viewing preferences. Public Cinemeta
   catalogs provide discovery and trending views alongside the private Watchly feed.
@@ -69,9 +80,15 @@ illustrated above. Wallpaper credit: NASA/JPL-Caltech, in the [screenshot notes]
 - **Home organized into three levels.** With apps-first enabled, move from favorite apps to
   recommendations to the remaining-app grid. Up, Back and Home provide a route back. Films and Series
   change on click or OK; moving focus between those two buttons keeps the current category.
+- **Keep your place while browsing.** Returning from a Stremio title restores its recommendations
+  page and selected title. After a successful feedback choice, focus advances to the next title from
+  the original list, even if ranking changes. At the end of the list it falls back to the previous
+  title, or the nearest remaining position if that title also disappears.
 - **Controls for everyday use.** A remote-editable dock with up to seven slots, a quick menu,
-  wallpaper rotation with Next/Keep/Resume controls, and optional weather from the separate
-  [Weather add-on](addons/weather/README.md).
+  wallpaper rotation with Next/Keep/Resume controls, and compact header buttons aligned with the
+  clock. Optional weather from the separate [Weather add-on](addons/weather/README.md) shows current
+  and feels-like temperatures plus two-day forecasts on Home, then hides while browsing
+  recommendations. The freed space supports larger posters and more synopsis text.
 - **Local VPN status.** Show Android's VPN connection state. An optional country label comes from
   the configured VPN app's notification, with notification access; it does not use an IP lookup.
 - **Reliability work.** Preserve encrypted Stremio sessions through temporary Keystore failures,
@@ -79,9 +96,10 @@ illustrated above. Wallpaper credit: NASA/JPL-Caltech, in the [screenshot notes]
   bound catalog requests, poster decoding and caches. Selected upstream fixes are integrated
   alongside these changes.
 - **Motion and stable focus.** Short focus zooms and page transitions, with reduced-motion support.
-  Poster refreshes keep existing artwork. Returning from recommendations restores the selected app
-  without briefly highlighting weather. App holders are prepared while idle, and page changes avoid
-  unnecessary full-grid refreshes.
+  Poster refreshes keep existing artwork. The dock outline follows its tile after layout changes
+  and stays hidden on the recommendations page. Returning from recommendations restores the selected
+  app without briefly highlighting weather. App holders are prepared while idle, and page changes
+  avoid unnecessary full-grid refreshes.
 
 The additions in this fork support **English and French**. Upstream translations, module cards
 and themes remain available; the upstream reference documentation is preserved below.
@@ -92,7 +110,7 @@ and themes remain available; the upstream reference documentation is preserved b
 |---|---|---|
 | **Continue / Reprendre** | Your separate Stremio QR connection | Resume viewing or check upcoming episodes. |
 | **For you / Watchly** | Your Watchly ElfHosted add-on | Account recommendations, with local filtering and ranking. |
-| **Discover / Découvrir** | Public Cinemeta catalogs, in enhanced mode | Explore recent and older titles across years and genres. Basic mode shows **New releases** instead. |
+| **Discover / Découvrir** | Public Cinemeta catalogs, in enhanced mode | Explore the current release year and two previous years by default; optionally enable all years in the menu. Basic mode shows **New releases** instead. |
 | **Trending / Tendances** | Public Cinemeta Popular catalogs | Browse popular titles in provider order, with known watched exclusions in enhanced mode. |
 
 Stremio resume and the Watchly catalog are **separate connections**. Connecting one does not connect
@@ -210,12 +228,16 @@ a separate operation in [PROMPT.md](PROMPT.md), with backups and reversible pack
 ## Device checks and project credits
 
 Development and device checks use an **onn Streaming Device 4K Pro running Android TV 12**.
-The launcher passes **357 JVM tests**, release lint with zero errors and a release build.
+The launcher passes **383 JVM tests**, release lint with zero errors and a release build
+(685,080-byte release APK for this revision).
 On that TV, debug-build checks covered enhanced catalog refresh, poster rendering, D-pad navigation,
 click-only film/series selection, and preservation of the account session, theme, dock and Home setup.
-The recommendations-to-apps focus fix was checked through repeated page changes and deliberate weather
-selection. Layout work is reduced, but occasional frame-time spikes remain measurable; a constant frame
-rate is not guaranteed. The subsequent twelve-hour cache adjustment has unit coverage; its full interval
+Recent checks also covered ten rapid page round trips, returning from a Stremio title to the same
+poster, current/feels-like weather, clock-aligned controls, and weather hiding and returning across
+page changes. The poster row grew from 364 to 440 pixels on this TV. Feedback-menu focus was tested
+with a local undo on a title without a saved choice, preserving existing ratings; JVM tests cover
+ranking changes, removals and list boundaries. Layout work is reduced, but occasional frame-time spikes
+remain measurable; a constant frame rate is not guaranteed. The twelve-hour cache adjustment has unit coverage; its full interval
 has not been verified by a twelve-hour device run. Other devices, firmware and playback paths need their
 own validation.
 

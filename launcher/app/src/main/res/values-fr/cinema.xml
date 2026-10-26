@@ -10,6 +10,7 @@
     <string name="home_weather_today">Aujourd’hui</string>
     <string name="home_weather_pending">Météo · Prévisions indisponibles</string>
     <string name="home_weather_current">Actuellement %1$d°</string>
+    <string name="home_weather_feels_like">Ressenti %1$d°</string>
     <string name="home_weather_tomorrow">Demain</string>
     <string name="home_weather_forecast_missing">Prévisions indisponibles</string>
     <string name="home_weather_precipitation">Précip. %1$d%%</string>

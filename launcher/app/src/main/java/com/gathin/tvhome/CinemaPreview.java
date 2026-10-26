@@ -71,7 +71,7 @@ final class CinemaPreview extends LinearLayout {
 
     @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int height = MeasureSpec.getSize(heightMeasureSpec);
-        int lines = height >= dp(160) ? 3 : 2;
+        int lines = height >= dp(128) ? 3 : 2;
         if (summary.getMaxLines() != lines) summary.setMaxLines(lines);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }

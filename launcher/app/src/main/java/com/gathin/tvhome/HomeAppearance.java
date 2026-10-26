@@ -112,8 +112,12 @@ final class HomeAppearance {
             block.getLocationOnScreen(headerPosition);
             activity.findViewById(R.id.root).getLocationOnScreen(rootPosition);
             int margin = Math.max(Math.round(70 * d), headerPosition[1] - rootPosition[1] + block.getHeight() + Math.round(12 * d));
-            FrameLayout.LayoutParams layout = (FrameLayout.LayoutParams) shelf.getLayoutParams();
-            if (layout.topMargin != margin) { layout.topMargin = margin; shelf.setLayoutParams(layout); }
+            // Weather can disappear during this layout pass. Resize the shelf afterwards,
+            // so its MATCH_PARENT children are measured with the new margin before drawing.
+            shelf.post(() -> {
+                FrameLayout.LayoutParams layout = (FrameLayout.LayoutParams) shelf.getLayoutParams();
+                if (layout.topMargin != margin) { layout.topMargin = margin; shelf.setLayoutParams(layout); }
+            });
         });
         // The full app grid is reached with Down. Do not leave half a row peeking below Home.
         TextView bottomMask = new TextView(activity);

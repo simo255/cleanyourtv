@@ -126,7 +126,7 @@ final class RecommendationRepository {
     }
     boolean configured() { return !base.isEmpty(); }
     boolean enhanced() { return enhanced; }
-    boolean recentOnly() { return !enhanced || preferences.getBoolean("recent_only", false); }
+    boolean recentOnly() { return !enhanced || preferences.getBoolean("recent_only", true); }
     void togglePeriod() { preferences.edit().putBoolean("recent_only", !recentOnly()).apply(); }
     void observe(JSONObject values) {
         if (!enhanced) return;
